@@ -173,8 +173,21 @@ build-wasm:
     echo "Building WebAssembly module..."
     mkdir -p playground
     GOOS=js GOARCH=wasm go build -ldflags '-s -w' -o playground/justgohtml.wasm ./cmd/wasm
-    # Copy wasm_exec.js from Go installation
-    cp "$(go env GOROOT)/lib/wasm/wasm_exec.js" playground/
+    # Copy wasm_exec.js from Go installation (try multiple possible locations)
+    GOROOT="$(go env GOROOT)"
+    WASM_EXEC=""
+    for path in "$GOROOT/lib/wasm/wasm_exec.js" "$GOROOT/misc/wasm/wasm_exec.js"; do
+        if [ -f "$path" ]; then
+            WASM_EXEC="$path"
+            break
+        fi
+    done
+    if [ -z "$WASM_EXEC" ]; then
+        echo "Error: wasm_exec.js not found in GOROOT ($GOROOT)"
+        echo "Searched: lib/wasm/wasm_exec.js, misc/wasm/wasm_exec.js"
+        exit 1
+    fi
+    cp "$WASM_EXEC" playground/
     echo "WASM build complete: playground/justgohtml.wasm"
     ls -lh playground/justgohtml.wasm
 

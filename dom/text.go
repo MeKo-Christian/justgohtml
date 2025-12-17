@@ -95,6 +95,12 @@ func (c *Comment) InsertBefore(_, _ Node) {}
 // RemoveChild implements Node (no-op for comment nodes).
 func (c *Comment) RemoveChild(_ Node) {}
 
+// ReplaceChild implements Node (no-op for comment nodes).
+func (c *Comment) ReplaceChild(_, _ Node) Node { return nil }
+
+// HasChildNodes implements Node (comment nodes have no children).
+func (c *Comment) HasChildNodes() bool { return false }
+
 // Clone implements Node.
 func (c *Comment) Clone(_ bool) Node {
 	return &Comment{Data: c.Data}
