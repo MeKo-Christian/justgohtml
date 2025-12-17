@@ -100,7 +100,13 @@ func ParseFragment(html string, context string, opts ...Option) ([]*dom.Element,
 // parse is the internal parsing implementation.
 func parse(html string, cfg *config) (*dom.Document, error) {
 	tok := tokenizer.New(html)
+	if cfg.xmlCoercion {
+		tok.SetXMLCoercion(true)
+	}
 	tb := treebuilder.New(tok)
+	if cfg.iframeSrcdoc {
+		tb.SetIframeSrcdoc(true)
+	}
 
 	for {
 		tt := tok.Next()
@@ -126,7 +132,13 @@ func parse(html string, cfg *config) (*dom.Document, error) {
 // parseFragment is the internal fragment parsing implementation.
 func parseFragment(html string, cfg *config) ([]*dom.Element, error) {
 	tok := tokenizer.New(html)
+	if cfg.xmlCoercion {
+		tok.SetXMLCoercion(true)
+	}
 	tb := treebuilder.NewFragment(tok, cfg.fragmentContext)
+	if cfg.iframeSrcdoc {
+		tb.SetIframeSrcdoc(true)
+	}
 
 	for {
 		tt := tok.Next()

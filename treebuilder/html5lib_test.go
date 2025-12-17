@@ -129,24 +129,32 @@ func runSingleTreeConstructionTest(test testutil.TreeConstructionTest) (got stri
 	want = strings.TrimRight(test.Document, "\n")
 
 	if test.FragmentContext != "" {
-		got, err = parseHTML5LibFragment(test.Data, test.FragmentContext)
+		got, err = parseHTML5LibFragment(test.Data, test.FragmentContext, test.XMLCoercion)
 		return got, want, "", err
 	}
 
-	doc, err := JustGoHTML.Parse(test.Data)
+	opts := []JustGoHTML.Option{}
+	if test.IframeSrcdoc {
+		opts = append(opts, JustGoHTML.WithIframeSrcdoc())
+	}
+	if test.XMLCoercion {
+		opts = append(opts, JustGoHTML.WithXMLCoercion())
+	}
+	doc, err := JustGoHTML.Parse(test.Data, opts...)
 	if err != nil {
 		return "", want, "", err
 	}
 	return testutil.SerializeHTML5LibTree(doc), want, "", nil
 }
 
-func parseHTML5LibFragment(input string, ctx string) (string, error) {
+func parseHTML5LibFragment(input string, ctx string, xmlCoercion bool) (string, error) {
 	fc, err := parseFragmentContext(ctx)
 	if err != nil {
 		return "", err
 	}
 
 	tok := tokenizer.New(input)
+	tok.SetXMLCoercion(xmlCoercion)
 	tb := treebuilder.NewFragment(tok, fc)
 
 	for {

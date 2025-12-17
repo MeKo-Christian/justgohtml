@@ -11,6 +11,7 @@ type config struct {
 	iframeSrcdoc    bool
 	strict          bool
 	collectErrors   bool
+	xmlCoercion     bool
 }
 
 // newConfig creates a new config with defaults and applies options.
@@ -82,5 +83,12 @@ func WithStrictMode() Option {
 func WithCollectErrors() Option {
 	return func(c *config) {
 		c.collectErrors = true
+	}
+}
+
+// WithXMLCoercion enables XML coercion rules (used by certain test suites).
+func WithXMLCoercion() Option {
+	return func(c *config) {
+		c.xmlCoercion = true
 	}
 }

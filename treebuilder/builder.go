@@ -37,6 +37,8 @@ type TreeBuilder struct {
 	// than foreign content rules. This prevents infinite loops when foreign
 	// content contains tokens that trigger breakout to HTML mode.
 	forceHTMLMode bool
+
+	iframeSrcdoc bool
 }
 
 // New creates a new tree builder for full document parsing.
@@ -117,6 +119,11 @@ func NewFragment(tok *tokenizer.Tokenizer, ctx *FragmentContext) *TreeBuilder {
 	}
 
 	return tb
+}
+
+// SetIframeSrcdoc toggles iframe srcdoc parsing behavior (affects quirks mode decisions).
+func (tb *TreeBuilder) SetIframeSrcdoc(enabled bool) {
+	tb.iframeSrcdoc = enabled
 }
 
 // Document returns the constructed document.

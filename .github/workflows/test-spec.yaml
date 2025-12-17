@@ -1,0 +1,30 @@
+name: test-spec
+
+on:
+  workflow_call:
+
+permissions:
+  contents: read
+
+jobs:
+  test-spec:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          submodules: true
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: Setup just
+        uses: extractions/setup-just@v2
+
+      - name: Run html5lib spec tests
+        run: JustGoHTML_RUN_HTML5LIB=1 just test-spec
+        env:
+          JustGoHTML_RUN_HTML5LIB: "1"

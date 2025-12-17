@@ -318,11 +318,50 @@ func (tb *TreeBuilder) processInBody(tok tokenizer.Token) bool {
 				tb.addMissingAttributes(tb.openElements[0], tok.Attrs)
 			}
 			return false
+		case "address", "article", "aside", "blockquote", "center", "details", "dialog", "dir", "div", "dl", "fieldset", "figcaption", "figure", "footer", "header", "hgroup", "listing", "main", "menu", "nav", "ol", "section", "summary", "ul":
+			if tb.hasElementInScope("p", constants.ButtonScope) {
+				tb.popUntil("p")
+			}
+			tb.insertElement(tok.Name, tok.Attrs)
+			tb.framesetOK = false
+			return false
+		case "h1", "h2", "h3", "h4", "h5", "h6":
+			if tb.hasElementInScope("p", constants.ButtonScope) {
+				tb.popUntil("p")
+			}
+			// Close any open heading element to avoid nested headings.
+			for _, el := range tb.openElements {
+				if el.TagName == "h1" || el.TagName == "h2" || el.TagName == "h3" || el.TagName == "h4" || el.TagName == "h5" || el.TagName == "h6" {
+					tb.popUntil(el.TagName)
+					break
+				}
+			}
+			tb.insertElement(tok.Name, tok.Attrs)
+			tb.framesetOK = false
+			return false
+		case "pre":
+			if tb.hasElementInScope("p", constants.ButtonScope) {
+				tb.popUntil("p")
+			}
+			tb.insertElement(tok.Name, tok.Attrs)
+			tb.framesetOK = false
+			return false
 		case "base", "basefont", "bgsound", "link", "meta":
 			// Per spec §13.2.6.4.7: process using the rules for "in head".
 			// These are void elements - insert and immediately pop.
 			tb.insertElement(tok.Name, tok.Attrs)
 			tb.popCurrent()
+			return false
+		case "frameset":
+			if !tb.framesetOK {
+				return false
+			}
+			// Pop everything up to, but not including, the html element.
+			for len(tb.openElements) > 0 && tb.currentElement().TagName != "html" {
+				tb.popCurrent()
+			}
+			tb.insertElement("frameset", tok.Attrs)
+			tb.mode = InFrameset
 			return false
 		case "body":
 			// If a body element already exists, merge attrs.
@@ -761,7 +800,8 @@ func (tb *TreeBuilder) processInSelect(tok tokenizer.Token) bool {
 	case tokenizer.EOF:
 		return false
 	}
-	return false
+	tb.mode = InBody
+	return true
 }
 
 func (tb *TreeBuilder) processInSelectInTable(tok tokenizer.Token) bool {

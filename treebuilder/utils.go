@@ -109,7 +109,7 @@ func (tb *TreeBuilder) pushActiveFormattingMarker() {
 }
 
 func (tb *TreeBuilder) setQuirksModeFromDoctype(name string, publicID, systemID *string, forceQuirks bool) {
-	_, mode := doctypeErrorAndQuirks(name, publicID, systemID, forceQuirks, false)
+	_, mode := doctypeErrorAndQuirks(name, publicID, systemID, forceQuirks, tb.iframeSrcdoc)
 	tb.document.QuirksMode = mode
 }
 

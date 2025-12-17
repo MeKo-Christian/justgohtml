@@ -459,6 +459,7 @@ Implement all 21 mode handlers:
   - BenchmarkTreeBuilderTables: ~305µs for 100-row table
   - BenchmarkTreeBuilderNested: ~64µs for 100-level deep nesting
   - BenchmarkTreeBuilderForeign: ~355µs for 100 SVG elements
+  - Implemented xml-coercion/iframe-srcdoc options in parser and test harness; tree-construction tests now decode escaped input sequences
 
 ---
 
@@ -936,7 +937,7 @@ var tokenPool = sync.Pool{
 - [ ] CSS selector query box with live results highlighting
 - [x] Parse error display with line/column information
 - [x] Copy-to-clipboard buttons for each output format
-- [ ] GitHub Pages deployment (`gh-pages` branch)
+- [x] GitHub Pages deployment (via `.github/workflows/deploy-playground.yaml`)
 
 **Design Reference**: The JavaScript port's [`playground.html`](https://github.com/simonw/justjshtml/blob/main/playground.html) provides a model for a simple, single-file implementation.
 

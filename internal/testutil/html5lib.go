@@ -33,6 +33,7 @@ type TreeConstructionTest struct {
 	FragmentContext string // e.g., "div" or "svg path"
 	ScriptDirective string // "script-on" or "script-off"
 	IframeSrcdoc    bool
+	XMLCoercion     bool
 }
 
 // TokenizerTestFile represents a tokenizer test file (JSON format).
@@ -96,7 +97,7 @@ func ParseTreeConstructionFile(path string) ([]TreeConstructionTest, error) {
 
 	flush := func() {
 		if currentTest != nil && (len(dataLines) > 0 || len(documentLines) > 0) {
-			currentTest.Data = strings.Join(dataLines, "\n")
+			currentTest.Data = decodeEscapes(strings.Join(dataLines, "\n"))
 			currentTest.Errors = errorLines
 			currentTest.Document = strings.Join(documentLines, "\n")
 			tests = append(tests, *currentTest)
@@ -131,6 +132,10 @@ func ParseTreeConstructionFile(path string) ([]TreeConstructionTest, error) {
 				if currentTest != nil {
 					currentTest.IframeSrcdoc = true
 				}
+			case "xml-coercion":
+				if currentTest != nil {
+					currentTest.XMLCoercion = true
+				}
 			default:
 				mode = directive
 			}
@@ -156,6 +161,73 @@ func ParseTreeConstructionFile(path string) ([]TreeConstructionTest, error) {
 	flush() // Final test
 
 	return tests, scanner.Err()
+}
+
+func decodeEscapes(s string) string {
+	var b strings.Builder
+	b.Grow(len(s))
+	for i := 0; i < len(s); i++ {
+		if s[i] != '\\' || i+1 >= len(s) {
+			b.WriteByte(s[i])
+			continue
+		}
+		switch s[i+1] {
+		case 'x':
+			if i+3 < len(s) {
+				if v, ok := parseHexByte(s[i+2 : i+4]); ok {
+					b.WriteByte(v)
+					i += 3
+					continue
+				}
+			}
+		case 'u':
+			if i+5 < len(s) {
+				if r, ok := parseHexRune(s[i+2 : i+6]); ok {
+					b.WriteRune(r)
+					i += 5
+					continue
+				}
+			}
+		}
+		b.WriteByte(s[i])
+	}
+	return b.String()
+}
+
+func parseHexByte(s string) (byte, bool) {
+	var v byte
+	for i := 0; i < len(s); i++ {
+		c := s[i]
+		switch {
+		case c >= '0' && c <= '9':
+			v = v<<4 + c - '0'
+		case c >= 'a' && c <= 'f':
+			v = v<<4 + 10 + c - 'a'
+		case c >= 'A' && c <= 'F':
+			v = v<<4 + 10 + c - 'A'
+		default:
+			return 0, false
+		}
+	}
+	return v, true
+}
+
+func parseHexRune(s string) (rune, bool) {
+	var v rune
+	for i := 0; i < len(s); i++ {
+		c := s[i]
+		switch {
+		case c >= '0' && c <= '9':
+			v = v<<4 + rune(c-'0')
+		case c >= 'a' && c <= 'f':
+			v = v<<4 + rune(10+c-'a')
+		case c >= 'A' && c <= 'F':
+			v = v<<4 + rune(10+c-'A')
+		default:
+			return 0, false
+		}
+	}
+	return v, true
 }
 
 // ParseTokenizerFile parses a .test file containing tokenizer tests (JSON format).
