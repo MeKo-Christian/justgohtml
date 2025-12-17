@@ -1,0 +1,99 @@
+version = '2'
+
+[linters]
+disable = [
+  'depguard',
+  'dupword',         # False positives with "after after body" etc (spec-defined names)
+  'exhaustruct',     # Too noisy for struct literals with optional fields
+  'forbidigo',       # We need fmt.Print for CLI
+  'forcetypeassert', # Too noisy in cloning code
+  'funcorder',       # Don't enforce method ordering
+  'gochecknoglobals', # Allow package-level vars for constants
+  'godoclint',
+  'godot',           # Don't require periods in all comments
+  'godox',           # Allow TODO comments during development
+  'gomoddirectives',
+  'ireturn',
+  'lll',             # Line length handled by formatter
+  'mnd',             # Magic numbers are fine in this parser context
+  'musttag',
+  'nilnil',          # Returning nil, nil is idiomatic for optional results
+  'nlreturn',
+  'noctx',
+  'noinlineerr',     # Inline error handling is fine
+  'paralleltest',    # Not all tests need to be parallel
+  'perfsprint',      # Performance micro-optimizations not needed
+  'recvcheck',
+  'sqlclosecheck',
+  'testpackage',     # Allow testing internal types
+  'varnamelen',      # Short names like 'sb', 'dt' are clear in context
+  'wrapcheck',       # Internal package errors don't need wrapping
+  'wsl',
+  'wsl_v5',          # Whitespace style is handled by formatter
+]
+default = 'all'
+
+[linters.settings.revive]
+[[linters.settings.revive.rules]]
+name = "var-naming"
+disabled = true
+
+[linters.settings.varnamelen]
+ignore-names = ['ok', 'id', 'i', 'j', 'n', 'ch', 'tb', 'sb']
+ignore-decls = ['w io.Writer', 'r io.Reader', 's string', 'b []byte']
+
+[linters.settings.funlen]
+lines = 150
+statements = 80
+
+[linters.settings.cyclop]
+max-complexity = 30
+
+[linters.settings.gocognit]
+min-complexity = 40
+
+[linters.settings.nestif]
+min-complexity = 8
+
+[linters.exclusions]
+generated = 'lax'
+presets = ['comments', 'common-false-positives', 'legacy', 'std-error-handling']
+paths = ['third_party$', 'builtin$', 'examples$']
+
+[[linters.exclusions.rules]]
+linters = ['gochecknoinits']
+path = 'cmd/.*\.go'
+
+[[linters.exclusions.rules]]
+linters = ['err113', 'wrapcheck']
+path = 'cmd/.*\.go'
+
+[[linters.exclusions.rules]]
+# Allow complex functions and unused scaffolding in tokenizer (state machine)
+linters = ['funlen', 'cyclop', 'gocognit', 'maintidx', 'unused', 'nolintlint']
+path = 'tokenizer/.*\.go'
+
+[[linters.exclusions.rules]]
+# Allow complex functions in treebuilder (insertion modes)
+linters = ['funlen', 'cyclop', 'gocognit', 'maintidx']
+path = 'treebuilder/.*\.go'
+
+[[linters.exclusions.rules]]
+# Allow magic numbers in constants (they're the spec)
+linters = ['mnd']
+path = 'internal/constants/.*\.go'
+
+[severity]
+default = 'warn'
+
+[[severity.rules]]
+linters = ['exhaustive', 'exhaustruct', 'godox']
+severity = 'info'
+
+[formatters]
+enable = ['gofumpt', 'goimports']
+exclusions.generated = 'lax'
+exclusions.paths = ['third_party$', 'builtin$', 'examples$']
+
+[formatters.settings.gci]
+sections = ['standard', 'default', 'prefix(github.com/MeKo-Christian/JustGoHTML)']

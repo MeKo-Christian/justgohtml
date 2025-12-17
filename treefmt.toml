@@ -1,0 +1,69 @@
+# run with treefmt --allow-missing-formatter
+
+[global]
+excludes = [
+  # go.sum and go.mod are managed by go tooling
+  "**/go.sum",
+  "**/go.mod",
+  # changelog is generated
+  "**/CHANGELOG.md",
+  "CHANGELOG.md",
+  # gitignore
+  "**/.gitignore",
+  # txt files
+  "**/*.txt",
+  # version file
+  "version.txt",
+  # Reference Python project (for porting reference only)
+  "reference/**",
+  # html5lib-tests submodule
+  "testdata/html5lib-tests/**",
+]
+
+### Misc
+
+[formatter.prettier]
+command = "prettier"
+options = ["-w"]
+includes = ["*.html", "*.css", "*.yaml", "*.yml", "*.js", "*.json", "*.md"]
+
+### TOML
+
+[formatter.taplo]
+command = "taplo"
+options = ["format"]
+includes = ["*.toml"]
+
+### Go
+
+[formatter.gofumpt]
+command = "gofumpt"
+options = ["-w"]
+includes = ["*.go"]
+
+[formatter.gci]
+command = "gci"
+options = [
+  "write",
+  "--skip-generated",
+  "-s",
+  "standard",
+  "-s",
+  "default",
+  "-s",
+  "prefix(github.com/MeKo-Christian/JustGoHTML)",
+]
+includes = ["*.go"]
+priority = 1 # run after gofumpt
+
+### Shell
+
+[formatter.shellcheck]
+command = "shellcheck"
+includes = ["*.sh"]
+
+[formatter.shfmt]
+command = "shfmt"
+options = ["-s", "-w"]
+includes = ["*.sh"]
+priority = 1           # run after shellcheck

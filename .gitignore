@@ -1,0 +1,52 @@
+# ===================
+# Go
+# ===================
+
+# Binaries
+JustGoHTML
+JustGoHTML-*
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+
+# Test binary
+*.test
+
+# Output of go coverage
+*.out
+coverage.html
+
+# Go workspace file
+go.work
+go.work.sum
+
+# Dependency directories
+vendor/
+
+# ===================
+# Reference (Python source for porting)
+# ===================
+# Keep reference/ tracked but ignore any test artifacts within
+reference/**/html5lib-tests-*
+reference/**/__pycache__/
+reference/**/*.pyc
+
+# ===================
+# IDE / Editor
+# ===================
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# ===================
+# OS
+# ===================
+.DS_Store
+Thumbs.db
+
+# Cache files
+.gocache/
