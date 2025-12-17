@@ -297,6 +297,7 @@ Go doesn't have Python's regex performance, so consider:
 - [x] Pre-compile any necessary regexes at package init
 
 Notes:
+
 - The tokenizer currently reads runes one-by-one to mirror the spec (line/column tracking, reconsume handling). Switching to `IndexAny` would complicate correctness and doesn’t match the existing per-rune state machine paths.
 - There are no single-byte scanning loops to swap to `IndexByte`; converting between runes/bytes would add overhead and risk correctness. Revisit if we add safe skip-ahead string scanning (e.g., raw text until `<`) with benchmarks.
 
@@ -899,7 +900,7 @@ var tokenPool = sync.Pool{
 
 ### 10.3 Nice to Have (Future)
 
-- [ ] WASM build for browser usage
+- [x] WASM build for browser usage (see Phase 8)
 - [ ] HTML sanitization helpers
 - [ ] Additional output formats (JSON DOM)
 - [ ] Parallel selector matching
@@ -910,24 +911,31 @@ var tokenPool = sync.Pool{
 
 ### 8.1 WebAssembly Compilation
 
-**Status**: Not yet started
+**Status**: Complete
 
-- [ ] Add `GOOS=js GOARCH=wasm` build configuration
-- [ ] Create JavaScript bindings for WASM module
-- [ ] Implement streaming tokenizer output for real-time display
-- [ ] Optimize WASM bundle size (consider UPX compression)
-- [ ] Add browser-compatible module export
+- [x] Add `GOOS=js GOARCH=wasm` build configuration
+- [x] Create JavaScript bindings for WASM module
+- [x] Implement streaming tokenizer output for real-time display
+- [x] Optimize WASM bundle size (consider UPX compression)
+- [x] Add browser-compatible module export
+
+**Files created:**
+
+- `cmd/wasm/main.go` - WASM entry point with JS bindings
+- `justfile` - Added `build-wasm`, `build-wasm-tiny`, `serve-playground` commands
 
 ### 8.2 Interactive Playground UI
 
-**File: `playground/playground.html` + `playground/playground.js`**
+**Status**: Complete
 
-- [ ] Split-pane interface (HTML input | output)
-- [ ] Real-time parsing with tokenizer event stream
-- [ ] Multi-format output tabs (HTML, Markdown, Text, Tree view)
+**File: `playground/index.html`**
+
+- [x] Split-pane interface (HTML input | output)
+- [x] Real-time parsing with tokenizer event stream
+- [x] Multi-format output tabs (HTML, Markdown, Text, Tree view)
 - [ ] CSS selector query box with live results highlighting
-- [ ] Parse error display with line/column information
-- [ ] Copy-to-clipboard buttons for each output format
+- [x] Parse error display with line/column information
+- [x] Copy-to-clipboard buttons for each output format
 - [ ] GitHub Pages deployment (`gh-pages` branch)
 
 **Design Reference**: The JavaScript port's [`playground.html`](https://github.com/simonw/justjshtml/blob/main/playground.html) provides a model for a simple, single-file implementation.

@@ -92,7 +92,7 @@ func runTreeConstructionTestFile(t *testing.T, path string) {
 			testName = "empty"
 		}
 		testIndex := i
-		
+
 		t.Run(testName, func(t *testing.T) {
 			got, want, skipReason, err := runSingleTreeConstructionTest(test)
 			if skipReason != "" {
@@ -114,7 +114,7 @@ func runTreeConstructionTestFile(t *testing.T, path string) {
 			}
 		})
 	}
-	
+
 	if len(examples) > 0 && testing.Verbose() {
 		t.Logf("Examples of failures in %s:\n%s", filepath.Base(path), strings.Join(examples, "\n\n"))
 	}

@@ -1,0 +1,633 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>JustGoHTML Playground</title>
+    <style>
+      :root {
+        --bg: #1a1a2e;
+        --surface: #16213e;
+        --surface-hover: #1f3056;
+        --primary: #e94560;
+        --secondary: #0f3460;
+        --text: #eaeaea;
+        --text-muted: #8892a0;
+        --success: #4ade80;
+        --error: #f87171;
+        --border: #2a3a5a;
+        --code-bg: #0d1321;
+      }
+
+      * {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+      }
+
+      body {
+        font-family:
+          -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+          "Helvetica Neue", Arial, sans-serif;
+        background: var(--bg);
+        color: var(--text);
+        line-height: 1.6;
+        min-height: 100vh;
+      }
+
+      header {
+        background: var(--surface);
+        padding: 1rem 2rem;
+        border-bottom: 1px solid var(--border);
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+      }
+
+      header h1 {
+        font-size: 1.5rem;
+        font-weight: 600;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+      }
+
+      header h1 span {
+        color: var(--primary);
+      }
+
+      .status {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        font-size: 0.875rem;
+        color: var(--text-muted);
+      }
+
+      .status-dot {
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        background: var(--text-muted);
+        transition: background 0.3s;
+      }
+
+      .status-dot.ready {
+        background: var(--success);
+      }
+
+      .status-dot.error {
+        background: var(--error);
+      }
+
+      .status-dot.loading {
+        animation: pulse 1s infinite;
+      }
+
+      @keyframes pulse {
+        0%,
+        100% {
+          opacity: 1;
+        }
+        50% {
+          opacity: 0.4;
+        }
+      }
+
+      main {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 1px;
+        background: var(--border);
+        height: calc(100vh - 60px);
+      }
+
+      .panel {
+        background: var(--surface);
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+      }
+
+      .panel-header {
+        padding: 0.75rem 1rem;
+        background: var(--secondary);
+        border-bottom: 1px solid var(--border);
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+      }
+
+      .panel-title {
+        font-size: 0.875rem;
+        font-weight: 500;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        color: var(--text-muted);
+      }
+
+      .tabs {
+        display: flex;
+        gap: 0.25rem;
+      }
+
+      .tab {
+        padding: 0.375rem 0.75rem;
+        font-size: 0.75rem;
+        background: transparent;
+        border: 1px solid var(--border);
+        border-radius: 4px;
+        color: var(--text-muted);
+        cursor: pointer;
+        transition: all 0.2s;
+      }
+
+      .tab:hover {
+        background: var(--surface-hover);
+        color: var(--text);
+      }
+
+      .tab.active {
+        background: var(--primary);
+        border-color: var(--primary);
+        color: white;
+      }
+
+      textarea {
+        flex: 1;
+        padding: 1rem;
+        background: var(--code-bg);
+        border: none;
+        color: var(--text);
+        font-family: "Monaco", "Menlo", "Ubuntu Mono", monospace;
+        font-size: 0.875rem;
+        resize: none;
+        outline: none;
+      }
+
+      textarea::placeholder {
+        color: var(--text-muted);
+      }
+
+      .output-container {
+        flex: 1;
+        overflow: auto;
+        background: var(--code-bg);
+      }
+
+      .output {
+        padding: 1rem;
+        font-family: "Monaco", "Menlo", "Ubuntu Mono", monospace;
+        font-size: 0.875rem;
+        white-space: pre-wrap;
+        word-wrap: break-word;
+      }
+
+      .output.error {
+        color: var(--error);
+      }
+
+      .controls {
+        padding: 0.75rem 1rem;
+        background: var(--secondary);
+        border-top: 1px solid var(--border);
+        display: flex;
+        gap: 0.5rem;
+        flex-wrap: wrap;
+        align-items: center;
+      }
+
+      .controls label {
+        font-size: 0.75rem;
+        color: var(--text-muted);
+        display: flex;
+        align-items: center;
+        gap: 0.375rem;
+      }
+
+      .controls input[type="checkbox"] {
+        accent-color: var(--primary);
+      }
+
+      .controls select {
+        padding: 0.25rem 0.5rem;
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: 4px;
+        color: var(--text);
+        font-size: 0.75rem;
+        cursor: pointer;
+      }
+
+      button.action {
+        padding: 0.5rem 1rem;
+        background: var(--primary);
+        border: none;
+        border-radius: 4px;
+        color: white;
+        font-size: 0.75rem;
+        font-weight: 500;
+        cursor: pointer;
+        transition: all 0.2s;
+      }
+
+      button.action:hover:not(:disabled) {
+        filter: brightness(1.1);
+      }
+
+      button.action:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+      }
+
+      button.action.secondary {
+        background: var(--surface);
+        border: 1px solid var(--border);
+      }
+
+      .info {
+        margin-left: auto;
+        font-size: 0.75rem;
+        color: var(--text-muted);
+      }
+
+      /* Tree view styles */
+      .tree-node {
+        margin-left: 1.25rem;
+      }
+
+      .tree-node:first-child {
+        margin-left: 0;
+      }
+
+      .tree-tag {
+        color: #7dd3fc;
+      }
+
+      .tree-attr-name {
+        color: #fbbf24;
+      }
+
+      .tree-attr-value {
+        color: #4ade80;
+      }
+
+      .tree-text {
+        color: #d4d4d4;
+      }
+
+      .tree-comment {
+        color: #6b7280;
+        font-style: italic;
+      }
+
+      .tree-doctype {
+        color: #c084fc;
+      }
+
+      /* Token view styles */
+      .token {
+        display: block;
+        padding: 0.25rem 0;
+        border-bottom: 1px solid var(--border);
+      }
+
+      .token-type {
+        color: var(--primary);
+        font-weight: 600;
+      }
+
+      .token-name {
+        color: #7dd3fc;
+      }
+
+      .token-data {
+        color: #d4d4d4;
+      }
+
+      /* Parse errors */
+      .parse-errors {
+        margin-top: 1rem;
+        padding-top: 1rem;
+        border-top: 1px solid var(--border);
+      }
+
+      .parse-errors h4 {
+        color: var(--error);
+        font-size: 0.75rem;
+        margin-bottom: 0.5rem;
+      }
+
+      .parse-error {
+        font-size: 0.75rem;
+        color: var(--text-muted);
+        padding: 0.25rem 0;
+      }
+
+      @media (max-width: 768px) {
+        main {
+          grid-template-columns: 1fr;
+          grid-template-rows: 1fr 1fr;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <header>
+      <h1><span>&lt;/&gt;</span> JustGoHTML Playground</h1>
+      <div class="status">
+        <div class="status-dot loading" id="status-dot"></div>
+        <span id="status-text">Loading WASM...</span>
+      </div>
+    </header>
+
+    <main>
+      <div class="panel">
+        <div class="panel-header">
+          <span class="panel-title">HTML Input</span>
+        </div>
+        <textarea id="input" placeholder="Enter HTML to parse...">
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Example</title>
+</head>
+<body>
+    <h1>Hello World</h1>
+    <p class="intro">This is a <strong>test</strong> document.</p>
+    <ul>
+        <li>Item 1</li>
+        <li>Item 2</li>
+    </ul>
+    <!-- A comment -->
+</body>
+</html></textarea>
+        <div class="controls">
+          <button class="action" id="parse-btn" disabled>Parse</button>
+          <label>
+            <input type="checkbox" id="pretty" checked />
+            Pretty print
+          </label>
+        </div>
+      </div>
+
+      <div class="panel">
+        <div class="panel-header">
+          <span class="panel-title">Output</span>
+          <div class="tabs">
+            <button class="tab active" data-format="html">HTML</button>
+            <button class="tab" data-format="text">Text</button>
+            <button class="tab" data-format="tree">Tree</button>
+            <button class="tab" data-format="tokens">Tokens</button>
+          </div>
+        </div>
+        <div class="output-container">
+          <div class="output" id="output">Output will appear here...</div>
+        </div>
+        <div class="controls">
+          <button class="action secondary" id="copy-btn" disabled>Copy</button>
+          <span class="info" id="timing"></span>
+        </div>
+      </div>
+    </main>
+
+    <script src="wasm_exec.js"></script>
+    <script>
+      // State
+      let wasmReady = false;
+      let currentFormat = "html";
+      let lastResult = null;
+
+      // DOM elements
+      const statusDot = document.getElementById("status-dot");
+      const statusText = document.getElementById("status-text");
+      const input = document.getElementById("input");
+      const output = document.getElementById("output");
+      const parseBtn = document.getElementById("parse-btn");
+      const copyBtn = document.getElementById("copy-btn");
+      const prettyCheckbox = document.getElementById("pretty");
+      const timing = document.getElementById("timing");
+      const tabs = document.querySelectorAll(".tab");
+
+      // Initialize WASM
+      async function initWasm() {
+        try {
+          const go = new Go();
+          const result = await WebAssembly.instantiateStreaming(
+            fetch("justgohtml.wasm"),
+            go.importObject,
+          );
+          go.run(result.instance);
+
+          // Wait a moment for the exports to be registered
+          await new Promise((resolve) => setTimeout(resolve, 100));
+
+          if (typeof JustGoHTML !== "undefined") {
+            wasmReady = true;
+            statusDot.classList.remove("loading");
+            statusDot.classList.add("ready");
+            statusText.textContent = `Ready (v${JustGoHTML.version})`;
+            parseBtn.disabled = false;
+
+            // Auto-parse on load
+            parse();
+          } else {
+            throw new Error("JustGoHTML not initialized");
+          }
+        } catch (err) {
+          statusDot.classList.remove("loading");
+          statusDot.classList.add("error");
+          statusText.textContent = "Failed to load";
+          output.textContent = `Error loading WASM: ${err.message}`;
+          output.classList.add("error");
+          console.error("WASM init error:", err);
+        }
+      }
+
+      // Parse HTML
+      function parse() {
+        if (!wasmReady) return;
+
+        const html = input.value;
+        const start = performance.now();
+
+        try {
+          if (currentFormat === "tokens") {
+            lastResult = JustGoHTML.tokenize(html);
+          } else {
+            lastResult = JustGoHTML.parse(html, {
+              format: currentFormat,
+              pretty: prettyCheckbox.checked,
+            });
+          }
+
+          const elapsed = performance.now() - start;
+          timing.textContent = `Parsed in ${elapsed.toFixed(2)}ms`;
+
+          renderOutput();
+          copyBtn.disabled = false;
+          output.classList.remove("error");
+        } catch (err) {
+          output.textContent = `Error: ${err.message}`;
+          output.classList.add("error");
+          timing.textContent = "";
+          copyBtn.disabled = true;
+        }
+      }
+
+      // Render output based on format
+      function renderOutput() {
+        if (!lastResult) return;
+
+        if (!lastResult.success) {
+          output.textContent = `Error: ${lastResult.error}`;
+          output.classList.add("error");
+          return;
+        }
+
+        output.classList.remove("error");
+
+        if (currentFormat === "tokens") {
+          output.innerHTML = renderTokens(lastResult.tokens);
+        } else if (currentFormat === "tree") {
+          output.innerHTML = renderTree(lastResult.tree);
+        } else {
+          output.textContent = lastResult.result;
+        }
+
+        // Show parse errors if any
+        if (lastResult.errors && lastResult.errors.length > 0) {
+          const errorsHtml = `<div class="parse-errors">
+                    <h4>Parse Errors (${lastResult.errors.length})</h4>
+                    ${lastResult.errors
+                      .map(
+                        (e) =>
+                          `<div class="parse-error">Line ${e.line}, Col ${e.column}: ${e.code}</div>`,
+                      )
+                      .join("")}
+                </div>`;
+          output.innerHTML += errorsHtml;
+        }
+      }
+
+      // Render token stream
+      function renderTokens(tokens) {
+        if (!tokens) return "No tokens";
+        return tokens
+          .map((t) => {
+            let content = `<span class="token-type">${t.type}</span>`;
+            if (t.name)
+              content += ` <span class="token-name">&lt;${t.name}&gt;</span>`;
+            if (t.data !== undefined)
+              content += ` <span class="token-data">"${escapeHtml(t.data)}"</span>`;
+            if (t.attributes) {
+              const attrs = Object.entries(t.attributes)
+                .map(([k, v]) => `${k}="${escapeHtml(v)}"`)
+                .join(" ");
+              if (attrs)
+                content += ` <span class="token-data">[${attrs}]</span>`;
+            }
+            return `<span class="token">${content}</span>`;
+          })
+          .join("");
+      }
+
+      // Render tree structure
+      function renderTree(node, depth = 0) {
+        if (!node) return "No tree";
+
+        const indent = "  ".repeat(depth);
+        let html = "";
+
+        switch (node.type) {
+          case "document":
+            html = node.children.map((c) => renderTree(c, depth)).join("");
+            break;
+          case "doctype":
+            html = `${indent}<span class="tree-doctype">&lt;!DOCTYPE ${node.name}&gt;</span>\n`;
+            break;
+          case "element":
+            const attrs = Object.entries(node.attributes || {})
+              .map(
+                ([k, v]) =>
+                  ` <span class="tree-attr-name">${k}</span>=<span class="tree-attr-value">"${escapeHtml(v)}"</span>`,
+              )
+              .join("");
+            html = `${indent}<span class="tree-tag">&lt;${node.tagName}${attrs}&gt;</span>\n`;
+            if (node.children) {
+              html += node.children
+                .map((c) => renderTree(c, depth + 1))
+                .join("");
+            }
+            html += `${indent}<span class="tree-tag">&lt;/${node.tagName}&gt;</span>\n`;
+            break;
+          case "text":
+            const text = node.data.trim();
+            if (text) {
+              html = `${indent}<span class="tree-text">#text: "${escapeHtml(text)}"</span>\n`;
+            }
+            break;
+          case "comment":
+            html = `${indent}<span class="tree-comment">&lt;!-- ${escapeHtml(node.data)} --&gt;</span>\n`;
+            break;
+        }
+
+        return html;
+      }
+
+      // Escape HTML special characters
+      function escapeHtml(str) {
+        if (typeof str !== "string") return str;
+        return str
+          .replace(/&/g, "&amp;")
+          .replace(/</g, "&lt;")
+          .replace(/>/g, "&gt;")
+          .replace(/"/g, "&quot;")
+          .replace(/\n/g, "\\n")
+          .replace(/\r/g, "\\r")
+          .replace(/\t/g, "\\t");
+      }
+
+      // Copy output to clipboard
+      async function copyToClipboard() {
+        try {
+          const text =
+            currentFormat === "tokens" || currentFormat === "tree"
+              ? output.innerText
+              : output.textContent;
+          await navigator.clipboard.writeText(text);
+          const originalText = copyBtn.textContent;
+          copyBtn.textContent = "Copied!";
+          setTimeout(() => (copyBtn.textContent = originalText), 1500);
+        } catch (err) {
+          console.error("Copy failed:", err);
+        }
+      }
+
+      // Event listeners
+      parseBtn.addEventListener("click", parse);
+      copyBtn.addEventListener("click", copyToClipboard);
+      prettyCheckbox.addEventListener("change", parse);
+
+      // Tab switching
+      tabs.forEach((tab) => {
+        tab.addEventListener("click", () => {
+          tabs.forEach((t) => t.classList.remove("active"));
+          tab.classList.add("active");
+          currentFormat = tab.dataset.format;
+          parse();
+        });
+      });
+
+      // Auto-parse on input (debounced)
+      let parseTimeout;
+      input.addEventListener("input", () => {
+        clearTimeout(parseTimeout);
+        parseTimeout = setTimeout(parse, 300);
+      });
+
+      // Initialize
+      initWasm();
+    </script>
+  </body>
+</html>

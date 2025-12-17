@@ -163,6 +163,49 @@ install:
     go install -ldflags '-s -w -X main.version={{VERSION}}' ./cmd/JustGoHTML
 
 #################################
+# WebAssembly Build
+#################################
+
+# Build WebAssembly module
+build-wasm:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    echo "Building WebAssembly module..."
+    mkdir -p playground
+    GOOS=js GOARCH=wasm go build -ldflags '-s -w' -o playground/justgohtml.wasm ./cmd/wasm
+    # Copy wasm_exec.js from Go installation
+    cp "$(go env GOROOT)/lib/wasm/wasm_exec.js" playground/
+    echo "WASM build complete: playground/justgohtml.wasm"
+    ls -lh playground/justgohtml.wasm
+
+# Build optimized WebAssembly module (smaller, using tinygo if available)
+build-wasm-tiny:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    if command -v tinygo >/dev/null 2>&1; then
+        echo "Building optimized WebAssembly module with TinyGo..."
+        mkdir -p playground
+        tinygo build -o playground/justgohtml.wasm -target wasm ./cmd/wasm
+        cp "$(tinygo env TINYGOROOT)/targets/wasm_exec.js" playground/
+        echo "TinyGo WASM build complete: playground/justgohtml.wasm"
+        ls -lh playground/justgohtml.wasm
+    else
+        echo "TinyGo not found, using standard Go build"
+        just build-wasm
+    fi
+
+# Serve playground locally for development
+serve-playground:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    if [ ! -f playground/justgohtml.wasm ]; then
+        echo "Building WASM first..."
+        just build-wasm
+    fi
+    echo "Starting playground server at http://localhost:8080"
+    cd playground && python3 -m http.server 8080
+
+#################################
 # Development
 #################################
 
@@ -189,6 +232,7 @@ clean:
     echo "Cleaning build artifacts..."
     rm -f {{BINARY}} {{BINARY}}-* {{BINARY}}.exe
     rm -f coverage.out coverage.html
+    rm -f playground/justgohtml.wasm playground/wasm_exec.js
     echo "Clean completed!"
 
 # Show project version and build info
