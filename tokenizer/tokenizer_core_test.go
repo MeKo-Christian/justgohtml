@@ -66,8 +66,8 @@ func TestTokenizer_NullInAttrNameAndValue(t *testing.T) {
 	if len(tokens) != 1 || tokens[0].Type != StartTag {
 		t.Fatalf("tokens = %#v, want single StartTag", tokens)
 	}
-	if got := tokens[0].Attrs["a\ufffdb"]; got != "b\ufffdc" {
-		t.Fatalf("attrs = %#v, want a\\ufffdb=b\\ufffdc", tokens[0].Attrs)
+	if got := tokens[0].AttrVal("a\ufffdb"); got != "b\ufffdc" {
+		t.Fatalf("AttrVal = %q, want a\\ufffdb=b\\ufffdc", got)
 	}
 }
 
@@ -76,7 +76,7 @@ func TestTokenizer_MissingAttrValue(t *testing.T) {
 	if len(tokens) != 1 || tokens[0].Type != StartTag {
 		t.Fatalf("tokens = %#v, want StartTag", tokens)
 	}
-	if got := tokens[0].Attrs["a"]; got != "" {
+	if got := tokens[0].AttrVal("a"); got != "" {
 		t.Fatalf("attrs[a] = %q, want empty", got)
 	}
 }

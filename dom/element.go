@@ -113,6 +113,24 @@ func (e *Element) RemoveChild(child Node) {
 	}
 }
 
+// ReplaceChild replaces an old child with a new child.
+func (e *Element) ReplaceChild(newChild, oldChild Node) Node {
+	for i, c := range e.children {
+		if c == oldChild {
+			newChild.SetParent(e)
+			oldChild.SetParent(nil)
+			e.children[i] = newChild
+			return oldChild
+		}
+	}
+	return nil
+}
+
+// HasChildNodes returns true if this element has any children.
+func (e *Element) HasChildNodes() bool {
+	return len(e.children) > 0
+}
+
 // Query finds all descendant elements matching the CSS selector.
 func (e *Element) Query(selector string) ([]*Element, error) {
 	// TODO: Implement selector parsing and matching

@@ -36,6 +36,13 @@ type Node interface {
 	// RemoveChild removes a child node.
 	RemoveChild(child Node)
 
+	// ReplaceChild replaces an old child with a new child.
+	// Returns the replaced child (oldChild).
+	ReplaceChild(newChild, oldChild Node) Node
+
+	// HasChildNodes returns true if this node has any children.
+	HasChildNodes() bool
+
 	// Clone creates a copy of this node.
 	// If deep is true, all descendants are also cloned.
 	Clone(deep bool) Node
@@ -98,4 +105,22 @@ func (n *baseNode) RemoveChild(child Node) {
 			return
 		}
 	}
+}
+
+func (n *baseNode) ReplaceChild(newChild, oldChild Node) Node {
+	for i, c := range n.children {
+		if c == oldChild {
+			if n.self != nil {
+				newChild.SetParent(n.self)
+			}
+			oldChild.SetParent(nil)
+			n.children[i] = newChild
+			return oldChild
+		}
+	}
+	return nil
+}
+
+func (n *baseNode) HasChildNodes() bool {
+	return len(n.children) > 0
 }

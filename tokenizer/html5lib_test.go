@@ -155,7 +155,7 @@ func tokenToTestFormat(token tokenizer.Token) interface{} {
 			!token.ForceQuirks,
 		}
 	case tokenizer.StartTag:
-		result := []interface{}{"StartTag", token.Name, token.Attrs}
+		result := []interface{}{"StartTag", token.Name, tokenizer.AttrsToMap(token.Attrs)}
 		if token.SelfClosing {
 			result = append(result, true)
 		}

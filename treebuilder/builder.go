@@ -25,6 +25,7 @@ type TreeBuilder struct {
 	pendingTableText      []string
 	tableTextOriginalMode *InsertionMode
 	framesetOK            bool
+	fosterParenting       bool
 
 	fragmentContext *FragmentContext
 	fragmentRoot    *dom.Element
@@ -116,6 +117,25 @@ func NewFragment(tok *tokenizer.Tokenizer, ctx *FragmentContext) *TreeBuilder {
 			}
 		}
 		tb.originalMode = tb.mode
+
+		// Adjust tokenizer state based on the fragment context element, per HTML5 fragment parsing.
+		// This is necessary because the fragment setup does not emit the context start tag token.
+		if ctx.Namespace == "" || ctx.Namespace == "html" {
+			switch tag {
+			case "title", "textarea":
+				tb.tokenizer.SetLastStartTag(tag)
+				tb.tokenizer.SetState(tokenizer.RCDATAState)
+			case "style", "xmp", "iframe", "noembed", "noframes":
+				tb.tokenizer.SetLastStartTag(tag)
+				tb.tokenizer.SetState(tokenizer.RAWTEXTState)
+			case "script":
+				tb.tokenizer.SetLastStartTag(tag)
+				tb.tokenizer.SetState(tokenizer.ScriptDataState)
+			case "plaintext":
+				tb.tokenizer.SetLastStartTag(tag)
+				tb.tokenizer.SetState(tokenizer.PLAINTEXTState)
+			}
+		}
 	}
 
 	return tb
@@ -238,41 +258,48 @@ func (tb *TreeBuilder) currentElement() *dom.Element {
 }
 
 func (tb *TreeBuilder) insertComment(data string) {
-	tb.currentNode().AppendChild(dom.NewComment(data))
+	tb.insertNode(dom.NewComment(data), nil)
 }
 
 func (tb *TreeBuilder) insertText(data string) {
 	if data == "" {
 		return
 	}
-	parent := tb.currentNode()
-	children := parent.Children()
-	if len(children) > 0 {
-		if last, ok := children[len(children)-1].(*dom.Text); ok {
-			last.Data += data
-			return
-		}
-	}
-	parent.AppendChild(dom.NewText(data))
+	parent, before := tb.appropriateInsertionLocation()
+	tb.insertNode(dom.NewText(data), &insertionLocation{parent: parent, before: before})
 }
 
-func (tb *TreeBuilder) insertElement(name string, attrs map[string]string) *dom.Element {
+func (tb *TreeBuilder) insertElement(name string, attrs []tokenizer.Attr) *dom.Element {
 	el := dom.NewElement(name)
-	for k, v := range attrs {
-		el.SetAttr(k, v)
+	if el.TagName == "template" && el.Namespace == dom.NamespaceHTML && el.TemplateContent == nil {
+		el.TemplateContent = dom.NewDocumentFragment()
 	}
-	tb.currentNode().AppendChild(el)
+	for _, a := range attrs {
+		if a.Namespace != "" {
+			// HTML namespace attributes are handled later (foreign content).
+			el.Attributes.SetNS(a.Namespace, a.Name, a.Value)
+			continue
+		}
+		el.SetAttr(a.Name, a.Value)
+	}
+	tb.insertNode(el, nil)
 	tb.openElements = append(tb.openElements, el)
 	return el
 }
 
-func (tb *TreeBuilder) addMissingAttributes(el *dom.Element, attrs map[string]string) {
+func (tb *TreeBuilder) addMissingAttributes(el *dom.Element, attrs []tokenizer.Attr) {
 	if el == nil {
 		return
 	}
-	for k, v := range attrs {
-		if !el.HasAttr(k) {
-			el.SetAttr(k, v)
+	for _, a := range attrs {
+		if a.Namespace != "" {
+			if !el.Attributes.HasNS(a.Namespace, a.Name) {
+				el.Attributes.SetNS(a.Namespace, a.Name, a.Value)
+			}
+			continue
+		}
+		if !el.HasAttr(a.Name) {
+			el.SetAttr(a.Name, a.Value)
 		}
 	}
 }
@@ -305,29 +332,6 @@ func (tb *TreeBuilder) elementInStack(name string) bool {
 	return false
 }
 
-func (tb *TreeBuilder) insertFosterText(data string) {
-	if data == "" {
-		return
-	}
-	var tableEl *dom.Element
-	for i := len(tb.openElements) - 1; i >= 0; i-- {
-		if tb.openElements[i].TagName == "table" && tb.openElements[i].Namespace == dom.NamespaceHTML {
-			tableEl = tb.openElements[i]
-			break
-		}
-	}
-	if tableEl == nil {
-		tb.insertText(data)
-		return
-	}
-	parent := tableEl.Parent()
-	if parent == nil {
-		tb.document.AppendChild(dom.NewText(data))
-		return
-	}
-	parent.InsertBefore(dom.NewText(data), tableEl)
-}
-
 func isAllWhitespace(s string) bool {
 	for _, r := range s {
 		switch r {
@@ -345,4 +349,136 @@ func ptrToString(s *string) string {
 		return ""
 	}
 	return *s
+}
+
+type insertionLocation struct {
+	parent dom.Node
+	before dom.Node
+}
+
+func (tb *TreeBuilder) withFosterParenting(fn func() bool) bool {
+	prev := tb.fosterParenting
+	tb.fosterParenting = true
+	defer func() { tb.fosterParenting = prev }()
+	return fn()
+}
+
+func (tb *TreeBuilder) appropriateInsertionLocation() (parent dom.Node, before dom.Node) {
+	if current := tb.currentElement(); current != nil && current.Namespace == dom.NamespaceHTML && current.TagName == "template" {
+		if current.TemplateContent == nil {
+			current.TemplateContent = dom.NewDocumentFragment()
+		}
+		return current.TemplateContent, nil
+	}
+	if !tb.fosterParenting || !shouldFosterForNode(tb.currentElement()) {
+		return tb.currentNode(), nil
+	}
+	return tb.fosterInsertionLocation()
+}
+
+func shouldFosterForNode(el *dom.Element) bool {
+	if el == nil || el.Namespace != dom.NamespaceHTML {
+		return false
+	}
+	switch el.TagName {
+	case "table", "tbody", "tfoot", "thead", "tr":
+		return true
+	default:
+		return false
+	}
+}
+
+func (tb *TreeBuilder) fosterInsertionLocation() (parent dom.Node, before dom.Node) {
+	tableEl, tableIndex := tb.lastTableElement()
+	if tableEl == nil {
+		return tb.currentNode(), nil
+	}
+	if p := tableEl.Parent(); p != nil {
+		if templateEl := tb.templateAboveTable(tableIndex); templateEl != nil {
+			if templateEl.TemplateContent == nil {
+				templateEl.TemplateContent = dom.NewDocumentFragment()
+			}
+			return templateEl.TemplateContent, nil
+		}
+		return p, tableEl
+	}
+
+	// If the table element has no parent, insert into the element immediately above it in the stack.
+	if tableIndex > 0 {
+		return tb.openElements[tableIndex-1], nil
+	}
+	return tb.document, nil
+}
+
+func (tb *TreeBuilder) lastTableElement() (*dom.Element, int) {
+	for i := len(tb.openElements) - 1; i >= 0; i-- {
+		el := tb.openElements[i]
+		if el != nil && el.Namespace == dom.NamespaceHTML && el.TagName == "table" {
+			return el, i
+		}
+	}
+	return nil, -1
+}
+
+func (tb *TreeBuilder) templateAboveTable(tableIndex int) *dom.Element {
+	if tableIndex <= 0 || tableIndex > len(tb.openElements)-1 {
+		return nil
+	}
+	el := tb.openElements[tableIndex-1]
+	if el != nil && el.Namespace == dom.NamespaceHTML && el.TagName == "template" {
+		return el
+	}
+	return nil
+}
+
+func (tb *TreeBuilder) insertNode(node dom.Node, loc *insertionLocation) {
+	parent := dom.Node(tb.currentNode())
+	var before dom.Node
+	if loc != nil && loc.parent != nil {
+		parent = loc.parent
+		before = loc.before
+	} else {
+		parent, before = tb.appropriateInsertionLocation()
+	}
+
+	if before == nil {
+		// Append with text-node coalescing.
+		children := parent.Children()
+		if txt, ok := node.(*dom.Text); ok && len(children) > 0 {
+			if last, ok := children[len(children)-1].(*dom.Text); ok {
+				last.Data += txt.Data
+				return
+			}
+		}
+		parent.AppendChild(node)
+		return
+	}
+
+	// InsertBefore with basic text-node coalescing around the insertion point.
+	if txt, ok := node.(*dom.Text); ok {
+		if mergeTarget := siblingTextBefore(parent, before); mergeTarget != nil {
+			mergeTarget.Data += txt.Data
+			return
+		}
+		if beforeText, ok := before.(*dom.Text); ok {
+			beforeText.Data = txt.Data + beforeText.Data
+			return
+		}
+	}
+	parent.InsertBefore(node, before)
+}
+
+func siblingTextBefore(parent dom.Node, ref dom.Node) *dom.Text {
+	children := parent.Children()
+	for i := range children {
+		if children[i] == ref {
+			if i > 0 {
+				if t, ok := children[i-1].(*dom.Text); ok {
+					return t
+				}
+			}
+			return nil
+		}
+	}
+	return nil
 }

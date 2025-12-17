@@ -86,7 +86,7 @@ func streamTokens(html string, ch chan<- Event) {
 			ch <- Event{
 				Type:  StartTagEvent,
 				Name:  token.Name,
-				Attrs: token.Attrs,
+				Attrs: tokenizer.AttrsToMap(token.Attrs),
 			}
 
 		case tokenizer.EndTag:

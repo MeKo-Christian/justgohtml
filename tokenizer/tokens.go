@@ -52,7 +52,7 @@ func (t TokenKind) String() string {
 // Tag represents the common data carried by start/end tag tokens.
 type Tag struct {
 	Name        string
-	Attrs       map[string]string
+	Attrs       []Attr
 	SelfClosing bool
 }
 
@@ -87,8 +87,7 @@ type Token struct {
 	Data string
 
 	// Attrs holds attributes for StartTag tokens.
-	// For test output, this is converted to map[string]string.
-	Attrs map[string]string
+	Attrs []Attr
 
 	// SelfClosing is true for self-closing tags (e.g., <br/>).
 	SelfClosing bool
@@ -151,17 +150,37 @@ func NewDoctypeToken(name string, publicID, systemID *string, forceQuirks bool) 
 
 // AttrVal returns the value of an attribute by name, or empty string if not found.
 func (t *Token) AttrVal(name string) string {
-	if t.Attrs == nil {
+	if len(t.Attrs) == 0 {
 		return ""
 	}
-	return t.Attrs[name]
+	for _, a := range t.Attrs {
+		if a.Namespace == "" && a.Name == name {
+			return a.Value
+		}
+	}
+	return ""
 }
 
 // HasAttr returns true if the token has an attribute with the given name.
 func (t *Token) HasAttr(name string) bool {
-	if t.Attrs == nil {
+	if len(t.Attrs) == 0 {
 		return false
 	}
-	_, ok := t.Attrs[name]
-	return ok
+	for _, a := range t.Attrs {
+		if a.Namespace == "" && a.Name == name {
+			return true
+		}
+	}
+	return false
+}
+
+func AttrsToMap(attrs []Attr) map[string]string {
+	out := make(map[string]string, len(attrs))
+	for _, a := range attrs {
+		if a.Namespace != "" {
+			continue
+		}
+		out[a.Name] = a.Value
+	}
+	return out
 }

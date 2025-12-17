@@ -42,6 +42,12 @@ func (t *Text) InsertBefore(_, _ Node) {}
 // RemoveChild implements Node (no-op for text nodes).
 func (t *Text) RemoveChild(_ Node) {}
 
+// ReplaceChild implements Node (no-op for text nodes).
+func (t *Text) ReplaceChild(_, _ Node) Node { return nil }
+
+// HasChildNodes implements Node (text nodes have no children).
+func (t *Text) HasChildNodes() bool { return false }
+
 // Clone implements Node.
 func (t *Text) Clone(_ bool) Node {
 	return &Text{Data: t.Data}

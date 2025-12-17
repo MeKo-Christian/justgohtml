@@ -113,8 +113,12 @@ func (tb *TreeBuilder) adoptionAgency(subject string) {
 			// 10.4 Replace entry with new element.
 			entry := tb.activeFormatting[nodeFormattingIndex]
 			newElement := dom.NewElement(entry.name)
-			for k, v := range entry.attrs {
-				newElement.SetAttr(k, v)
+			for _, a := range entry.attrs {
+				if a.Namespace != "" {
+					newElement.Attributes.SetNS(a.Namespace, a.Name, a.Value)
+					continue
+				}
+				newElement.SetAttr(a.Name, a.Value)
 			}
 			tb.activeFormatting[nodeFormattingIndex].node = newElement
 			tb.openElements[tb.mustIndexOfOpenElement(node)] = newElement
@@ -149,8 +153,12 @@ func (tb *TreeBuilder) adoptionAgency(subject string) {
 		// 12. Create new formatting element (clone of formatting element).
 		entry := tb.activeFormatting[formattingIndex]
 		newFormattingElement := dom.NewElement(entry.name)
-		for k, v := range entry.attrs {
-			newFormattingElement.SetAttr(k, v)
+		for _, a := range entry.attrs {
+			if a.Namespace != "" {
+				newFormattingElement.Attributes.SetNS(a.Namespace, a.Name, a.Value)
+				continue
+			}
+			newFormattingElement.SetAttr(a.Name, a.Value)
 		}
 		tb.activeFormatting[formattingIndex].node = newFormattingElement
 
@@ -197,37 +205,12 @@ func isSpecialElement(el *dom.Element) bool {
 }
 
 func shouldFosterParent(commonAncestor *dom.Element) bool {
-	if commonAncestor == nil {
-		return false
-	}
-	switch commonAncestor.TagName {
-	case "table", "tbody", "tfoot", "thead", "tr":
-		return true
-	default:
-		return false
-	}
+	return shouldFosterForNode(commonAncestor)
 }
 
 func (tb *TreeBuilder) insertFosterNode(node dom.Node) {
-	// Minimal foster parenting insertion location: insert before the last table
-	// element on the stack, otherwise append to the current node.
-	var tableEl *dom.Element
-	for i := len(tb.openElements) - 1; i >= 0; i-- {
-		if tb.openElements[i].TagName == "table" && tb.openElements[i].Namespace == dom.NamespaceHTML {
-			tableEl = tb.openElements[i]
-			break
-		}
-	}
-	if tableEl == nil {
-		tb.currentNode().AppendChild(node)
-		return
-	}
-	parent := tableEl.Parent()
-	if parent == nil {
-		tb.document.AppendChild(node)
-		return
-	}
-	parent.InsertBefore(node, tableEl)
+	parent, before := tb.fosterInsertionLocation()
+	tb.insertNode(node, &insertionLocation{parent: parent, before: before})
 }
 
 func (tb *TreeBuilder) indexOfOpenElement(target *dom.Element) (int, bool) {

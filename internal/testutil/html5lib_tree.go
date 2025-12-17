@@ -154,14 +154,6 @@ func escapeHTML5LibString(s string) string {
 			sb.WriteString(`\\`)
 		case '"':
 			sb.WriteString(`\"`)
-		case '\n':
-			sb.WriteString(`\n`)
-		case '\t':
-			sb.WriteString(`\t`)
-		case '\f':
-			sb.WriteString(`\f`)
-		case '\r':
-			sb.WriteString(`\r`)
 		default:
 			sb.WriteRune(r)
 		}

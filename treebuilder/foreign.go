@@ -70,6 +70,14 @@ func (tb *TreeBuilder) processForeignContent(tok tokenizer.Token) bool {
 		tb.insertText(data)
 		return false
 	case tokenizer.Comment:
+		// html5lib tree-construction expects <![CDATA[...]]> in foreign content to
+		// produce character data, not a comment node.
+		if strings.HasPrefix(tok.Data, "[CDATA[") {
+			data := strings.TrimPrefix(tok.Data, "[CDATA[")
+			data = strings.TrimSuffix(data, "]]")
+			tb.insertText(data)
+			return false
+		}
 		tb.insertComment(tok.Data)
 		return false
 	case tokenizer.StartTag:
@@ -138,6 +146,9 @@ func (tb *TreeBuilder) popUntilHTMLOrIntegrationPoint() {
 		if node == nil {
 			return
 		}
+		if tb.fragmentElement != nil && node == tb.fragmentElement {
+			return
+		}
 		if node.Namespace == dom.NamespaceHTML {
 			return
 		}
@@ -176,9 +187,12 @@ func (tb *TreeBuilder) isMathMLTextIntegrationPoint(node *dom.Element) bool {
 	return constants.MathMLTextIntegrationPoints[ip]
 }
 
-func foreignBreakoutFont(attrs map[string]string) bool {
-	for k := range attrs {
-		switch strings.ToLower(k) {
+func foreignBreakoutFont(attrs []tokenizer.Attr) bool {
+	for _, a := range attrs {
+		if a.Namespace != "" {
+			continue
+		}
+		switch strings.ToLower(a.Name) {
 		case "color", "face", "size":
 			return true
 		}
@@ -193,12 +207,18 @@ func adjustSVGTagName(name string) string {
 	return name
 }
 
-func prepareForeignAttributes(namespace string, attrs map[string]string) []dom.Attribute {
+func prepareForeignAttributes(namespace string, attrs []tokenizer.Attr) []dom.Attribute {
 	if len(attrs) == 0 {
 		return nil
 	}
 	out := make([]dom.Attribute, 0, len(attrs))
-	for name, value := range attrs {
+	for _, a := range attrs {
+		if a.Namespace != "" {
+			out = append(out, dom.Attribute{Namespace: a.Namespace, Name: a.Name, Value: a.Value})
+			continue
+		}
+		name := a.Name
+		value := a.Value
 		lower := strings.ToLower(name)
 		adjustedName := name
 
@@ -237,7 +257,7 @@ func (tb *TreeBuilder) insertForeignElement(name, namespace string, attrs []dom.
 	for _, a := range attrs {
 		el.Attributes.SetNS(a.Namespace, a.Name, a.Value)
 	}
-	tb.currentNode().AppendChild(el)
+	tb.insertNode(el, nil)
 	if !selfClosing {
 		tb.openElements = append(tb.openElements, el)
 	}

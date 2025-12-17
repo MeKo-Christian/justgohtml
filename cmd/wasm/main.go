@@ -5,6 +5,7 @@ package main
 
 import (
 	"encoding/json"
+
 	"syscall/js"
 
 	"github.com/MeKo-Christian/JustGoHTML"
@@ -215,7 +216,7 @@ func tokenToJS(t *tokenizer.Token) map[string]any {
 		result["name"] = t.Name
 		result["selfClosing"] = t.SelfClosing
 		if len(t.Attrs) > 0 {
-			result["attributes"] = t.Attrs
+			result["attributes"] = tokenizer.AttrsToMap(t.Attrs)
 		}
 	case tokenizer.Comment:
 		result["data"] = t.Data

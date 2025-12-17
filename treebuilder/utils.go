@@ -58,6 +58,20 @@ func (tb *TreeBuilder) generateImpliedEndTags(except string) {
 	}
 }
 
+func (tb *TreeBuilder) clearStackUntil(tagNames map[string]bool) {
+	// Per WHATWG HTML §13.2.6.4.9 (clear the stack back to a table context), generalized.
+	for len(tb.openElements) > 0 {
+		node := tb.currentElement()
+		if node == nil {
+			return
+		}
+		if node.Namespace == dom.NamespaceHTML && tagNames[node.TagName] {
+			return
+		}
+		tb.popCurrent()
+	}
+}
+
 func (tb *TreeBuilder) resetInsertionModeAppropriately() {
 	// Per WHATWG HTML §13.2.5.2.4 (reset the insertion mode appropriately).
 	for i := len(tb.openElements) - 1; i >= 0; i-- {

@@ -5,12 +5,13 @@ import (
 	"strings"
 
 	"github.com/MeKo-Christian/JustGoHTML/dom"
+	"github.com/MeKo-Christian/JustGoHTML/tokenizer"
 )
 
 type formattingEntry struct {
 	marker    bool
 	name      string
-	attrs     map[string]string
+	attrs     []tokenizer.Attr
 	node      *dom.Element
 	signature string
 }
@@ -29,8 +30,8 @@ func (tb *TreeBuilder) clearActiveFormattingUpToMarker() {
 	}
 }
 
-func (tb *TreeBuilder) appendActiveFormattingEntry(name string, attrs map[string]string, node *dom.Element) {
-	entryAttrs := cloneAttrs(attrs)
+func (tb *TreeBuilder) appendActiveFormattingEntry(name string, attrs []tokenizer.Attr, node *dom.Element) {
+	entryAttrs := cloneTokenAttrs(attrs)
 	tb.activeFormatting = append(tb.activeFormatting, formattingEntry{
 		name:      name,
 		attrs:     entryAttrs,
@@ -62,7 +63,7 @@ func (tb *TreeBuilder) findActiveFormattingIndexByNode(node *dom.Element) (int, 
 	return -1, false
 }
 
-func (tb *TreeBuilder) findActiveFormattingDuplicate(name string, attrs map[string]string) (int, bool) {
+func (tb *TreeBuilder) findActiveFormattingDuplicate(name string, attrs []tokenizer.Attr) (int, bool) {
 	sig := attrsSignature(attrs)
 	var matches []int
 	for i, entry := range tb.activeFormatting {
@@ -142,7 +143,7 @@ func (tb *TreeBuilder) reconstructActiveFormattingElements() {
 
 	for index < len(tb.activeFormatting) {
 		entry := tb.activeFormatting[index]
-		el := tb.insertElement(entry.name, cloneAttrs(entry.attrs))
+		el := tb.insertElement(entry.name, cloneTokenAttrs(entry.attrs))
 		tb.activeFormatting[index].node = el
 		index++
 	}
@@ -157,31 +158,34 @@ func (tb *TreeBuilder) elementInOpenElements(node *dom.Element) bool {
 	return false
 }
 
-func cloneAttrs(attrs map[string]string) map[string]string {
+func cloneTokenAttrs(attrs []tokenizer.Attr) []tokenizer.Attr {
 	if len(attrs) == 0 {
 		return nil
 	}
-	out := make(map[string]string, len(attrs))
-	for k, v := range attrs {
-		out[k] = v
-	}
+	out := make([]tokenizer.Attr, len(attrs))
+	copy(out, attrs)
 	return out
 }
 
-func attrsSignature(attrs map[string]string) string {
+func attrsSignature(attrs []tokenizer.Attr) string {
 	if len(attrs) == 0 {
 		return ""
 	}
 	keys := make([]string, 0, len(attrs))
-	for k := range attrs {
-		keys = append(keys, k)
+	values := make(map[string]string, len(attrs))
+	for _, a := range attrs {
+		if a.Namespace != "" {
+			continue
+		}
+		keys = append(keys, a.Name)
+		values[a.Name] = a.Value
 	}
 	sort.Strings(keys)
 	var sb strings.Builder
 	for _, k := range keys {
 		sb.WriteString(k)
 		sb.WriteByte('=')
-		sb.WriteString(attrs[k])
+		sb.WriteString(values[k])
 		sb.WriteByte(0)
 	}
 	return sb.String()

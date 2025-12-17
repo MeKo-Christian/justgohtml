@@ -34,7 +34,7 @@ func TestTokenAttrHelpers(t *testing.T) {
 		t.Fatalf("HasAttr on nil Attrs = true, want false")
 	}
 
-	tok.Attrs = map[string]string{"id": "x"}
+	tok.Attrs = []Attr{{Name: "id", Value: "x"}}
 	if got := tok.AttrVal("id"); got != "x" {
 		t.Fatalf("AttrVal(id) = %q, want %q", got, "x")
 	}
