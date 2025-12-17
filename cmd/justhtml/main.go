@@ -7,7 +7,7 @@ import (
 	"io"
 	"os"
 
-	"github.com/MeKo-Christian/justhtml"
+	"github.com/MeKo-Christian/JustGoHTML"
 )
 
 var version = "dev"
@@ -81,7 +81,7 @@ func run() error {
 	}
 
 	// Parse HTML
-	doc, err := justhtml.ParseBytes(input)
+	doc, err := JustGoHTML.ParseBytes(input)
 	if err != nil {
 		return fmt.Errorf("parsing HTML: %w", err)
 	}

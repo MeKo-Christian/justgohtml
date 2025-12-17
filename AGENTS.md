@@ -128,6 +128,14 @@ The project must pass the official html5lib-tests suite:
 
 Test files with `html5lib_test.go` suffix indicate html5lib integration tests.
 
+### Testing Behavior
+
+Tests are configured to fail immediately on mismatch or error.
+- All 9,000+ tests run by default.
+- Failures are reported via `t.Errorf` or `t.Fatalf`.
+- Use standard Go test flags (e.g., `-run`) to focus on specific tests or files.
+- To ignore known failures, use `t.Skip` in the test code if necessary, but the goal is to fix them.
+
 ### Test Patterns
 
 - Use table-driven tests for state machine behavior

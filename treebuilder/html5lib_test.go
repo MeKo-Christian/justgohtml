@@ -6,7 +6,6 @@ import (
 	"path/filepath"
 	"strings"
 	"sync"
-	"sync/atomic"
 	"testing"
 
 	"github.com/MeKo-Christian/JustGoHTML"
@@ -37,14 +36,16 @@ func TestHTML5LibTreeConstruction(t *testing.T) {
 		t.Fatal("No tree-construction test files found")
 	}
 
-	strict := os.Getenv("JustHTML_HTML5LIB_STRICT") == "1" || os.Getenv("JustHTML_HTML5LIB_TREE_STRICT") == "1"
-
 	for _, file := range files {
 		// capture for parallel
 		name := filepath.Base(file)
+		// Disambiguate duplicate filenames (e.g. from scripted/ subdir) for t.Run
+		if strings.Contains(file, "scripted") {
+			name = "scripted/" + name
+		}
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
-			runTreeConstructionTestFile(t, file, strict)
+			runTreeConstructionTestFile(t, file)
 		})
 	}
 }
@@ -65,104 +66,57 @@ func TestJustHTMLTreeConstruction(t *testing.T) {
 		t.Skip("No JustHTML tree-construction test files found")
 	}
 
-	strict := os.Getenv("JustHTML_JustHTML_TREE_STRICT") == "1" || os.Getenv("JustHTML_HTML5LIB_STRICT") == "1"
-
 	for _, file := range files {
 		// capture for parallel
 		name := filepath.Base(file)
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
-			runTreeConstructionTestFile(t, file, strict)
+			runTreeConstructionTestFile(t, file)
 		})
 	}
 }
 
-func runTreeConstructionTestFile(t *testing.T, path string, strict bool) {
+func runTreeConstructionTestFile(t *testing.T, path string) {
 	t.Helper()
 	tests, err := testutil.ParseTreeConstructionFile(path)
 	if err != nil {
 		t.Fatalf("Failed to parse test file: %v", err)
 	}
 
-	if strict {
-		var passed, failed, skipped int64
-		var mu sync.Mutex
-		var examples []string
+	var mu sync.Mutex
+	var examples []string
 
-		for i, test := range tests {
-			testName := truncate(test.Data, 40)
-			if testName == "" {
-				testName = "empty"
+	for i, test := range tests {
+		testName := truncate(test.Data, 40)
+		if testName == "" {
+			testName = "empty"
+		}
+		testIndex := i
+		
+		t.Run(testName, func(t *testing.T) {
+			got, want, skipReason, err := runSingleTreeConstructionTest(test)
+			if skipReason != "" {
+				t.Skip(skipReason)
 			}
-			testIndex := i
-			t.Run(testName, func(t *testing.T) {
-				got, want, skipReason, err := runSingleTreeConstructionTest(test)
-				if skipReason != "" {
-					atomic.AddInt64(&skipped, 1)
-					t.Skip(skipReason)
-				}
-				if err != nil {
-					atomic.AddInt64(&failed, 1)
-					t.Fatalf("parse error: %v\nInput: %q", err, truncate(test.Data, 100))
-				}
+			if err != nil {
+				t.Fatalf("parse error: %v\nInput: %q", err, truncate(test.Data, 100))
+			}
 
-				if got == want {
-					atomic.AddInt64(&passed, 1)
-					return
-				}
-
-				atomic.AddInt64(&failed, 1)
+			if got != want {
 				t.Errorf("tree mismatch\ninput: %q\n\nwant:\n%s\n\ngot:\n%s", truncate(test.Data, 200), want, got)
 
+				// Collect examples of failures for logging at file level if needed
 				mu.Lock()
 				if len(examples) < 3 {
 					examples = append(examples, fmt.Sprintf("case %d input %q\nwant:\n%s\n\ngot:\n%s", testIndex, truncate(test.Data, 120), want, got))
 				}
 				mu.Unlock()
-			})
-		}
-
-		if testing.Verbose() {
-			t.Logf("summary: %d passed, %d failed, %d skipped", passed, failed, skipped)
-			if len(examples) > 0 {
-				t.Logf("examples:\n%s", strings.Join(examples, "\n\n"))
 			}
-		}
-		return
+		})
 	}
-
-	var passed, failed, skipped int
-	var examples []string
-
-	for _, test := range tests {
-		got, want, skipReason, err := runSingleTreeConstructionTest(test)
-		if skipReason != "" {
-			skipped++
-			continue
-		}
-		if err != nil {
-			failed++
-			if len(examples) < 3 {
-				examples = append(examples, fmt.Sprintf("parse error: %v\ninput: %q", err, truncate(test.Data, 120)))
-			}
-			continue
-		}
-		if got == want {
-			passed++
-			continue
-		}
-
-		failed++
-		if len(examples) < 3 {
-			examples = append(examples, fmt.Sprintf("input %q\nwant:\n%s\n\ngot:\n%s", truncate(test.Data, 120), want, got))
-		}
-	}
-
-	if testing.Verbose() {
-		t.Logf("summary: %d passed, %d failed, %d skipped (run 'just test-spec-strict' to fail on mismatches)", passed, failed, skipped)
-		if len(examples) > 0 {
-			t.Logf("examples:\n%s", strings.Join(examples, "\n\n"))
-		}
+	
+	if len(examples) > 0 && testing.Verbose() {
+		t.Logf("Examples of failures in %s:\n%s", filepath.Base(path), strings.Join(examples, "\n\n"))
 	}
 }
 
