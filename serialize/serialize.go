@@ -154,10 +154,10 @@ func serializeChildrenPretty(sb *strings.Builder, children []dom.Node, opts Opti
 		if hasBlock {
 			sb.WriteByte('\n')
 			// Only increment depth for block content (indented on new lines)
-			serializeNode(sb, child, opts, depth+1)
+			serializeNodeWithInline(sb, child, opts, depth+1, false)
 		} else {
-			// Inline content: don't increment depth, no extra indentation
-			serializeNode(sb, child, opts, depth)
+			// Inline content: mark as inline so elements don't add indentation
+			serializeNodeWithInline(sb, child, opts, depth, true)
 		}
 	}
 
@@ -170,7 +170,7 @@ func serializeChildrenPretty(sb *strings.Builder, children []dom.Node, opts Opti
 // serializeText serializes a text node.
 // In pretty mode, whitespace-only text nodes between block elements are skipped
 // since the pretty printer handles formatting.
-func serializeText(sb *strings.Builder, text *dom.Text, opts Options, depth int) {
+func serializeText(sb *strings.Builder, text *dom.Text, opts Options, _ int) {
 	data := text.Data
 
 	// In pretty mode, skip whitespace-only text nodes (they're just formatting noise)
@@ -294,18 +294,6 @@ func isVoidElement(tag string) bool {
 	case "area", "base", "br", "col", "embed", "hr", "img", "input",
 		"link", "meta", "param", "source", "track", "wbr":
 		return true
-	}
-	return false
-}
-
-// hasBlockContent returns true if the element contains block-level content.
-func hasBlockContent(elem *dom.Element) bool {
-	for _, child := range elem.Children() {
-		if childElem, ok := child.(*dom.Element); ok {
-			if isBlockElement(childElem.TagName) {
-				return true
-			}
-		}
 	}
 	return false
 }
