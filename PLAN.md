@@ -558,24 +558,25 @@ Implement matching for:
 
 ## Phase 5: Public API & CLI
 
-### 5.1 Main Entry Point
+### 5.1 Main Entry Point ✅
 
-**File: `JustGoHTML.go`** (scaffolding created)
+**File: `justhtml.go`**
 
 - [x] Define `Parse(html string, opts ...Option) (*Document, error)`
 - [x] Define `ParseBytes(html []byte, opts ...Option) (*Document, error)`
 - [x] Define `ParseFragment(html string, context string, opts ...Option) ([]*Element, error)`
 - [x] Implement tokenizer -> tree builder pipeline
 
-**File: `options.go`** (scaffolding created)
+**File: `options.go`**
 
-- [~] Define `Option` function type
-- [~] Implement `WithEncoding(enc string) Option`
-- [~] Implement `WithFragment(tagName string) Option`
-- [~] Implement `WithFragmentNS(tagName, namespace string) Option`
-- [~] Implement `WithIframeSrcdoc() Option`
-- [~] Implement `WithStrictMode() Option`
-- [~] Implement `WithCollectErrors() Option`
+- [x] Define `Option` function type
+- [x] Implement `WithEncoding(enc string) Option`
+- [x] Implement `WithFragment(tagName string) Option`
+- [x] Implement `WithFragmentNS(tagName, namespace string) Option`
+- [x] Implement `WithIframeSrcdoc() Option`
+- [x] Implement `WithStrictMode() Option`
+- [x] Implement `WithCollectErrors() Option`
+- [x] Implement `WithXMLCoercion() Option`
 
 ### 5.2 Streaming API
 

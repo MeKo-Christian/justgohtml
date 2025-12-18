@@ -22,8 +22,44 @@ jobs:
       - name: Setup just
         uses: extractions/setup-just@v2
 
-      - name: Install formatters
-        run: just setup-deps
+      # Go formatters
+      - name: Install gofumpt
+        run: go install mvdan.cc/gofumpt@latest
+
+      - name: Install gci
+        run: go install github.com/daixiang0/gci@latest
+
+      # golangci-lint via official action (install only, lint runs via just)
+      - name: Setup golangci-lint
+        uses: golangci/golangci-lint-action@v6
+        with:
+          version: v1.62.2
+          skip-cache: true
+          skip-save-cache: true
+          args: --version
+
+      # Node-based formatters
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Install prettier
+        run: npm install -g prettier
+
+      # TOML formatter
+      - name: Install taplo
+        uses: taiki-e/install-action@v2
+        with:
+          tool: taplo-cli@0.9.3
+
+      # treefmt (Go-based v2)
+      - name: Install treefmt
+        run: go install github.com/numtide/treefmt/v2@latest
+
+      # Shell formatters
+      - name: Install shfmt
+        uses: mfinelli/setup-shfmt@v3
 
       - name: Check formatting
         run: just check-formatted
