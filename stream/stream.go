@@ -48,7 +48,8 @@ type Event struct {
 
 // Stream returns a channel of parsing events.
 // The channel is closed when parsing is complete.
-func Stream(html string) <-chan Event {
+func Stream(html string, opts ...Option) <-chan Event {
+	_ = newConfig(opts...) // Options available for future use
 	ch := make(chan Event)
 	go func() {
 		defer close(ch)
@@ -58,8 +59,10 @@ func Stream(html string) <-chan Event {
 }
 
 // StreamBytes returns a channel of parsing events from byte input.
-func StreamBytes(html []byte) <-chan Event {
-	decoded, _, err := encoding.Decode(html, "")
+// It performs automatic encoding detection per the HTML5 specification.
+func StreamBytes(html []byte, opts ...Option) <-chan Event {
+	cfg := newConfig(opts...)
+	decoded, _, err := encoding.Decode(html, cfg.encoding)
 	if err != nil {
 		ch := make(chan Event)
 		close(ch)
