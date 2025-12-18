@@ -29,15 +29,6 @@ jobs:
       - name: Install gci
         run: go install github.com/daixiang0/gci@latest
 
-      # golangci-lint via official action (install only, lint runs via just)
-      - name: Setup golangci-lint
-        uses: golangci/golangci-lint-action@v6
-        with:
-          version: v1.62.2
-          skip-cache: true
-          skip-save-cache: true
-          args: --version
-
       # Node-based formatters
       - name: Setup Node.js
         uses: actions/setup-node@v4

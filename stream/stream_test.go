@@ -4,6 +4,12 @@ import (
 	"testing"
 )
 
+// Test constants to satisfy goconst linter.
+const (
+	testTagHTML = "html"
+	testTagDiv  = "div"
+)
+
 func TestEventTypeString(t *testing.T) {
 	tests := []struct {
 		eventType EventType
@@ -39,9 +45,9 @@ func TestStreamBasicHTML(t *testing.T) {
 	}
 
 	// Check first event is html start tag
-	if events[0].Type != StartTagEvent || events[0].Name != "html" {
-		t.Errorf("first event = {Type: %v, Name: %q}, want StartTag 'html'",
-			events[0].Type, events[0].Name)
+	if events[0].Type != StartTagEvent || events[0].Name != testTagHTML {
+		t.Errorf("first event = {Type: %v, Name: %q}, want StartTag %q",
+			events[0].Type, events[0].Name, testTagHTML)
 	}
 }
 
@@ -61,8 +67,8 @@ func TestStreamStartTag(t *testing.T) {
 	if event.Type != StartTagEvent {
 		t.Errorf("Type = %v, want StartTagEvent", event.Type)
 	}
-	if event.Name != "div" {
-		t.Errorf("Name = %q, want %q", event.Name, "div")
+	if event.Name != testTagDiv {
+		t.Errorf("Name = %q, want %q", event.Name, testTagDiv)
 	}
 	if event.Attrs["id"] != "main" {
 		t.Errorf("Attrs[id] = %q, want %q", event.Attrs["id"], "main")
@@ -88,8 +94,8 @@ func TestStreamEndTag(t *testing.T) {
 	if event.Type != EndTagEvent {
 		t.Errorf("Type = %v, want EndTagEvent", event.Type)
 	}
-	if event.Name != "div" {
-		t.Errorf("Name = %q, want %q", event.Name, "div")
+	if event.Name != testTagDiv {
+		t.Errorf("Name = %q, want %q", event.Name, testTagDiv)
 	}
 }
 
@@ -151,8 +157,8 @@ func TestStreamDoctype(t *testing.T) {
 	if event.Type != DoctypeEvent {
 		t.Errorf("Type = %v, want DoctypeEvent", event.Type)
 	}
-	if event.Name != "html" {
-		t.Errorf("Name = %q, want %q", event.Name, "html")
+	if event.Name != testTagHTML {
+		t.Errorf("Name = %q, want %q", event.Name, testTagHTML)
 	}
 }
 
@@ -172,8 +178,8 @@ func TestStreamDoctypeWithPublicSystemID(t *testing.T) {
 	if event.Type != DoctypeEvent {
 		t.Errorf("Type = %v, want DoctypeEvent", event.Type)
 	}
-	if event.Name != "html" {
-		t.Errorf("Name = %q, want %q", event.Name, "html")
+	if event.Name != testTagHTML {
+		t.Errorf("Name = %q, want %q", event.Name, testTagHTML)
 	}
 	if event.PublicID != "-//W3C//DTD XHTML 1.0 Strict//EN" {
 		t.Errorf("PublicID = %q, want %q", event.PublicID, "-//W3C//DTD XHTML 1.0 Strict//EN")
