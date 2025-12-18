@@ -137,30 +137,30 @@ check-ci: check test-coverage
 
 # Build the CLI binary
 build:
-    go build -ldflags '-s -w -X main.version={{VERSION}}' -o {{BINARY}} ./cmd/JustGoHTML
+    go build -ldflags '-s -w -X main.version={{VERSION}}' -o {{BINARY}} ./cmd/justgohtml
 
 # Build for all platforms
 build-all: build-linux build-darwin build-windows
 
 # Build for Linux
 build-linux:
-    GOOS=linux GOARCH=amd64 go build -ldflags '-s -w -X main.version={{VERSION}}' -o {{BINARY}}-linux-amd64 ./cmd/JustGoHTML
+    GOOS=linux GOARCH=amd64 go build -ldflags '-s -w -X main.version={{VERSION}}' -o {{BINARY}}-linux-amd64 ./cmd/justgohtml
 
 # Build for macOS (Intel)
 build-darwin:
-    GOOS=darwin GOARCH=amd64 go build -ldflags '-s -w -X main.version={{VERSION}}' -o {{BINARY}}-darwin-amd64 ./cmd/JustGoHTML
+    GOOS=darwin GOARCH=amd64 go build -ldflags '-s -w -X main.version={{VERSION}}' -o {{BINARY}}-darwin-amd64 ./cmd/justgohtml
 
 # Build for macOS (Apple Silicon)
 build-darwin-arm:
-    GOOS=darwin GOARCH=arm64 go build -ldflags '-s -w -X main.version={{VERSION}}' -o {{BINARY}}-darwin-arm64 ./cmd/JustGoHTML
+    GOOS=darwin GOARCH=arm64 go build -ldflags '-s -w -X main.version={{VERSION}}' -o {{BINARY}}-darwin-arm64 ./cmd/justgohtml
 
 # Build for Windows
 build-windows:
-    GOOS=windows GOARCH=amd64 go build -ldflags '-s -w -X main.version={{VERSION}}' -o {{BINARY}}.exe ./cmd/JustGoHTML
+    GOOS=windows GOARCH=amd64 go build -ldflags '-s -w -X main.version={{VERSION}}' -o {{BINARY}}.exe ./cmd/justgohtml
 
 # Install locally
 install:
-    go install -ldflags '-s -w -X main.version={{VERSION}}' ./cmd/JustGoHTML
+    go install -ldflags '-s -w -X main.version={{VERSION}}' ./cmd/justgohtml
 
 #################################
 # WebAssembly Build
@@ -224,7 +224,7 @@ serve-playground:
 
 # Run the CLI (for testing during development)
 run *ARGS="":
-    go run ./cmd/JustGoHTML {{ARGS}}
+    go run ./cmd/justgohtml {{ARGS}}
 
 # Generate code (entities, constants)
 gen:
