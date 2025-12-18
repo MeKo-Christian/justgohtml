@@ -578,7 +578,7 @@ Implement matching for:
 - [x] Implement `WithCollectErrors() Option`
 - [x] Implement `WithXMLCoercion() Option`
 
-### 5.2 Streaming API
+### 5.2 Streaming API ✅
 
 **File: `stream/stream.go`**
 

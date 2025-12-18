@@ -40,11 +40,9 @@ func serializeNode(sb *strings.Builder, node dom.Node, opts Options, depth int) 
 	case *dom.Element:
 		serializeElement(sb, n, opts, depth)
 	case *dom.Text:
-		sb.WriteString(escapeText(n.Data))
+		serializeText(sb, n, opts, depth)
 	case *dom.Comment:
-		sb.WriteString("<!--")
-		sb.WriteString(n.Data)
-		sb.WriteString("-->")
+		serializeComment(sb, n, opts, depth)
 	}
 }
 
@@ -103,23 +101,124 @@ func serializeElement(sb *strings.Builder, elem *dom.Element, opts Options, dept
 
 	sb.WriteByte('>')
 
-	hasBlockChildren := hasBlockContent(elem)
+	children := elem.Children()
 
-	for _, child := range elem.Children() {
-		if opts.Pretty && hasBlockChildren {
-			sb.WriteByte('\n')
+	if opts.Pretty {
+		serializeChildrenPretty(sb, children, opts, depth)
+	} else {
+		for _, child := range children {
+			serializeNode(sb, child, opts, depth+1)
 		}
-		serializeNode(sb, child, opts, depth+1)
-	}
-
-	if opts.Pretty && hasBlockChildren && len(elem.Children()) > 0 {
-		sb.WriteByte('\n')
-		sb.WriteString(strings.Repeat(" ", depth*opts.IndentSize))
 	}
 
 	sb.WriteString("</")
 	sb.WriteString(elem.TagName)
 	sb.WriteByte('>')
+}
+
+// serializeChildrenPretty handles pretty-printing of element children.
+// It filters out whitespace-only text nodes and properly indents content.
+func serializeChildrenPretty(sb *strings.Builder, children []dom.Node, opts Options, depth int) {
+	// Filter to get significant children (skip whitespace-only text nodes)
+	var significantChildren []dom.Node
+	for _, child := range children {
+		if text, ok := child.(*dom.Text); ok {
+			if isWhitespaceOnly(text.Data) {
+				continue
+			}
+		}
+		significantChildren = append(significantChildren, child)
+	}
+
+	if len(significantChildren) == 0 {
+		return
+	}
+
+	// Check if any child is a block element
+	hasBlock := false
+	for _, child := range significantChildren {
+		if elem, ok := child.(*dom.Element); ok {
+			if isBlockElement(elem.TagName) {
+				hasBlock = true
+				break
+			}
+		}
+	}
+
+	for _, child := range significantChildren {
+		if hasBlock {
+			sb.WriteByte('\n')
+		}
+		serializeNode(sb, child, opts, depth+1)
+	}
+
+	if hasBlock {
+		sb.WriteByte('\n')
+		sb.WriteString(strings.Repeat(" ", depth*opts.IndentSize))
+	}
+}
+
+// serializeText serializes a text node.
+// In pretty mode, whitespace-only text nodes between block elements are skipped
+// since the pretty printer handles formatting.
+func serializeText(sb *strings.Builder, text *dom.Text, opts Options, depth int) {
+	data := text.Data
+
+	// In pretty mode, skip whitespace-only text nodes (they're just formatting noise)
+	if opts.Pretty && isWhitespaceOnly(data) {
+		return
+	}
+
+	// In pretty mode, normalize whitespace in text nodes that have content
+	if opts.Pretty {
+		data = normalizeWhitespace(data)
+	}
+
+	sb.WriteString(escapeText(data))
+}
+
+// serializeComment serializes a comment node.
+func serializeComment(sb *strings.Builder, comment *dom.Comment, opts Options, depth int) {
+	if opts.Pretty && depth > 0 {
+		sb.WriteString(strings.Repeat(" ", depth*opts.IndentSize))
+	}
+	sb.WriteString("<!--")
+	sb.WriteString(comment.Data)
+	sb.WriteString("-->")
+}
+
+// isWhitespaceOnly returns true if the string contains only whitespace characters.
+func isWhitespaceOnly(s string) bool {
+	for _, r := range s {
+		if r != ' ' && r != '\t' && r != '\n' && r != '\r' && r != '\f' {
+			return false
+		}
+	}
+	return true
+}
+
+// normalizeWhitespace collapses runs of whitespace into single spaces
+// and trims leading/trailing whitespace.
+func normalizeWhitespace(s string) string {
+	var sb strings.Builder
+	inWhitespace := true // Start true to trim leading whitespace
+	for _, r := range s {
+		if r == ' ' || r == '\t' || r == '\n' || r == '\r' || r == '\f' {
+			if !inWhitespace {
+				sb.WriteByte(' ')
+				inWhitespace = true
+			}
+		} else {
+			sb.WriteRune(r)
+			inWhitespace = false
+		}
+	}
+	// Trim trailing space if we ended in whitespace
+	result := sb.String()
+	if len(result) > 0 && result[len(result)-1] == ' ' {
+		result = result[:len(result)-1]
+	}
+	return result
 }
 
 // escapeText escapes text content for HTML.
