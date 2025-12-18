@@ -32,17 +32,21 @@ func ToHTML(node dom.Node, opts Options) string {
 }
 
 func serializeNode(sb *strings.Builder, node dom.Node, opts Options, depth int) {
+	serializeNodeWithInline(sb, node, opts, depth, false)
+}
+
+func serializeNodeWithInline(sb *strings.Builder, node dom.Node, opts Options, depth int, inline bool) {
 	switch n := node.(type) {
 	case *dom.Document:
 		serializeDocument(sb, n, opts, depth)
 	case *dom.DocumentType:
 		serializeDoctype(sb, n)
 	case *dom.Element:
-		serializeElement(sb, n, opts, depth)
+		serializeElement(sb, n, opts, depth, inline)
 	case *dom.Text:
 		serializeText(sb, n, opts, depth)
 	case *dom.Comment:
-		serializeComment(sb, n, opts, depth)
+		serializeComment(sb, n, opts, depth, inline)
 	}
 }
 
@@ -78,8 +82,9 @@ func serializeDoctype(sb *strings.Builder, dt *dom.DocumentType) {
 	sb.WriteByte('>')
 }
 
-func serializeElement(sb *strings.Builder, elem *dom.Element, opts Options, depth int) {
-	if opts.Pretty && depth > 0 {
+func serializeElement(sb *strings.Builder, elem *dom.Element, opts Options, depth int, inline bool) {
+	// Only add indentation for block elements on their own line, not inline elements
+	if opts.Pretty && depth > 0 && !inline {
 		sb.WriteString(strings.Repeat(" ", depth*opts.IndentSize))
 	}
 
@@ -148,8 +153,12 @@ func serializeChildrenPretty(sb *strings.Builder, children []dom.Node, opts Opti
 	for _, child := range significantChildren {
 		if hasBlock {
 			sb.WriteByte('\n')
+			// Only increment depth for block content (indented on new lines)
+			serializeNode(sb, child, opts, depth+1)
+		} else {
+			// Inline content: don't increment depth, no extra indentation
+			serializeNode(sb, child, opts, depth)
 		}
-		serializeNode(sb, child, opts, depth+1)
 	}
 
 	if hasBlock {
