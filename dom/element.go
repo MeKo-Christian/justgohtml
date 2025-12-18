@@ -37,7 +37,7 @@ func NewElement(tagName string) *Element {
 		Namespace:  NamespaceHTML,
 		Attributes: NewAttributes(),
 	}
-	e.baseNode.init(e)
+	e.init(e)
 	return e
 }
 
@@ -48,7 +48,7 @@ func NewElementNS(tagName, namespace string) *Element {
 		Namespace:  namespace,
 		Attributes: NewAttributes(),
 	}
-	e.baseNode.init(e)
+	e.init(e)
 	return e
 }
 
@@ -64,7 +64,7 @@ func (e *Element) Clone(deep bool) Node {
 		Namespace:  e.Namespace,
 		Attributes: e.Attributes.Clone(),
 	}
-	clone.baseNode.init(clone)
+	clone.init(clone)
 
 	if deep {
 		for _, child := range e.children {

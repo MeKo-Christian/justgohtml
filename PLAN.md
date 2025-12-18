@@ -467,48 +467,48 @@ Implement all 21 mode handlers:
 
 ### 4.1 DOM Node Types
 
-**File: `dom/node.go`** (scaffolding created)
+**File: `dom/node.go`** ✅
 
 - [x] Define `NodeType` enum
 - [x] Define `Node` interface with common operations
 - [x] Implement `baseNode` with shared functionality
 
-**File: `dom/element.go`** (scaffolding created)
+**File: `dom/element.go`** ✅
 
-- [~] Define `Element` struct with TagName, Namespace, Attributes, TemplateContent
-- [~] Implement `AppendChild`, `InsertBefore`, `RemoveChild`
-- [ ] Implement `ReplaceChild`
-- [~] Implement `Clone(deep bool)`
-- [~] Implement `Query`, `QueryFirst` (stub - delegates to selector package)
-- [~] Implement `Text()` for text extraction
-- [~] Implement `Attr`, `HasAttr`, `SetAttr`, `RemoveAttr`
-- [~] Implement `ID()`, `Classes()`, `HasClass()`
+- [x] Define `Element` struct with TagName, Namespace, Attributes, TemplateContent
+- [x] Implement `AppendChild`, `InsertBefore`, `RemoveChild`
+- [x] Implement `ReplaceChild`
+- [x] Implement `Clone(deep bool)`
+- [x] Implement `Query`, `QueryFirst` (stub - delegates to selector package)
+- [x] Implement `Text()` for text extraction
+- [x] Implement `Attr`, `HasAttr`, `SetAttr`, `RemoveAttr`
+- [x] Implement `ID()`, `Classes()`, `HasClass()`
 
-**File: `dom/text.go`** (scaffolding created)
+**File: `dom/text.go`** ✅
 
-- [~] Define `Text` struct
-- [~] Define `Comment` struct
-- [~] Implement `Node` interface for both
+- [x] Define `Text` struct
+- [x] Define `Comment` struct
+- [x] Implement `Node` interface for both
 
-**File: `dom/document.go`** (scaffolding created)
+**File: `dom/document.go`** ✅
 
-- [~] Define `Document` struct with Doctype, QuirksMode
-- [~] Define `DocumentType` struct
-- [~] Define `DocumentFragment` struct
-- [~] Implement `DocumentElement()`, `Head()`, `Body()`, `Title()`
-- [~] Implement `Query`, `QueryFirst`
+- [x] Define `Document` struct with Doctype, QuirksMode
+- [x] Define `DocumentType` struct
+- [x] Define `DocumentFragment` struct
+- [x] Implement `DocumentElement()`, `Head()`, `Body()`, `Title()`
+- [x] Implement `Query`, `QueryFirst`
 
 ### 4.2 Attribute Handling
 
-**File: `dom/attributes.go`** (scaffolding created)
+**File: `dom/attributes.go`** ✅
 
-- [~] Define `Attributes` struct with ordered storage
-- [~] Define `Attribute` struct with Namespace, Name, Value
-- [~] Implement `Get`, `GetNS` (case-insensitive for HTML)
-- [~] Implement `Set`, `SetNS`
-- [~] Implement `Has`, `HasNS`
-- [~] Implement `Remove`, `RemoveNS`
-- [~] Implement `All`, `Len`, `Clone`
+- [x] Define `Attributes` struct with ordered storage
+- [x] Define `Attribute` struct with Namespace, Name, Value
+- [x] Implement `Get`, `GetNS` (case-insensitive for HTML)
+- [x] Implement `Set`, `SetNS`
+- [x] Implement `Has`, `HasNS`
+- [x] Implement `Remove`, `RemoveNS`
+- [x] Implement `All`, `Len`, `Clone`
 
 ### 4.3 CSS Selector Engine
 
@@ -568,7 +568,7 @@ Implement matching for:
 
 ### 4.4 Testing
 
-- [ ] Node tree manipulation tests
+- [x] Node tree manipulation tests (99.1% coverage in dom package)
 - [ ] Selector parsing tests
 - [ ] Selector matching tests
 - [ ] Query integration tests

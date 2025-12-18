@@ -24,7 +24,7 @@ type Document struct {
 // NewDocument creates a new empty document.
 func NewDocument() *Document {
 	d := &Document{}
-	d.baseNode.init(d)
+	d.init(d)
 	return d
 }
 
@@ -38,7 +38,7 @@ func (d *Document) Clone(deep bool) Node {
 	clone := &Document{
 		QuirksMode: d.QuirksMode,
 	}
-	clone.baseNode.init(clone)
+	clone.init(clone)
 
 	if d.Doctype != nil {
 		clone.Doctype = d.Doctype.Clone(false).(*DocumentType)
@@ -182,6 +182,12 @@ func (dt *DocumentType) InsertBefore(_, _ Node) {}
 // RemoveChild implements Node (no-op for DOCTYPE nodes).
 func (dt *DocumentType) RemoveChild(_ Node) {}
 
+// ReplaceChild implements Node (no-op for DOCTYPE nodes, returns nil).
+func (dt *DocumentType) ReplaceChild(_, _ Node) Node { return nil }
+
+// HasChildNodes implements Node (DOCTYPE nodes never have children).
+func (dt *DocumentType) HasChildNodes() bool { return false }
+
 // Clone implements Node.
 func (dt *DocumentType) Clone(_ bool) Node {
 	return &DocumentType{
@@ -199,7 +205,7 @@ type DocumentFragment struct {
 // NewDocumentFragment creates a new document fragment.
 func NewDocumentFragment() *DocumentFragment {
 	df := &DocumentFragment{}
-	df.baseNode.init(df)
+	df.init(df)
 	return df
 }
 
@@ -213,7 +219,7 @@ func (df *DocumentFragment) Type() NodeType {
 // Clone implements Node.
 func (df *DocumentFragment) Clone(deep bool) Node {
 	clone := &DocumentFragment{}
-	clone.baseNode.init(clone)
+	clone.init(clone)
 
 	if deep {
 		for _, child := range df.children {
