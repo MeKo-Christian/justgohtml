@@ -188,8 +188,8 @@ func serializeText(sb *strings.Builder, text *dom.Text, opts Options, depth int)
 }
 
 // serializeComment serializes a comment node.
-func serializeComment(sb *strings.Builder, comment *dom.Comment, opts Options, depth int) {
-	if opts.Pretty && depth > 0 {
+func serializeComment(sb *strings.Builder, comment *dom.Comment, opts Options, depth int, inline bool) {
+	if opts.Pretty && depth > 0 && !inline {
 		sb.WriteString(strings.Repeat(" ", depth*opts.IndentSize))
 	}
 	sb.WriteString("<!--")
