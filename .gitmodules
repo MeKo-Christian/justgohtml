@@ -1,3 +1,7 @@
 [submodule "testdata/html5lib-tests"]
 	path = testdata/html5lib-tests
 	url = https://github.com/html5lib/html5lib-tests.git
+
+[submodule "reference/justhtml-python"]
+	path = reference/justhtml-python
+	url = https://github.com/EmilStenstrom/justhtml.git
