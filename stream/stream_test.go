@@ -34,7 +34,7 @@ func TestEventTypeString(t *testing.T) {
 func TestStreamBasicHTML(t *testing.T) {
 	html := "<html><head><title>Test</title></head><body><p>Hello</p></body></html>"
 
-	var events []Event
+	var events []Event //nolint:prealloc // size unknown from channel
 	for event := range Stream(html) {
 		events = append(events, event)
 	}
@@ -54,7 +54,7 @@ func TestStreamBasicHTML(t *testing.T) {
 func TestStreamStartTag(t *testing.T) {
 	html := `<div id="main" class="container">`
 
-	var events []Event
+	var events []Event //nolint:prealloc // size unknown from channel
 	for event := range Stream(html) {
 		events = append(events, event)
 	}
@@ -81,7 +81,7 @@ func TestStreamStartTag(t *testing.T) {
 func TestStreamEndTag(t *testing.T) {
 	html := "</div>"
 
-	var events []Event
+	var events []Event //nolint:prealloc // size unknown from channel
 	for event := range Stream(html) {
 		events = append(events, event)
 	}
@@ -102,7 +102,7 @@ func TestStreamEndTag(t *testing.T) {
 func TestStreamText(t *testing.T) {
 	html := "Hello, World!"
 
-	var events []Event
+	var events []Event //nolint:prealloc // size unknown from channel
 	for event := range Stream(html) {
 		events = append(events, event)
 	}
@@ -123,7 +123,7 @@ func TestStreamText(t *testing.T) {
 func TestStreamComment(t *testing.T) {
 	html := "<!-- This is a comment -->"
 
-	var events []Event
+	var events []Event //nolint:prealloc // size unknown from channel
 	for event := range Stream(html) {
 		events = append(events, event)
 	}
@@ -144,7 +144,7 @@ func TestStreamComment(t *testing.T) {
 func TestStreamDoctype(t *testing.T) {
 	html := "<!DOCTYPE html>"
 
-	var events []Event
+	var events []Event //nolint:prealloc // size unknown from channel
 	for event := range Stream(html) {
 		events = append(events, event)
 	}
@@ -165,7 +165,7 @@ func TestStreamDoctype(t *testing.T) {
 func TestStreamDoctypeWithPublicSystemID(t *testing.T) {
 	html := `<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">`
 
-	var events []Event
+	var events []Event //nolint:prealloc // size unknown from channel
 	for event := range Stream(html) {
 		events = append(events, event)
 	}
@@ -223,7 +223,7 @@ func TestStreamCompleteDocument(t *testing.T) {
 }
 
 func TestStreamEmpty(t *testing.T) {
-	var events []Event
+	var events []Event //nolint:prealloc // size unknown from channel
 	for event := range Stream("") {
 		events = append(events, event)
 	}
@@ -257,7 +257,7 @@ func TestStreamSelfClosingTag(t *testing.T) {
 func TestStreamBytes(t *testing.T) {
 	html := []byte("<div>Hello</div>")
 
-	var events []Event
+	var events []Event //nolint:prealloc // size unknown from channel
 	for event := range StreamBytes(html) {
 		events = append(events, event)
 	}
@@ -282,7 +282,7 @@ func TestStreamBytesWithBOM(t *testing.T) {
 	html := []byte{0xEF, 0xBB, 0xBF}
 	html = append(html, []byte("<p>Test</p>")...)
 
-	var events []Event
+	var events []Event //nolint:prealloc // size unknown from channel
 	for event := range StreamBytes(html) {
 		events = append(events, event)
 	}
@@ -300,7 +300,7 @@ func TestStreamBytesWithBOM(t *testing.T) {
 func TestStreamWithEncodingOption(t *testing.T) {
 	html := []byte("<p>Test</p>")
 
-	var events []Event
+	var events []Event //nolint:prealloc // size unknown from channel
 	for event := range StreamBytes(html, WithEncoding("utf-8")) {
 		events = append(events, event)
 	}
@@ -313,7 +313,7 @@ func TestStreamWithEncodingOption(t *testing.T) {
 func TestStreamWithOptions(t *testing.T) {
 	html := "<div>Test</div>"
 
-	var events []Event
+	var events []Event //nolint:prealloc // size unknown from channel
 	for event := range Stream(html, WithEncoding("utf-8")) {
 		events = append(events, event)
 	}
@@ -327,7 +327,7 @@ func TestStreamWithOptions(t *testing.T) {
 func TestStreamNestedElements(t *testing.T) {
 	html := "<div><span><a>link</a></span></div>"
 
-	var events []Event
+	var events []Event //nolint:prealloc // size unknown from channel
 	for event := range Stream(html) {
 		events = append(events, event)
 	}
@@ -367,7 +367,7 @@ func TestStreamNestedElements(t *testing.T) {
 func TestStreamMultipleAttributes(t *testing.T) {
 	html := `<input type="text" name="username" value="test" disabled>`
 
-	var events []Event
+	var events []Event //nolint:prealloc // size unknown from channel
 	for event := range Stream(html) {
 		events = append(events, event)
 	}
@@ -398,7 +398,7 @@ func TestStreamMultipleAttributes(t *testing.T) {
 func TestStreamScript(t *testing.T) {
 	html := "<script>var x = '<div>';</script>"
 
-	var events []Event
+	var events []Event //nolint:prealloc // size unknown from channel
 	for event := range Stream(html) {
 		events = append(events, event)
 	}
@@ -422,7 +422,7 @@ func TestStreamScript(t *testing.T) {
 func TestStreamStyle(t *testing.T) {
 	html := "<style>.class { color: red; }</style>"
 
-	var events []Event
+	var events []Event //nolint:prealloc // size unknown from channel
 	for event := range Stream(html) {
 		events = append(events, event)
 	}

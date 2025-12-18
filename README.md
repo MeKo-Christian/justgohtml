@@ -4,6 +4,8 @@
 
 A pure Go HTML5 parser that just works. No CGO. No dependencies. No complex API to learn.
 
+**[Try it in the Playground!](https://meko-christian.github.io/justgohtml/)**
+
 ## Why use JustGoHTML?
 
 ### 1. Just... Correct
