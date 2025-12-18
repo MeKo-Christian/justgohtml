@@ -132,22 +132,13 @@ func (e *Element) HasChildNodes() bool {
 }
 
 // Query finds all descendant elements matching the CSS selector.
-func (e *Element) Query(selector string) ([]*Element, error) {
-	// TODO: Implement selector parsing and matching
-	_ = selector
-	return nil, nil
+func (e *Element) Query(selectorStr string) ([]*Element, error) {
+	return selectorMatch(e, selectorStr)
 }
 
 // QueryFirst finds the first descendant element matching the CSS selector.
-func (e *Element) QueryFirst(selector string) (*Element, error) {
-	results, err := e.Query(selector)
-	if err != nil {
-		return nil, err
-	}
-	if len(results) == 0 {
-		return nil, nil
-	}
-	return results[0], nil
+func (e *Element) QueryFirst(selectorStr string) (*Element, error) {
+	return selectorMatchFirst(e, selectorStr)
 }
 
 // Text returns the text content of this element and its descendants.

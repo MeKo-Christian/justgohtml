@@ -510,69 +510,49 @@ Implement all 21 mode handlers:
 - [x] Implement `Remove`, `RemoveNS`
 - [x] Implement `All`, `Len`, `Clone`
 
-### 4.3 CSS Selector Engine
+### 4.3 CSS Selector Engine ✅
 
-**File: `selector/ast.go`**
+**File: `selector/ast.go`** ✅
 
-```go
-type Selector interface {
-    Match(element *dom.Element) bool
-}
+- [x] Define `SelectorKind` enum (Tag, Universal, ID, Class, Attr, Pseudo)
+- [x] Define `AttrOperator` enum (Exists, Equals, Includes, DashPrefix, PrefixMatch, SuffixMatch, Substring)
+- [x] Define `Combinator` enum (None, Descendant, Child, Adjacent, General)
+- [x] Define `SimpleSelector`, `CompoundSelector`, `ComplexPart`, `ComplexSelector`, `SelectorList` types
 
-type ComplexSelector struct {
-    Compound   CompoundSelector
-    Combinator Combinator
-    Next       *ComplexSelector
-}
+**File: `selector/parser.go`** ✅
 
-type CompoundSelector struct {
-    TypeSelector   string  // tag name or "*"
-    IDSelector     string
-    ClassSelectors []string
-    AttrSelectors  []AttrSelector
-    PseudoClasses  []PseudoClass
-}
+- [x] Tokenize selector string (character-by-character state machine)
+- [x] Parse selector groups (comma-separated)
+- [x] Parse complex selectors (with combinators)
+- [x] Parse compound selectors
+- [x] Parse pseudo-classes with arguments
+- [x] Handle escape sequences in strings
 
-type Combinator int
-const (
-    Descendant Combinator = iota  // space
-    Child                          // >
-    NextSibling                    // +
-    SubsequentSibling              // ~
-)
-```
-
-**File: `selector/parser.go`**
-
-- [ ] Tokenize selector string
-- [ ] Parse selector groups (comma-separated)
-- [ ] Parse complex selectors (with combinators)
-- [ ] Parse compound selectors
-- [ ] Parse pseudo-classes with arguments
-
-**File: `selector/matcher.go`**
+**File: `selector/matcher.go`** ✅
 
 Implement matching for:
 
-- [ ] Type selector (`div`, `*`)
-- [ ] ID selector (`#id`)
-- [ ] Class selector (`.class`)
-- [ ] Attribute selectors (`[attr]`, `[attr="val"]`, `[attr~="val"]`, etc.)
-- [ ] `:first-child`, `:last-child`, `:only-child`
-- [ ] `:nth-child(an+b)`, `:nth-last-child(an+b)`
-- [ ] `:first-of-type`, `:last-of-type`, `:only-of-type`
-- [ ] `:nth-of-type(an+b)`, `:nth-last-of-type(an+b)`
-- [ ] `:not(selector)`
-- [ ] `:empty`
-- [ ] Combinators (descendant, child, sibling)
+- [x] Type selector (`div`, `*`)
+- [x] ID selector (`#id`)
+- [x] Class selector (`.class`)
+- [x] Attribute selectors (`[attr]`, `[attr="val"]`, `[attr~="val"]`, `[attr^="val"]`, `[attr$="val"]`, `[attr*="val"]`, `[attr|="val"]`)
+- [x] `:first-child`, `:last-child`, `:only-child`
+- [x] `:nth-child(an+b)`, `:nth-last-child(an+b)`
+- [x] `:first-of-type`, `:last-of-type`, `:only-of-type`
+- [x] `:nth-of-type(an+b)`, `:nth-last-of-type(an+b)`
+- [x] `:not(selector)`
+- [x] `:empty`
+- [x] `:root`
+- [x] Combinators (descendant, child, adjacent sibling, general sibling)
+- [x] Right-to-left matching algorithm for efficiency
 
 ### 4.4 Testing
 
 - [x] Node tree manipulation tests (99.1% coverage in dom package)
-- [ ] Selector parsing tests
-- [ ] Selector matching tests
-- [ ] Query integration tests
-- [ ] Benchmark: selectors per second
+- [x] Selector parsing tests
+- [x] Selector matching tests
+- [x] Query integration tests
+- [x] Benchmark: selectors per second (BenchmarkParse, BenchmarkMatch)
 
 ---
 
