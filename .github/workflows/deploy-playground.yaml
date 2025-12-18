@@ -4,10 +4,6 @@ on:
   push:
     branches:
       - main
-    paths:
-      - "cmd/wasm/**"
-      - "playground/**"
-      - ".github/workflows/deploy-playground.yaml"
   workflow_dispatch:
 
 permissions:

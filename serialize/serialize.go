@@ -169,9 +169,10 @@ func serializeText(sb *strings.Builder, text *dom.Text, opts Options, depth int)
 		return
 	}
 
-	// In pretty mode, normalize whitespace in text nodes that have content
+	// In pretty mode, collapse runs of whitespace but preserve leading/trailing
+	// single spaces for inline content like "text <b>bold</b> more"
 	if opts.Pretty {
-		data = normalizeWhitespace(data)
+		data = collapseWhitespace(data)
 	}
 
 	sb.WriteString(escapeText(data))
@@ -197,13 +198,21 @@ func isWhitespaceOnly(s string) bool {
 	return true
 }
 
-// normalizeWhitespace collapses runs of whitespace into single spaces
-// and trims leading/trailing whitespace.
-func normalizeWhitespace(s string) string {
+// collapseWhitespace collapses runs of whitespace into single spaces
+// but preserves a single leading/trailing space if present.
+// This is important for inline content like "text <b>bold</b> more".
+func collapseWhitespace(s string) string {
+	if len(s) == 0 {
+		return s
+	}
+
 	var sb strings.Builder
-	inWhitespace := true // Start true to trim leading whitespace
+	hasLeadingSpace := isWhitespaceChar(rune(s[0]))
+	hasTrailingSpace := isWhitespaceChar(rune(s[len(s)-1]))
+
+	inWhitespace := true // Start true to skip leading whitespace in loop
 	for _, r := range s {
-		if r == ' ' || r == '\t' || r == '\n' || r == '\r' || r == '\f' {
+		if isWhitespaceChar(r) {
 			if !inWhitespace {
 				sb.WriteByte(' ')
 				inWhitespace = true
@@ -213,12 +222,27 @@ func normalizeWhitespace(s string) string {
 			inWhitespace = false
 		}
 	}
-	// Trim trailing space if we ended in whitespace
+
 	result := sb.String()
+	// Trim trailing space from collapsed content
 	if len(result) > 0 && result[len(result)-1] == ' ' {
 		result = result[:len(result)-1]
 	}
+
+	// Restore leading/trailing spaces if original had them
+	if hasLeadingSpace && len(result) > 0 {
+		result = " " + result
+	}
+	if hasTrailingSpace && len(result) > 0 {
+		result = result + " "
+	}
+
 	return result
+}
+
+// isWhitespaceChar returns true if r is an HTML whitespace character.
+func isWhitespaceChar(r rune) bool {
+	return r == ' ' || r == '\t' || r == '\n' || r == '\r' || r == '\f'
 }
 
 // escapeText escapes text content for HTML.
@@ -280,11 +304,11 @@ func hasBlockContent(elem *dom.Element) bool {
 // isBlockElement returns true if the tag is typically block-level.
 func isBlockElement(tag string) bool {
 	switch tag {
-	case "address", "article", "aside", "blockquote", "canvas", "dd", "div",
+	case "address", "article", "aside", "blockquote", "body", "canvas", "dd", "div",
 		"dl", "dt", "fieldset", "figcaption", "figure", "footer", "form",
-		"h1", "h2", "h3", "h4", "h5", "h6", "header", "hr", "li", "main",
-		"nav", "noscript", "ol", "p", "pre", "section", "table", "tfoot",
-		"ul", "video":
+		"h1", "h2", "h3", "h4", "h5", "h6", "head", "header", "hr", "html", "li", "main",
+		"nav", "noscript", "ol", "p", "pre", "section", "table", "tbody", "td", "tfoot",
+		"th", "thead", "title", "tr", "ul", "video":
 		return true
 	}
 	return false
