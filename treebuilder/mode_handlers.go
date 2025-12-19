@@ -363,6 +363,11 @@ func (tb *TreeBuilder) processAfterHead(tok tokenizer.Token) bool {
 					break
 				}
 			}
+			// Per WHATWG HTML spec §13.2.6.4.4: If we entered Text mode for script/style/title,
+			// we need to fix originalMode since head was temporarily on the stack but is now removed.
+			if tb.mode == Text && tb.originalMode == InHead {
+				tb.originalMode = AfterHead
+			}
 			return reprocess
 		case "template":
 			if tb.headElement != nil {
