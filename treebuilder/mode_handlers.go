@@ -386,6 +386,8 @@ func (tb *TreeBuilder) processAfterHead(tok tokenizer.Token) bool {
 			tb.mode = InBody
 			return true
 		}
+		// Per WHATWG HTML spec §13.2.6.4.4: Any other end tag is a parse error; ignore it.
+		return false
 	case tokenizer.EOF:
 		tb.insertElement("body", nil)
 		tb.mode = InBody
