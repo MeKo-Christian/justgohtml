@@ -324,6 +324,65 @@
         padding: 0.25rem 0;
       }
 
+      /* Query section styles */
+      .query-section {
+        padding: 0.75rem 1rem;
+        background: var(--secondary);
+        border-top: 1px solid var(--border);
+        display: flex;
+        gap: 0.5rem;
+        align-items: center;
+      }
+
+      .query-section input[type="text"] {
+        flex: 1;
+        padding: 0.5rem 0.75rem;
+        background: var(--code-bg);
+        border: 1px solid var(--border);
+        border-radius: 4px;
+        color: var(--text);
+        font-family: "Monaco", "Menlo", "Ubuntu Mono", monospace;
+        font-size: 0.875rem;
+        outline: none;
+      }
+
+      .query-section input[type="text"]:focus {
+        border-color: var(--primary);
+      }
+
+      .query-section input[type="text"]::placeholder {
+        color: var(--text-muted);
+      }
+
+      .match-item {
+        margin-bottom: 1rem;
+        padding-bottom: 1rem;
+        border-bottom: 1px solid var(--border);
+      }
+
+      .match-item:last-child {
+        border-bottom: none;
+        margin-bottom: 0;
+      }
+
+      .match-header {
+        font-size: 0.75rem;
+        color: var(--primary);
+        font-weight: 600;
+        margin-bottom: 0.5rem;
+      }
+
+      .match-count {
+        font-size: 0.875rem;
+        color: var(--success);
+        font-weight: 500;
+      }
+
+      .no-matches {
+        color: var(--text-muted);
+        font-style: italic;
+      }
+
       @media (max-width: 768px) {
         main {
           grid-template-columns: 1fr;
@@ -380,7 +439,12 @@
             <button class="tab" data-format="text">Text</button>
             <button class="tab" data-format="tree">Tree</button>
             <button class="tab" data-format="tokens">Tokens</button>
+            <button class="tab" data-format="query">Query</button>
           </div>
+        </div>
+        <div class="query-section" id="query-section" style="display: none;">
+          <input type="text" id="selector-input" placeholder="CSS selector (e.g., p.intro, ul > li, h1)" />
+          <button class="action" id="query-btn">Query</button>
         </div>
         <div class="output-container">
           <div class="output" id="output">Output will appear here...</div>
@@ -409,6 +473,9 @@
       const prettyCheckbox = document.getElementById("pretty");
       const timing = document.getElementById("timing");
       const tabs = document.querySelectorAll(".tab");
+      const querySection = document.getElementById("query-section");
+      const selectorInput = document.getElementById("selector-input");
+      const queryBtn = document.getElementById("query-btn");
 
       // Initialize WASM
       async function initWasm() {
@@ -455,6 +522,9 @@
         try {
           if (currentFormat === "tokens") {
             lastResult = JustGoHTML.tokenize(html);
+          } else if (currentFormat === "query") {
+            runQuery();
+            return;
           } else {
             lastResult = JustGoHTML.parse(html, {
               format: currentFormat,
@@ -474,6 +544,70 @@
           timing.textContent = "";
           copyBtn.disabled = true;
         }
+      }
+
+      // Run CSS selector query
+      function runQuery() {
+        if (!wasmReady) return;
+
+        const html = input.value;
+        const selector = selectorInput.value.trim();
+
+        if (!selector) {
+          output.innerHTML = '<span class="no-matches">Enter a CSS selector above to query the document</span>';
+          timing.textContent = "";
+          return;
+        }
+
+        const start = performance.now();
+
+        try {
+          lastResult = JustGoHTML.query(html, selector, {
+            pretty: prettyCheckbox.checked,
+          });
+
+          const elapsed = performance.now() - start;
+
+          if (!lastResult.success) {
+            output.textContent = `Error: ${lastResult.error}`;
+            output.classList.add("error");
+            timing.textContent = "";
+            return;
+          }
+
+          timing.textContent = `Query completed in ${elapsed.toFixed(2)}ms`;
+          output.classList.remove("error");
+          renderQueryResults();
+          copyBtn.disabled = false;
+        } catch (err) {
+          output.textContent = `Error: ${err.message}`;
+          output.classList.add("error");
+          timing.textContent = "";
+          copyBtn.disabled = true;
+        }
+      }
+
+      // Render query results
+      function renderQueryResults() {
+        if (!lastResult || !lastResult.success) return;
+
+        const { count, matches } = lastResult;
+
+        if (count === 0) {
+          output.innerHTML = '<span class="no-matches">No elements match the selector</span>';
+          return;
+        }
+
+        let html = `<div class="match-count">${count} match${count === 1 ? '' : 'es'} found</div>\n\n`;
+
+        matches.forEach((match, i) => {
+          html += `<div class="match-item">`;
+          html += `<div class="match-header">Match ${i + 1}: &lt;${match.tagName}&gt;</div>`;
+          html += `<pre>${escapeHtml(match.html)}</pre>`;
+          html += `</div>`;
+        });
+
+        output.innerHTML = html;
       }
 
       // Render output based on format
@@ -616,8 +750,24 @@
           tabs.forEach((t) => t.classList.remove("active"));
           tab.classList.add("active");
           currentFormat = tab.dataset.format;
+
+          // Show/hide query section
+          if (currentFormat === "query") {
+            querySection.style.display = "flex";
+          } else {
+            querySection.style.display = "none";
+          }
+
           parse();
         });
+      });
+
+      // Query button and input
+      queryBtn.addEventListener("click", runQuery);
+      selectorInput.addEventListener("keydown", (e) => {
+        if (e.key === "Enter") {
+          runQuery();
+        }
       });
 
       // Auto-parse on input (debounced)

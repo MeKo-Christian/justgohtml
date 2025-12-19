@@ -10,6 +10,7 @@ import (
 
 	"github.com/MeKo-Christian/JustGoHTML"
 	"github.com/MeKo-Christian/JustGoHTML/dom"
+	_ "github.com/MeKo-Christian/JustGoHTML/selector" // Register selector functions with dom
 	"github.com/MeKo-Christian/JustGoHTML/serialize"
 	"github.com/MeKo-Christian/JustGoHTML/tokenizer"
 )
@@ -20,6 +21,7 @@ func main() {
 		"parse":         js.FuncOf(parse),
 		"parseFragment": js.FuncOf(parseFragment),
 		"tokenize":      js.FuncOf(tokenize),
+		"query":         js.FuncOf(query),
 		"version":       js.ValueOf(JustGoHTML.Version),
 	}))
 
@@ -101,6 +103,74 @@ func tokenize(this js.Value, args []js.Value) any {
 		"success": true,
 		"tokens":  tokens,
 		"errors":  errorsToJS(tok.Errors()),
+	})
+	if err != nil {
+		return errorResult("JSON encoding error: " + err.Error())
+	}
+
+	return js.Global().Get("JSON").Call("parse", string(data))
+}
+
+// query parses HTML and runs a CSS selector query.
+// Arguments: html (string), selector (string), options (object)
+// Options: { format: "html"|"text", pretty: bool }
+// Returns: array of matching elements serialized according to format
+func query(this js.Value, args []js.Value) any {
+	if len(args) < 2 {
+		return errorResult("query requires html and selector arguments")
+	}
+
+	html := args[0].String()
+	selectorStr := args[1].String()
+
+	if selectorStr == "" {
+		return errorResult("selector cannot be empty")
+	}
+
+	// Parse options
+	opts := parseOptions{Format: "html", Pretty: true}
+	if len(args) > 2 && !args[2].IsUndefined() && !args[2].IsNull() {
+		opts = getParseOptions(args[2])
+	}
+
+	// Parse HTML
+	doc, err := JustGoHTML.Parse(html)
+	if err != nil {
+		return errorResult("parse error: " + err.Error())
+	}
+
+	// Run selector query
+	matches, err := doc.Query(selectorStr)
+	if err != nil {
+		return errorResult("selector error: " + err.Error())
+	}
+
+	// Format results
+	var results []map[string]any
+	for i, elem := range matches {
+		var serialized string
+		switch opts.Format {
+		case "text":
+			serialized = extractElementText(elem)
+		default:
+			serialized = serialize.ToHTML(elem, serialize.Options{
+				Pretty:     opts.Pretty,
+				IndentSize: 2,
+			})
+		}
+
+		results = append(results, map[string]any{
+			"index":   i,
+			"tagName": elem.TagName,
+			"html":    serialized,
+			"tree":    nodeToTree(elem),
+		})
+	}
+
+	data, err := json.Marshal(map[string]any{
+		"success": true,
+		"count":   len(matches),
+		"matches": results,
 	})
 	if err != nil {
 		return errorResult("JSON encoding error: " + err.Error())
