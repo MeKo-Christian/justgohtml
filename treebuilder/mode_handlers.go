@@ -2,6 +2,7 @@ package treebuilder
 
 import (
 	"strings"
+	"unicode/utf8"
 
 	"github.com/MeKo-Christian/JustGoHTML/dom"
 	"github.com/MeKo-Christian/JustGoHTML/internal/constants"
@@ -757,15 +758,62 @@ func (tb *TreeBuilder) processInTableText(tok tokenizer.Token) bool {
 		return false
 	case tokenizer.Error, tokenizer.DOCTYPE, tokenizer.StartTag, tokenizer.EndTag, tokenizer.Comment, tokenizer.EOF:
 		// Flush pending table text.
-		for _, s := range tb.pendingTableText {
-			if isAllWhitespace(s) {
-				tb.insertText(s)
+		data := strings.Join(tb.pendingTableText, "")
+		if data != "" {
+			if isAllWhitespace(data) {
+				tb.insertText(data)
 			} else {
-				_ = tb.withFosterParenting(func() bool {
-					tb.reconstructActiveFormattingElements()
-					tb.insertText(s)
-					return false
-				})
+				isWhitespace := func(r rune) bool {
+					switch r {
+					case '\t', '\n', '\f', '\r', ' ':
+						return true
+					default:
+						return false
+					}
+				}
+				var buf strings.Builder
+				flushWhitespace := func() {
+					if buf.Len() == 0 {
+						return
+					}
+					tb.insertText(buf.String())
+					buf.Reset()
+				}
+				flushNonWhitespace := func() {
+					if buf.Len() == 0 {
+						return
+					}
+					_ = tb.withFosterParenting(func() bool {
+						tb.reconstructActiveFormattingElements()
+						tb.insertText(buf.String())
+						return false
+					})
+					buf.Reset()
+				}
+				inWhitespace := false
+				initialized := false
+				for _, r := range data {
+					if isWhitespace(r) {
+						if initialized && !inWhitespace {
+							flushNonWhitespace()
+						}
+						inWhitespace = true
+						initialized = true
+						buf.WriteRune(r)
+						continue
+					}
+					if initialized && inWhitespace {
+						flushWhitespace()
+					}
+					inWhitespace = false
+					initialized = true
+					buf.WriteRune(r)
+				}
+				if inWhitespace {
+					flushWhitespace()
+				} else {
+					flushNonWhitespace()
+				}
 			}
 		}
 		tb.pendingTableText = tb.pendingTableText[:0]
@@ -828,6 +876,37 @@ func (tb *TreeBuilder) processInColumnGroup(tok tokenizer.Token) bool {
 			return false
 		}
 		if current != nil && current.TagName == "html" {
+			return false
+		}
+		leading := 0
+		for i, r := range tok.Data {
+			switch r {
+			case '\t', '\n', '\f', '\r', ' ':
+				leading = i + utf8.RuneLen(r)
+				continue
+			default:
+				// Non-whitespace: stop at the first non-space rune.
+			}
+			break
+		}
+		if leading > 0 {
+			tb.insertText(tok.Data[:leading])
+			tok.Data = tok.Data[leading:]
+			if tok.Data == "" {
+				return false
+			}
+			remainder := tok
+			if current != nil && current.TagName == "colgroup" {
+				tb.popUntil("colgroup")
+				tb.mode = InTable
+			}
+			if tb.mode == InTable {
+				mode := tb.mode
+				tb.tableTextOriginalMode = &mode
+				tb.pendingTableText = tb.pendingTableText[:0]
+				tb.mode = InTableText
+			}
+			tb.processInTableText(remainder)
 			return false
 		}
 	case tokenizer.Comment:

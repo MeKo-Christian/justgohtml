@@ -689,18 +689,19 @@ Implementation:
 
 **Tests to pass:**
 
-| Test Category     | Count | Priority | Status (current)                          |
-| ----------------- | ----- | -------- | ----------------------------------------- |
-| Tree Construction | 1,843 | Critical | 409 failures in latest local run          |
-| Tokenizer         | 6,826 | Critical | Passing in prior runs; re-verify          |
-| Serializer        | 236   | High     | Passing in prior runs; re-verify          |
-| Encoding          | 87    | High     | Passing in prior runs; re-verify          |
+| Test Category     | Count | Priority | Status (current)                 |
+| ----------------- | ----- | -------- | -------------------------------- |
+| Tree Construction | 1,843 | Critical | 409 failures in latest local run |
+| Tokenizer         | 6,826 | Critical | Passing in prior runs; re-verify |
+| Serializer        | 236   | High     | Passing in prior runs; re-verify |
+| Encoding          | 87    | High     | Passing in prior runs; re-verify |
 
 - [x] Create test harness for tree construction tests
 - [x] Create test harness for tokenizer tests
 - [x] Create test harness for serializer tests
 - [x] Create test harness for encoding tests
 - [ ] All 9,000+ tests passing (tree construction: 409 failing cases in latest run)
+- Latest full test run (`go test ./... -coverprofile=coverage.out`) fails in `internal/constants` (TestVoidElements: VoidElements count 15 vs 14) and `treebuilder` (tree-construction cases around foreign content, frameset switching, plaintext/NULL handling, selectedcontent, and table hidden input handling).
 
 **Tree construction failure buckets (latest run):**
 
