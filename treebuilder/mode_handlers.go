@@ -94,9 +94,21 @@ func (tb *TreeBuilder) processBeforeHTML(tok tokenizer.Token) bool {
 func (tb *TreeBuilder) processBeforeHead(tok tokenizer.Token) bool {
 	switch tok.Type {
 	case tokenizer.Character:
-		if isAllWhitespace(tok.Data) {
+		data := tok.Data
+		if strings.ContainsRune(data, 0) {
+			data = strings.ReplaceAll(data, "\x00", "")
+			if data == "" {
+				return false
+			}
+		}
+		if isAllWhitespace(data) {
 			return false
 		}
+		tok.Data = data
+		tb.headElement = tb.insertElement("head", nil)
+		tb.mode = InHead
+		tb.ProcessToken(tok)
+		return false
 	case tokenizer.Comment:
 		tb.insertComment(tok.Data)
 		return false
@@ -282,10 +294,25 @@ func (tb *TreeBuilder) processInHeadNoscript(tok tokenizer.Token) bool {
 func (tb *TreeBuilder) processAfterHead(tok tokenizer.Token) bool {
 	switch tok.Type {
 	case tokenizer.Character:
-		if isAllWhitespace(tok.Data) {
-			tb.insertText(tok.Data)
+		data := tok.Data
+		if strings.ContainsRune(data, 0) {
+			data = strings.ReplaceAll(data, "\x00", "")
+		}
+		if strings.ContainsRune(data, '\f') {
+			data = strings.ReplaceAll(data, "\x0c", "")
+		}
+		if data == "" {
 			return false
 		}
+		if isAllWhitespace(data) {
+			tb.insertText(data)
+			return false
+		}
+		tok.Data = data
+		tb.insertElement("body", nil)
+		tb.mode = InBody
+		tb.ProcessToken(tok)
+		return false
 	case tokenizer.Comment:
 		tb.insertComment(tok.Data)
 		return false
@@ -308,6 +335,13 @@ func (tb *TreeBuilder) processAfterHead(tok tokenizer.Token) bool {
 			tb.insertElement("frameset", tok.Attrs)
 			tb.mode = InFrameset
 			return false
+		case "input":
+			if isHiddenInput(tok.Attrs) {
+				return false
+			}
+			tb.insertElement("body", nil)
+			tb.mode = InBody
+			return true
 		case tagBase, tagBasefont, tagBgsound, tagLink, tagMeta, "noframes", "script", "style", "title", "noscript":
 			if tb.headElement != nil {
 				tb.openElements = append(tb.openElements, tb.headElement)
@@ -372,13 +406,18 @@ func (tb *TreeBuilder) processText(tok tokenizer.Token) bool {
 func (tb *TreeBuilder) processInBody(tok tokenizer.Token) bool {
 	switch tok.Type {
 	case tokenizer.Character:
-		tb.reconstructActiveFormattingElements()
-		if tok.Data != "" {
-			if !isAllWhitespace(tok.Data) {
-				tb.framesetOK = false
-			}
-			tb.insertText(tok.Data)
+		data := tok.Data
+		if strings.ContainsRune(data, 0) {
+			data = strings.ReplaceAll(data, "\x00", "")
 		}
+		if data == "" {
+			return false
+		}
+		tb.reconstructActiveFormattingElements()
+		if !isAllWhitespace(data) {
+			tb.framesetOK = false
+		}
+		tb.insertText(data)
 		return false
 	case tokenizer.Comment:
 		tb.insertComment(tok.Data)
@@ -416,11 +455,51 @@ func (tb *TreeBuilder) processInBody(tok tokenizer.Token) bool {
 			tb.insertElement(tok.Name, tok.Attrs)
 			tb.framesetOK = false
 			return false
+		case "li":
+			tb.framesetOK = false
+			if tb.hasPElementInButtonScope() {
+				tb.popUntil("p")
+			}
+			if tb.hasElementInListItemScope("li") {
+				tb.popUntil("li")
+			}
+			tb.insertElement("li", tok.Attrs)
+			return false
+		case "dd", "dt":
+			tb.framesetOK = false
+			if tb.hasPElementInButtonScope() {
+				tb.popUntil("p")
+			}
+			if tok.Name == "dd" {
+				if tb.hasElementInDefinitionScope("dd") {
+					tb.popUntil("dd")
+				}
+				if tb.hasElementInDefinitionScope("dt") {
+					tb.popUntil("dt")
+				}
+			} else {
+				if tb.hasElementInDefinitionScope("dt") {
+					tb.popUntil("dt")
+				}
+				if tb.hasElementInDefinitionScope("dd") {
+					tb.popUntil("dd")
+				}
+			}
+			tb.insertElement(tok.Name, tok.Attrs)
+			return false
 		case "pre":
 			if tb.hasPElementInButtonScope() {
 				tb.popUntil("p")
 			}
 			tb.insertElement(tok.Name, tok.Attrs)
+			tb.framesetOK = false
+			return false
+		case "hr":
+			if tb.hasPElementInButtonScope() {
+				tb.popUntil("p")
+			}
+			tb.insertElement("hr", tok.Attrs)
+			tb.popCurrent()
 			tb.framesetOK = false
 			return false
 		case "listing":
@@ -448,6 +527,24 @@ func (tb *TreeBuilder) processInBody(tok tokenizer.Token) bool {
 			}
 			tb.insertElement("frameset", tok.Attrs)
 			tb.mode = InFrameset
+			return false
+		case "form":
+			if tb.formElement != nil {
+				return false
+			}
+			if tb.hasPElementInButtonScope() {
+				tb.popUntil("p")
+			}
+			node := tb.insertElement("form", tok.Attrs)
+			tb.formElement = node
+			tb.framesetOK = false
+			return false
+		case "button":
+			if tb.hasElementInScope("button", constants.DefaultScope) {
+				tb.popUntil("button")
+			}
+			tb.insertElement("button", tok.Attrs)
+			tb.framesetOK = false
 			return false
 		case "frame":
 			if tb.fragmentContext != nil {
@@ -490,6 +587,9 @@ func (tb *TreeBuilder) processInBody(tok tokenizer.Token) bool {
 			tb.framesetOK = false
 			return false
 		case "table":
+			if tb.document.QuirksMode != dom.Quirks && tb.hasPElementInButtonScope() {
+				tb.popUntil("p")
+			}
 			tb.insertElement("table", tok.Attrs)
 			tb.framesetOK = false
 			tb.mode = InTable
@@ -562,10 +662,24 @@ func (tb *TreeBuilder) processInBody(tok tokenizer.Token) bool {
 			tb.popCurrent()
 			tb.framesetOK = false
 			return false
+		case "img", "area", "embed", "keygen", "wbr":
+			tb.reconstructActiveFormattingElements()
+			tb.insertElement(tok.Name, tok.Attrs)
+			tb.popCurrent()
+			tb.framesetOK = false
+			return false
 		case "br":
 			tb.insertElement("br", tok.Attrs)
 			tb.popCurrent()
 			tb.framesetOK = false
+			return false
+		case "input":
+			tb.reconstructActiveFormattingElements()
+			tb.insertElement("input", tok.Attrs)
+			tb.popCurrent()
+			if !isHiddenInput(tok.Attrs) {
+				tb.framesetOK = false
+			}
 			return false
 		}
 
@@ -618,6 +732,36 @@ func (tb *TreeBuilder) processInBody(tok tokenizer.Token) bool {
 			}
 			tb.popUntil("p")
 			return false
+		case "li":
+			if !tb.hasElementInListItemScope("li") {
+				return false
+			}
+			tb.popUntil("li")
+			return false
+		case "dd", "dt":
+			if !tb.hasElementInDefinitionScope(tok.Name) {
+				return false
+			}
+			for len(tb.openElements) > 0 {
+				el := tb.popCurrent()
+				if el == nil {
+					break
+				}
+				if el.TagName == "dd" || el.TagName == "dt" {
+					break
+				}
+			}
+			return false
+		case "form":
+			if tb.formElement == nil {
+				return false
+			}
+			removed := tb.removeFromOpenElements(tb.formElement)
+			tb.formElement = nil
+			if !removed {
+				return false
+			}
+			return false
 		case "template":
 			if !tb.elementInStack("template") {
 				return false
@@ -662,6 +806,23 @@ func (tb *TreeBuilder) processInTable(tok tokenizer.Token) bool {
 		return false
 	case tokenizer.StartTag:
 		switch tok.Name {
+		case "input":
+			if isHiddenInput(tok.Attrs) {
+				tb.insertElement("input", tok.Attrs)
+				tb.popCurrent()
+				return false
+			}
+			return tb.withFosterParenting(func() bool {
+				return tb.processInBody(tok)
+			})
+		case "form":
+			if tb.formElement != nil {
+				return false
+			}
+			node := tb.insertElement("form", tok.Attrs)
+			tb.formElement = node
+			tb.popCurrent()
+			return false
 		case "caption":
 			tb.clearStackUntil(map[string]bool{"table": true, "template": true, "html": true})
 			tb.insertElement("caption", tok.Attrs)
@@ -748,8 +909,9 @@ func (tb *TreeBuilder) processInTable(tok tokenizer.Token) bool {
 func (tb *TreeBuilder) processInTableText(tok tokenizer.Token) bool {
 	switch tok.Type {
 	case tokenizer.Character:
-		if strings.ContainsRune(tok.Data, 0) {
+		if strings.ContainsRune(tok.Data, 0) || strings.ContainsRune(tok.Data, '\f') {
 			tok.Data = strings.ReplaceAll(tok.Data, "\x00", "")
+			tok.Data = strings.ReplaceAll(tok.Data, "\x0c", "")
 			if tok.Data == "" {
 				return false
 			}
@@ -1147,8 +1309,6 @@ func (tb *TreeBuilder) processInSelect(tok tokenizer.Token) bool {
 				tb.addMissingAttributes(tb.openElements[0], tok.Attrs)
 			}
 			return false
-		case "script", "style", "template":
-			return tb.processInHead(tok)
 		case "hr":
 			if tb.currentElement() != nil && tb.currentElement().TagName == "option" {
 				tb.popCurrent()
@@ -1156,13 +1316,21 @@ func (tb *TreeBuilder) processInSelect(tok tokenizer.Token) bool {
 			if tb.currentElement() != nil && tb.currentElement().TagName == "optgroup" {
 				tb.popCurrent()
 			}
+			tb.reconstructActiveFormattingElements()
 			tb.insertElement("hr", tok.Attrs)
 			tb.popCurrent()
 			return false
+		case "keygen":
+			tb.reconstructActiveFormattingElements()
+			tb.insertElement("keygen", tok.Attrs)
+			tb.popCurrent()
+			return false
 		case "svg":
+			tb.reconstructActiveFormattingElements()
 			tb.insertForeignElement("svg", dom.NamespaceSVG, prepareForeignAttributes(dom.NamespaceSVG, tok.Attrs), tok.SelfClosing)
 			return false
 		case "math":
+			tb.reconstructActiveFormattingElements()
 			tb.insertForeignElement("math", dom.NamespaceMathML, prepareForeignAttributes(dom.NamespaceMathML, tok.Attrs), tok.SelfClosing)
 			return false
 		case "input", "textarea":
@@ -1195,10 +1363,39 @@ func (tb *TreeBuilder) processInSelect(tok tokenizer.Token) bool {
 			tb.popUntil("select")
 			tb.resetInsertionModeAppropriately()
 			return false
+		case "menuitem":
+			tb.reconstructActiveFormattingElements()
+			tb.insertElement("menuitem", tok.Attrs)
+			return false
+		case "selectedcontent":
+			tb.reconstructActiveFormattingElements()
+			tb.insertElement("selectedcontent", tok.Attrs)
+			tb.popCurrent()
+			return false
+		case "p", "div", "span", "button", "datalist":
+			tb.reconstructActiveFormattingElements()
+			tb.insertElement(tok.Name, tok.Attrs)
+			if tok.SelfClosing {
+				tb.popCurrent()
+			}
+			return false
+		case "br", "img":
+			tb.reconstructActiveFormattingElements()
+			tb.insertElement(tok.Name, tok.Attrs)
+			tb.popCurrent()
+			return false
+		case "script", "style", "template":
+			return tb.processInHead(tok)
 		case "plaintext":
 			tb.insertElement("plaintext", tok.Attrs)
 			tb.tokenizer.SetLastStartTag("plaintext")
 			tb.tokenizer.SetState(tokenizer.PLAINTEXTState)
+			return false
+		}
+		if constants.FormattingElements[tok.Name] {
+			tb.reconstructActiveFormattingElements()
+			node := tb.insertElement(tok.Name, tok.Attrs)
+			tb.appendActiveFormattingEntry(tok.Name, tok.Attrs, node)
 			return false
 		}
 	case tokenizer.EndTag:

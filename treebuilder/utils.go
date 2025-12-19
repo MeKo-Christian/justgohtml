@@ -5,6 +5,7 @@ import (
 
 	"github.com/MeKo-Christian/JustGoHTML/dom"
 	"github.com/MeKo-Christian/JustGoHTML/internal/constants"
+	"github.com/MeKo-Christian/JustGoHTML/tokenizer"
 )
 
 func (tb *TreeBuilder) hasElementInScope(tagName string, scope map[string]bool) bool {
@@ -19,11 +20,13 @@ func (tb *TreeBuilder) hasElementInTableScope(tagName string) bool {
 	return tb.hasElementInScopeInternal(tagName, constants.TableScope, false)
 }
 
-/*
 func (tb *TreeBuilder) hasElementInListItemScope(tagName string) bool {
 	return tb.hasElementInScope(tagName, constants.ListItemScope)
 }
-*/
+
+func (tb *TreeBuilder) hasElementInDefinitionScope(tagName string) bool {
+	return tb.hasElementInScope(tagName, constants.DefinitionScope)
+}
 
 func (tb *TreeBuilder) hasElementInScopeInternal(tagName string, scope map[string]bool, checkIntegrationPoints bool) bool {
 	// Per WHATWG HTML §13.2.5.2.5 (has an element in scope).
@@ -141,6 +144,16 @@ func (tb *TreeBuilder) popUntilCaseInsensitive(name string) {
 	}
 }
 
+func (tb *TreeBuilder) removeFromOpenElements(target *dom.Element) bool {
+	for i, el := range tb.openElements {
+		if el == target {
+			tb.openElements = append(tb.openElements[:i], tb.openElements[i+1:]...)
+			return true
+		}
+	}
+	return false
+}
+
 func doctypeErrorAndQuirks(name string, publicID, systemID *string, forceQuirks bool, iframeSrcdoc bool) (bool, dom.QuirksMode) {
 	nameLower := strings.ToLower(name)
 	public := ptrToString(publicID)
@@ -195,6 +208,18 @@ func doctypeErrorAndQuirks(name string, publicID, systemID *string, forceQuirks 
 func hasAnyPrefix(needle string, prefixes []string) bool {
 	for _, prefix := range prefixes {
 		if strings.HasPrefix(needle, prefix) {
+			return true
+		}
+	}
+	return false
+}
+
+func isHiddenInput(attrs []tokenizer.Attr) bool {
+	for _, attr := range attrs {
+		if attr.Namespace != "" {
+			continue
+		}
+		if strings.EqualFold(attr.Name, "type") && strings.EqualFold(attr.Value, "hidden") {
 			return true
 		}
 	}

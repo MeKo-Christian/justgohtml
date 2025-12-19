@@ -53,6 +53,31 @@ var ListItemScope = map[string]bool{
 	"title":         true,
 }
 
+// DefinitionScope elements terminate definition scope.
+var DefinitionScope = map[string]bool{
+	"applet":   true,
+	"caption":  true,
+	"html":     true,
+	"table":    true,
+	"td":       true,
+	"th":       true,
+	"marquee":  true,
+	"object":   true,
+	"template": true,
+	"dl":       true,
+	// MathML elements
+	"mi":             true,
+	"mo":             true,
+	"mn":             true,
+	"ms":             true,
+	"mtext":          true,
+	"annotation-xml": true,
+	// SVG elements
+	"foreignObject": true,
+	"desc":          true,
+	"title":         true,
+}
+
 // ButtonScope elements terminate button scope.
 var ButtonScope = map[string]bool{
 	"applet":   true,

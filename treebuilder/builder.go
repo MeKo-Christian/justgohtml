@@ -1,6 +1,8 @@
 package treebuilder
 
 import (
+	"strings"
+
 	"github.com/MeKo-Christian/JustGoHTML/dom"
 	"github.com/MeKo-Christian/JustGoHTML/internal/constants"
 	"github.com/MeKo-Christian/JustGoHTML/tokenizer"
@@ -30,12 +32,16 @@ type TreeBuilder struct {
 	tableTextOriginalMode *InsertionMode
 	framesetOK            bool
 	fosterParenting       bool
+	formElement           *dom.Element
 
 	fragmentContext *FragmentContext
 	fragmentRoot    *dom.Element
 	fragmentElement *dom.Element
 
 	tokenizer *tokenizer.Tokenizer
+
+	finalized bool
+	pendingCDATA string
 
 	// forceHTMLMode is set by processForeignContent when it encounters a token
 	// that should be reprocessed using normal HTML insertion mode rules rather
@@ -180,6 +186,18 @@ func (tb *TreeBuilder) ProcessToken(tok tokenizer.Token) {
 	// The full HTML5 algorithm is implemented incrementally; keep the current
 	// behavior non-panicking and deterministic.
 	for {
+		if tb.pendingCDATA != "" {
+			data := tb.pendingCDATA
+			if tok.Type != tokenizer.EOF {
+				if strings.HasSuffix(data, "]]>") {
+					data = strings.TrimSuffix(data, "]]>")
+				} else if strings.HasSuffix(data, "]]") {
+					data = strings.TrimSuffix(data, "]]")
+				}
+			}
+			tb.insertText(data)
+			tb.pendingCDATA = ""
+		}
 		// Check if we should use foreign content rules.
 		// forceHTMLMode bypasses this check when reprocessing a token that
 		// triggered breakout from foreign content.
@@ -191,6 +209,41 @@ func (tb *TreeBuilder) ProcessToken(tok tokenizer.Token) {
 			continue
 		}
 		tb.forceHTMLMode = false
+		current := tb.currentElement()
+		if current != nil && current.Namespace != dom.NamespaceHTML {
+			if tok.Type == tokenizer.Character && tb.isMathMLTextIntegrationPoint(current) {
+				data := tok.Data
+				if strings.ContainsRune(data, 0) {
+					data = strings.ReplaceAll(data, "\x00", "")
+				}
+				if strings.ContainsRune(data, '\f') {
+					data = strings.ReplaceAll(data, "\x0c", "")
+				}
+				if data != "" {
+					if !isAllWhitespace(data) {
+						tb.reconstructActiveFormattingElements()
+						tb.framesetOK = false
+					}
+					tb.insertText(data)
+				}
+				return
+			}
+			if tok.Type == tokenizer.StartTag && tb.mode != InBody && (tb.isMathMLTextIntegrationPoint(current) || tb.isHTMLIntegrationPoint(current)) {
+				isTableMode := tb.mode == InTable || tb.mode == InTableBody || tb.mode == InRow || tb.mode == InCell || tb.mode == InCaption || tb.mode == InColumnGroup
+				if isTableMode && !tb.hasElementInTableScope("table") {
+					savedMode := tb.mode
+					tb.mode = InBody
+					reprocess := tb.processInBody(tok)
+					if tb.mode == InBody {
+						tb.mode = savedMode
+					}
+					if !reprocess {
+						return
+					}
+					continue
+				}
+			}
+		}
 		var reprocess bool
 		switch tb.mode {
 		case Initial:
@@ -244,9 +297,20 @@ func (tb *TreeBuilder) ProcessToken(tok tokenizer.Token) {
 			reprocess = tb.processInBody(tok)
 		}
 		if !reprocess {
+			if tok.Type == tokenizer.EOF {
+				tb.finalize()
+			}
 			return
 		}
 	}
+}
+
+func (tb *TreeBuilder) finalize() {
+	if tb.finalized {
+		return
+	}
+	tb.populateSelectedContent(tb.document)
+	tb.finalized = true
 }
 
 func (tb *TreeBuilder) currentNode() dom.Node {

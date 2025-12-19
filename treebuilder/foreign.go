@@ -73,9 +73,7 @@ func (tb *TreeBuilder) processForeignContent(tok tokenizer.Token) bool {
 		// html5lib tree-construction expects <![CDATA[...]]> in foreign content to
 		// produce character data, not a comment node.
 		if strings.HasPrefix(tok.Data, "[CDATA[") {
-			data := strings.TrimPrefix(tok.Data, "[CDATA[")
-			data = strings.TrimSuffix(data, "]]")
-			tb.insertText(data)
+			tb.pendingCDATA = strings.TrimPrefix(tok.Data, "[CDATA[")
 			return false
 		}
 		tb.insertComment(tok.Data)
