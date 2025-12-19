@@ -1506,8 +1506,6 @@ func (tb *TreeBuilder) processInSelect(tok tokenizer.Token) bool {
 			// Pop the element if it's in the stack (for div, button, span, etc.)
 			if tb.elementInStack(tok.Name) {
 				tb.popUntil(tok.Name)
-				// After popping, reconstruct any active formatting elements
-				tb.reconstructActiveFormattingElements()
 			}
 			return false
 		}
