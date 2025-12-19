@@ -693,14 +693,14 @@ Implementation:
 | ----------------- | ----- | -------- | -------------------------- |
 | Tree Construction | 1,843 | Critical | 70% (1,282 pass, 549 fail) |
 | Tokenizer         | 6,826 | Critical | 100% (all pass)            |
-| Serializer        | 236   | High     | 89% (210 pass, 26 fail)    |
+| Serializer        | 236   | High     | 100% (all pass)            |
 | Encoding          | 87    | High     | 100% (all pass)            |
 
 - [x] Create test harness for tree construction tests
 - [x] Create test harness for tokenizer tests
 - [x] Create test harness for serializer tests
 - [x] Create test harness for encoding tests
-- [ ] All 9,000+ tests passing (currently ~8,100 passing)
+- [ ] All 9,000+ tests passing (currently ~8,100+)
 
 ### 6.3 Unit Test Coverage
 
@@ -713,7 +713,7 @@ Target: 100% coverage (matching Python version)
 | dom         | 99.1%   | 100%   | Near target                         |
 | selector    | 76.9%   | 100%   | Needs improvement                   |
 | encoding    | 95.9%   | 100%   | Near target                         |
-| serialize   | 57.7%   | 100%   | Needs improvement (26 failures)     |
+| serialize   | 57.7%   | 100%   | Needs improvement                   |
 | stream      | 89.2%   | 100%   | Near target                         |
 | errors      | 100.0%  | 100%   | ✓ Complete                          |
 
