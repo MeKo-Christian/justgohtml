@@ -103,6 +103,9 @@ type Token struct {
 
 	// ErrorCode is set for Error.
 	ErrorCode string
+
+	// CommentEOF indicates a bogus comment ended at EOF.
+	CommentEOF bool
 }
 
 // Attr represents an HTML attribute.

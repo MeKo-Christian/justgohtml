@@ -36,6 +36,7 @@ type Tokenizer struct {
 	currentAttrValue          []rune
 	currentAttrValueHasAmp    bool
 	currentComment            []rune
+	commentEOF                bool
 	currentDoctypeName        []rune
 	currentDoctypePublic      *[]rune // nil = not set, empty slice = empty string
 	currentDoctypeSystem      *[]rune
@@ -53,6 +54,8 @@ type Tokenizer struct {
 
 	pendingTokens []Token
 	errors        []ParseError
+
+	allowCDATA bool
 }
 
 // ParseError represents a tokenizer parse error.
@@ -139,6 +142,11 @@ func (t *Tokenizer) SetDiscardBOM(discard bool) {
 // SetXMLCoercion enables/disables XML coercion for text/comment output.
 func (t *Tokenizer) SetXMLCoercion(enabled bool) {
 	t.opts.XMLCoercion = enabled
+}
+
+// SetAllowCDATA toggles CDATA section parsing for foreign content.
+func (t *Tokenizer) SetAllowCDATA(enabled bool) {
+	t.allowCDATA = enabled
 }
 
 // SetState sets the tokenizer state.
@@ -512,7 +520,8 @@ func (t *Tokenizer) emitComment() {
 	if t.opts.XMLCoercion {
 		data = coerceCommentForXML(data)
 	}
-	t.emit(Token{Type: Comment, Data: data})
+	t.emit(Token{Type: Comment, Data: data, CommentEOF: t.commentEOF})
+	t.commentEOF = false
 }
 
 func (t *Tokenizer) emitDoctype() {
@@ -998,10 +1007,14 @@ func (t *Tokenizer) stateMarkupDeclarationOpen() {
 		return
 	}
 	if t.consumeIf("[CDATA[") {
-		t.emitError("cdata-in-html-content")
-		t.currentComment = t.currentComment[:0]
-		t.currentComment = append(t.currentComment, []rune("[CDATA[")...)
-		t.state = BogusCommentState
+		if t.allowCDATA {
+			t.state = CDATASectionState
+		} else {
+			t.emitError("cdata-in-html-content")
+			t.currentComment = t.currentComment[:0]
+			t.currentComment = append(t.currentComment, []rune("[CDATA[")...)
+			t.state = BogusCommentState
+		}
 		return
 	}
 
@@ -1161,11 +1174,13 @@ func (t *Tokenizer) stateBogusComment() {
 	for {
 		c, ok := t.getChar()
 		if !ok {
+			t.commentEOF = true
 			t.emitComment()
 			t.emit(Token{Type: EOF})
 			return
 		}
 		if c == '>' {
+			t.commentEOF = false
 			t.emitComment()
 			t.state = DataState
 			return

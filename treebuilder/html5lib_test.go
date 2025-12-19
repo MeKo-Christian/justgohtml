@@ -167,6 +167,7 @@ func parseHTML5LibFragment(input string, ctx string, xmlCoercion bool) (string, 
 	tb := treebuilder.NewFragment(tok, fc)
 
 	for {
+		tok.SetAllowCDATA(tb.AllowCDATA())
 		tt := tok.Next()
 		tb.ProcessToken(tt)
 		if tt.Type == tokenizer.EOF {

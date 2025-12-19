@@ -48,6 +48,43 @@ func (tb *TreeBuilder) hasElementInScopeInternal(tagName string, scope map[strin
 	return false
 }
 
+func (tb *TreeBuilder) hasAnyElementInScope(tagSet map[string]bool, scope map[string]bool) bool {
+	for i := len(tb.openElements) - 1; i >= 0; i-- {
+		node := tb.openElements[i]
+		if tagSet[node.TagName] {
+			return true
+		}
+		if node.Namespace == dom.NamespaceHTML {
+			if scope[node.TagName] {
+				return false
+			}
+			continue
+		}
+		if tb.isHTMLIntegrationPoint(node) || tb.isMathMLTextIntegrationPoint(node) {
+			return false
+		}
+	}
+	return false
+}
+
+var headingElements = map[string]bool{
+	"h1": true,
+	"h2": true,
+	"h3": true,
+	"h4": true,
+	"h5": true,
+	"h6": true,
+}
+
+func isHeadingElement(tag string) bool {
+	switch tag {
+	case "h1", "h2", "h3", "h4", "h5", "h6":
+		return true
+	default:
+		return false
+	}
+}
+
 func (tb *TreeBuilder) generateImpliedEndTags(except string) {
 	// Per WHATWG HTML §13.2.5.3 (generate implied end tags).
 	for len(tb.openElements) > 0 {
@@ -144,6 +181,21 @@ func (tb *TreeBuilder) popUntilCaseInsensitive(name string) {
 	}
 }
 
+func (tb *TreeBuilder) anyOtherEndTag(name string) {
+	target := strings.ToLower(name)
+	for i := len(tb.openElements) - 1; i >= 0; i-- {
+		node := tb.openElements[i]
+		if strings.ToLower(node.TagName) == target {
+			tb.generateImpliedEndTags(name)
+			tb.openElements = tb.openElements[:i]
+			return
+		}
+		if isSpecialElement(node) {
+			return
+		}
+	}
+}
+
 func (tb *TreeBuilder) removeFromOpenElements(target *dom.Element) bool {
 	for i, el := range tb.openElements {
 		if el == target {
@@ -152,6 +204,20 @@ func (tb *TreeBuilder) removeFromOpenElements(target *dom.Element) bool {
 		}
 	}
 	return false
+}
+
+func filterWhitespace(data string) string {
+	if data == "" {
+		return ""
+	}
+	var sb strings.Builder
+	for _, r := range data {
+		switch r {
+		case '\t', '\n', '\f', '\r', ' ':
+			sb.WriteRune(r)
+		}
+	}
+	return sb.String()
 }
 
 func doctypeErrorAndQuirks(name string, publicID, systemID *string, forceQuirks bool, iframeSrcdoc bool) (bool, dom.QuirksMode) {

@@ -109,6 +109,7 @@ func parse(html string, cfg *config) (*dom.Document, error) {
 	}
 
 	for {
+		tok.SetAllowCDATA(tb.AllowCDATA())
 		tt := tok.Next()
 		tb.ProcessToken(tt)
 		if tt.Type == tokenizer.EOF {
@@ -141,6 +142,7 @@ func parseFragment(html string, cfg *config) ([]*dom.Element, error) {
 	}
 
 	for {
+		tok.SetAllowCDATA(tb.AllowCDATA())
 		tt := tok.Next()
 		tb.ProcessToken(tt)
 		if tt.Type == tokenizer.EOF {

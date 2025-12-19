@@ -41,13 +41,14 @@ type TreeBuilder struct {
 	tokenizer *tokenizer.Tokenizer
 
 	finalized bool
-	pendingCDATA string
 
 	// forceHTMLMode is set by processForeignContent when it encounters a token
 	// that should be reprocessed using normal HTML insertion mode rules rather
 	// than foreign content rules. This prevents infinite loops when foreign
 	// content contains tokens that trigger breakout to HTML mode.
 	forceHTMLMode bool
+
+	ignoreLeadingLF bool
 
 	iframeSrcdoc bool
 }
@@ -163,6 +164,18 @@ func (tb *TreeBuilder) Document() *dom.Document {
 	return tb.document
 }
 
+// AllowCDATA reports whether the tokenizer should parse CDATA sections.
+func (tb *TreeBuilder) AllowCDATA() bool {
+	current := tb.currentElement()
+	if current == nil || current.Namespace == dom.NamespaceHTML {
+		return false
+	}
+	if tb.isHTMLIntegrationPoint(current) || tb.isMathMLTextIntegrationPoint(current) {
+		return false
+	}
+	return true
+}
+
 // FragmentNodes returns the fragment's top-level element children.
 func (tb *TreeBuilder) FragmentNodes() []*dom.Element {
 	root := tb.fragmentElement
@@ -186,23 +199,16 @@ func (tb *TreeBuilder) ProcessToken(tok tokenizer.Token) {
 	// The full HTML5 algorithm is implemented incrementally; keep the current
 	// behavior non-panicking and deterministic.
 	for {
-		if tb.pendingCDATA != "" {
-			data := tb.pendingCDATA
-			if tok.Type != tokenizer.EOF {
-				if strings.HasSuffix(data, "]]>") {
-					data = strings.TrimSuffix(data, "]]>")
-				} else if strings.HasSuffix(data, "]]") {
-					data = strings.TrimSuffix(data, "]]")
-				}
+		if tb.ignoreLeadingLF {
+			if tok.Type == tokenizer.Character && strings.HasPrefix(tok.Data, "\n") {
+				tok.Data = strings.TrimPrefix(tok.Data, "\n")
 			}
-			tb.insertText(data)
-			tb.pendingCDATA = ""
+			tb.ignoreLeadingLF = false
+			if tok.Type == tokenizer.Character && tok.Data == "" {
+				return
+			}
 		}
 		current := tb.currentElement()
-		isTableMode := tb.mode == InTable || tb.mode == InTableBody || tb.mode == InRow || tb.mode == InCell || tb.mode == InCaption || tb.mode == InColumnGroup
-		if current != nil && current.Namespace != dom.NamespaceHTML && isTableMode && (tok.Type == tokenizer.StartTag || tok.Type == tokenizer.EndTag) {
-			tb.forceHTMLMode = true
-		}
 		// Check if we should use foreign content rules.
 		// forceHTMLMode bypasses this check when reprocessing a token that
 		// triggered breakout from foreign content.
