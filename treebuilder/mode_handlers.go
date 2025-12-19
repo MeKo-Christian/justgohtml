@@ -147,12 +147,12 @@ func (tb *TreeBuilder) processBeforeHead(tok tokenizer.Token) bool {
 func (tb *TreeBuilder) processInHead(tok tokenizer.Token) bool {
 	switch tok.Type {
 	case tokenizer.Character:
-		// Per WHATWG HTML §13.2.6.4.3: Insert leading whitespace, then handle non-whitespace
+		// Per WHATWG HTML §13.2.6.4.3: Insert whitespace, non-whitespace triggers head closure
 		if isAllWhitespace(tok.Data) {
 			tb.insertText(tok.Data)
 			return false
 		}
-		// Split leading whitespace from non-whitespace
+		// Split leading whitespace from non-whitespace to match html5lib test expectations
 		ws, rest := splitLeadingWhitespace(tok.Data)
 		if ws != "" {
 			tb.insertText(ws)
@@ -680,6 +680,8 @@ func (tb *TreeBuilder) processInBody(tok tokenizer.Token) bool {
 			tb.insertElement(tok.Name, tok.Attrs)
 			if tok.Name == "textarea" {
 				tb.ignoreLeadingLF = true
+				// Per WHATWG HTML §13.2.6.4.7: textarea sets frameset-ok to false
+				tb.framesetOK = false
 			}
 			tb.originalMode = tb.mode
 			tb.mode = Text
