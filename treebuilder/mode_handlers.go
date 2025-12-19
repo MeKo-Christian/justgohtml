@@ -439,7 +439,6 @@ func (tb *TreeBuilder) processInBody(tok tokenizer.Token) bool {
 				tb.popUntil("p")
 			}
 			tb.insertElement(tok.Name, tok.Attrs)
-			tb.framesetOK = false
 			return false
 		case "h1", "h2", "h3", "h4", "h5", "h6":
 			if tb.hasPElementInButtonScope() {
@@ -521,10 +520,21 @@ func (tb *TreeBuilder) processInBody(tok tokenizer.Token) bool {
 			if !tb.framesetOK {
 				return false
 			}
-			// Pop everything up to, but not including, the html element.
-			for len(tb.openElements) > 0 && tb.currentElement().TagName != "html" {
-				tb.popCurrent()
+			bodyIndex := -1
+			for i, el := range tb.openElements {
+				if el.TagName == "body" && el.Namespace == dom.NamespaceHTML {
+					bodyIndex = i
+					break
+				}
 			}
+			if bodyIndex == -1 {
+				return false
+			}
+			bodyEl := tb.openElements[bodyIndex]
+			if parent := bodyEl.Parent(); parent != nil {
+				parent.RemoveChild(bodyEl)
+			}
+			tb.openElements = tb.openElements[:bodyIndex]
 			tb.insertElement("frameset", tok.Attrs)
 			tb.mode = InFrameset
 			return false
@@ -1564,6 +1574,9 @@ func (tb *TreeBuilder) processInFrameset(tok tokenizer.Token) bool {
 		return false
 	case tokenizer.StartTag:
 		switch tok.Name {
+		case "html":
+			tb.mode = InBody
+			return true
 		case "frameset":
 			tb.insertElement("frameset", tok.Attrs)
 			return false
@@ -1572,8 +1585,12 @@ func (tb *TreeBuilder) processInFrameset(tok tokenizer.Token) bool {
 			tb.popCurrent()
 			return false
 		case "noframes":
-			tb.mode = InBody
-			return true
+			tb.insertElement("noframes", tok.Attrs)
+			tb.originalMode = tb.mode
+			tb.mode = Text
+			tb.tokenizer.SetLastStartTag("noframes")
+			tb.tokenizer.SetState(tokenizer.RAWTEXTState)
+			return false
 		}
 	case tokenizer.EndTag:
 		if tok.Name == "frameset" {

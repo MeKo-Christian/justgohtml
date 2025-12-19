@@ -92,6 +92,13 @@ func (tb *TreeBuilder) processForeignContent(tok tokenizer.Token) bool {
 		if namespace == dom.NamespaceSVG {
 			adjustedName = adjustSVGTagName(tok.Name)
 		}
+		switch nameLower {
+		case "title", "textarea", "script", "style", "xmp", "iframe", "noembed", "noframes", "plaintext":
+			if namespace != dom.NamespaceHTML {
+				tb.tokenizer.SetLastStartTag("")
+				tb.tokenizer.SetState(tokenizer.DataState)
+			}
+		}
 		attrs := prepareForeignAttributes(namespace, tok.Attrs)
 		tb.insertForeignElement(adjustedName, namespace, attrs, tok.SelfClosing)
 		return false

@@ -198,6 +198,11 @@ func (tb *TreeBuilder) ProcessToken(tok tokenizer.Token) {
 			tb.insertText(data)
 			tb.pendingCDATA = ""
 		}
+		current := tb.currentElement()
+		isTableMode := tb.mode == InTable || tb.mode == InTableBody || tb.mode == InRow || tb.mode == InCell || tb.mode == InCaption || tb.mode == InColumnGroup
+		if current != nil && current.Namespace != dom.NamespaceHTML && isTableMode && (tok.Type == tokenizer.StartTag || tok.Type == tokenizer.EndTag) {
+			tb.forceHTMLMode = true
+		}
 		// Check if we should use foreign content rules.
 		// forceHTMLMode bypasses this check when reprocessing a token that
 		// triggered breakout from foreign content.
@@ -209,7 +214,7 @@ func (tb *TreeBuilder) ProcessToken(tok tokenizer.Token) {
 			continue
 		}
 		tb.forceHTMLMode = false
-		current := tb.currentElement()
+		current = tb.currentElement()
 		if current != nil && current.Namespace != dom.NamespaceHTML {
 			if tok.Type == tokenizer.Character && tb.isMathMLTextIntegrationPoint(current) {
 				data := tok.Data
