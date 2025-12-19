@@ -104,9 +104,13 @@ func (tb *TreeBuilder) processBeforeHead(tok tokenizer.Token) bool {
 		if isAllWhitespace(data) {
 			return false
 		}
-		tok.Data = data
+		// Per WHATWG HTML §13.2.6.4.2: Strip leading whitespace (which is ignored in BeforeHead)
+		_, rest := splitLeadingWhitespace(data)
+		tok.Data = rest
+		// Non-whitespace creates empty head, closes it, processes in AfterHead
 		tb.headElement = tb.insertElement("head", nil)
-		tb.mode = InHead
+		tb.popCurrent() // Close the head immediately
+		tb.mode = AfterHead
 		tb.ProcessToken(tok)
 		return false
 	case tokenizer.Comment:
@@ -487,12 +491,10 @@ func (tb *TreeBuilder) processInBody(tok tokenizer.Token) bool {
 			if tb.hasPElementInButtonScope() {
 				tb.popUntil("p")
 			}
-			// Close any open heading element to avoid nested headings.
-			for _, el := range tb.openElements {
-				if el.TagName == "h1" || el.TagName == "h2" || el.TagName == "h3" || el.TagName == "h4" || el.TagName == "h5" || el.TagName == "h6" {
-					tb.popUntil(el.TagName)
-					break
-				}
+			// Per WHATWG HTML §13.2.6.4.7: If current node is a heading, pop it
+			current := tb.currentElement()
+			if current != nil && isHeadingElement(current.TagName) {
+				tb.popCurrent()
 			}
 			tb.insertElement(tok.Name, tok.Attrs)
 			tb.framesetOK = false
@@ -1506,6 +1508,10 @@ func (tb *TreeBuilder) processInSelect(tok tokenizer.Token) bool {
 			tb.appendActiveFormattingEntry(tok.Name, tok.Attrs, node)
 			return false
 		}
+		// Per WHATWG HTML spec §13.2.6.4.16: Any other start tag
+		// Insert an HTML element for the token
+		tb.insertElement(tok.Name, tok.Attrs)
+		return false
 	case tokenizer.EndTag:
 		switch tok.Name {
 		case "option":
@@ -1543,6 +1549,11 @@ func (tb *TreeBuilder) processInSelect(tok tokenizer.Token) bool {
 			// Pop the element if it's in the stack (for div, button, span, etc.)
 			if tb.elementInStack(tok.Name) {
 				tb.popUntil(tok.Name)
+				// Reconstruct formatting elements after closing non-formatting tags
+				// (e.g., after </div> closes, reconstruct <i>, but not after </font> closes)
+				if !constants.FormattingElements[tok.Name] {
+					tb.reconstructActiveFormattingElements()
+				}
 			}
 			return false
 		}
