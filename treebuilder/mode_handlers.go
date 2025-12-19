@@ -1509,8 +1509,11 @@ func (tb *TreeBuilder) processInSelect(tok tokenizer.Token) bool {
 			return false
 		}
 		// Per WHATWG HTML spec §13.2.6.4.16: Any other start tag
-		// Insert an HTML element for the token
-		tb.insertElement(tok.Name, tok.Attrs)
+		// In fragment parsing (with select context), insert unknown elements
+		// In normal parsing, ignore (parse error)
+		if tb.fragmentContext != nil {
+			tb.insertElement(tok.Name, tok.Attrs)
+		}
 		return false
 	case tokenizer.EndTag:
 		switch tok.Name {
@@ -1546,14 +1549,29 @@ func (tb *TreeBuilder) processInSelect(tok tokenizer.Token) bool {
 			return true
 		default:
 			// Per WHATWG HTML spec §13.2.6.4.16: Handle end tags for elements allowed in select
-			// Pop the element if it's in the stack (for div, button, span, etc.)
+			// For formatting elements, use adoption agency algorithm (but only if target is inside select)
+			if constants.FormattingElements[tok.Name] {
+				// Check if the formatting element is inside the select element
+				selectIndex := -1
+				targetIndex := -1
+				for i, el := range tb.openElements {
+					if el.TagName == "select" && selectIndex == -1 {
+						selectIndex = i
+					}
+					if el.TagName == tok.Name {
+						targetIndex = i
+					}
+				}
+				// Only run adoption agency if target is after select (or no select on stack)
+				if selectIndex == -1 || targetIndex > selectIndex {
+					tb.adoptionAgency(tok.Name)
+				}
+				return false
+			}
+			// For non-formatting elements (div, button, span, etc.), pop and reconstruct
 			if tb.elementInStack(tok.Name) {
 				tb.popUntil(tok.Name)
-				// Reconstruct formatting elements after closing non-formatting tags
-				// (e.g., after </div> closes, reconstruct <i>, but not after </font> closes)
-				if !constants.FormattingElements[tok.Name] {
-					tb.reconstructActiveFormattingElements()
-				}
+				tb.reconstructActiveFormattingElements()
 			}
 			return false
 		}
