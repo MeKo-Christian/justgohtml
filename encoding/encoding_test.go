@@ -98,6 +98,8 @@ func TestEncodingLabelNormalization(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.label, func(t *testing.T) {
+			t.Parallel()
+
 			_, enc, err := encoding.Decode([]byte("test"), tt.label)
 			if err != nil {
 				t.Fatalf("Decode(%q) error: %v", tt.label, err)
@@ -125,13 +127,15 @@ func TestUnrecognizedEncodingLabels(t *testing.T) {
 
 	for _, label := range tests {
 		t.Run(label, func(t *testing.T) {
+			t.Parallel()
+
 			_, enc, err := encoding.Decode([]byte("test"), label)
 			if err != nil {
 				t.Fatalf("Decode(%q) error: %v", label, err)
 			}
 			// Unrecognized labels should fall back to windows-1252
-			if enc.Name != "windows-1252" {
-				t.Errorf("Decode(%q) encoding name = %q, want %q (fallback)", label, enc.Name, "windows-1252")
+			if enc.Name != encWindows1252 {
+				t.Errorf("Decode(%q) encoding name = %q, want %q (fallback)", label, enc.Name, encWindows1252)
 			}
 		})
 	}
@@ -245,6 +249,7 @@ func TestBOMDetection(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			_, enc, err := encoding.Decode(tt.data, "")
 			if err != nil {
 				t.Fatalf("Decode error: %v", err)
@@ -294,6 +299,7 @@ func TestDecodeWithHint(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			_, enc, err := encoding.Decode(tt.data, tt.hint)
 			if err != nil {
 				t.Fatalf("Decode error: %v", err)
@@ -326,6 +332,7 @@ func TestDecodeAllEncodings(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.hint, func(t *testing.T) {
+			t.Parallel()
 			decoded, enc, err := encoding.Decode(tt.data, tt.hint)
 			if err != nil {
 				t.Fatalf("Decode(%q) error: %v", tt.hint, err)
@@ -408,6 +415,7 @@ func TestMetaCharsetDetection(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			_, enc, err := encoding.Decode([]byte(tt.html), "")
 			if err != nil {
 				t.Fatalf("Decode error: %v", err)
@@ -424,42 +432,46 @@ func TestEdgeCasesForCoverage(t *testing.T) {
 	t.Parallel()
 
 	t.Run("bomLength with default case", func(t *testing.T) {
+		t.Parallel()
 		// Test bomLength with an encoding that has no BOM
 		// This tests the default case in the bomLength function
-		_, enc, err := encoding.Decode([]byte("test"), "windows-1252")
+		_, enc, err := encoding.Decode([]byte("test"), encWindows1252)
 		if err != nil {
 			t.Fatalf("Decode error: %v", err)
 		}
 		// The bomLength function is called internally with Windows1252 which returns 0
-		if enc.Name != "windows-1252" {
-			t.Errorf("Expected windows-1252, got %s", enc.Name)
+		if enc.Name != encWindows1252 {
+			t.Errorf("Expected %s, got %s", encWindows1252, enc.Name)
 		}
 	})
 
 	t.Run("normalizeEncodingLabel with whitespace-only label", func(t *testing.T) {
+		t.Parallel()
 		// Test with a label that becomes empty after trimming
 		_, enc, err := encoding.Decode([]byte("test"), "   ")
 		if err != nil {
 			t.Fatalf("Decode error: %v", err)
 		}
 		// Should fall back to windows-1252
-		if enc.Name != "windows-1252" {
-			t.Errorf("Expected fallback to windows-1252, got %s", enc.Name)
+		if enc.Name != encWindows1252 {
+			t.Errorf("Expected fallback to %s, got %s", encWindows1252, enc.Name)
 		}
 	})
 
 	t.Run("decodeWithEncoding UTF-16 without BOM", func(t *testing.T) {
+		t.Parallel()
 		// Test UTF-16 decoding without a BOM (should default to LE)
-		_, enc, err := encoding.Decode([]byte{0x41, 0x00, 0x42, 0x00}, "utf-16")
+		_, enc, err := encoding.Decode([]byte{0x41, 0x00, 0x42, 0x00}, encUTF16)
 		if err != nil {
 			t.Fatalf("Decode error: %v", err)
 		}
-		if enc.Name != "utf-16" {
-			t.Errorf("Expected utf-16, got %s", enc.Name)
+		if enc.Name != encUTF16 {
+			t.Errorf("Expected %s, got %s", encUTF16, enc.Name)
 		}
 	})
 
 	t.Run("decodeWithEncoding with odd-length UTF-16LE", func(t *testing.T) {
+		t.Parallel()
 		// Test UTF-16LE with odd length (should add padding)
 		_, enc, err := encoding.Decode([]byte{0x41, 0x00, 0x42}, "utf-16le")
 		if err != nil {
@@ -471,6 +483,7 @@ func TestEdgeCasesForCoverage(t *testing.T) {
 	})
 
 	t.Run("decodeWithEncoding with odd-length UTF-16BE", func(t *testing.T) {
+		t.Parallel()
 		// Test UTF-16BE with odd length (should add padding)
 		_, enc, err := encoding.Decode([]byte{0x00, 0x41, 0x00}, "utf-16be")
 		if err != nil {
@@ -482,89 +495,98 @@ func TestEdgeCasesForCoverage(t *testing.T) {
 	})
 
 	t.Run("decodeWithEncoding EUC-JP multibyte", func(t *testing.T) {
+		t.Parallel()
 		// Test EUC-JP with multibyte characters
-		_, enc, err := encoding.Decode([]byte{0xA1, 0xA1, 0x41}, "euc-jp")
+		_, enc, err := encoding.Decode([]byte{0xA1, 0xA1, 0x41}, encEUCJP)
 		if err != nil {
 			t.Fatalf("Decode error: %v", err)
 		}
-		if enc.Name != "euc-jp" {
-			t.Errorf("Expected euc-jp, got %s", enc.Name)
+		if enc.Name != encEUCJP {
+			t.Errorf("Expected %s, got %s", encEUCJP, enc.Name)
 		}
 	})
 
 	t.Run("prescanForMetaCharset with end tag", func(t *testing.T) {
+		t.Parallel()
 		// Test with end tags to cover those code paths
 		html := `</div><meta charset="utf-8">`
 		_, enc, err := encoding.Decode([]byte(html), "")
 		if err != nil {
 			t.Fatalf("Decode error: %v", err)
 		}
-		if enc.Name != "UTF-8" {
-			t.Errorf("Expected UTF-8, got %s", enc.Name)
+		if enc.Name != encUTF8 {
+			t.Errorf("Expected %s, got %s", encUTF8, enc.Name)
 		}
 	})
 
 	t.Run("prescanForMetaCharset with non-meta tag containing attributes", func(t *testing.T) {
+		t.Parallel()
 		// Test with non-meta tags that have attributes
 		html := `<div id="test" class="foo"><meta charset="utf-8">`
 		_, enc, err := encoding.Decode([]byte(html), "")
 		if err != nil {
 			t.Fatalf("Decode error: %v", err)
 		}
-		if enc.Name != "UTF-8" {
-			t.Errorf("Expected UTF-8, got %s", enc.Name)
+		if enc.Name != encUTF8 {
+			t.Errorf("Expected %s, got %s", encUTF8, enc.Name)
 		}
 	})
 
 	t.Run("prescanForMetaCharset with quoted attributes in non-meta tag", func(t *testing.T) {
+		t.Parallel()
 		// Test with quoted attributes containing > character
 		html := `<div title="test > foo"><meta charset="iso-8859-2">`
 		_, enc, err := encoding.Decode([]byte(html), "")
 		if err != nil {
 			t.Fatalf("Decode error: %v", err)
 		}
-		if enc.Name != "iso-8859-2" {
-			t.Errorf("Expected iso-8859-2, got %s", enc.Name)
+		if enc.Name != encISO88592 {
+			t.Errorf("Expected %s, got %s", encISO88592, enc.Name)
 		}
 	})
 
 	t.Run("extractCharsetFromContent with semicolon separator", func(t *testing.T) {
+		t.Parallel()
 		// Test charset extraction with semicolon after charset value
 		html := `<meta http-equiv="Content-Type" content="text/html; charset=utf-8; other=value">`
 		_, enc, err := encoding.Decode([]byte(html), "")
 		if err != nil {
 			t.Fatalf("Decode error: %v", err)
 		}
-		if enc.Name != "UTF-8" {
-			t.Errorf("Expected UTF-8, got %s", enc.Name)
+		if enc.Name != encUTF8 {
+			t.Errorf("Expected %s, got %s", encUTF8, enc.Name)
 		}
 	})
 
 	t.Run("extractCharsetFromContent with single quotes", func(t *testing.T) {
+		t.Parallel()
 		// Test charset extraction with single-quoted value
 		html := `<meta http-equiv="Content-Type" content="text/html; charset='iso-8859-2'">`
 		_, enc, err := encoding.Decode([]byte(html), "")
 		if err != nil {
 			t.Fatalf("Decode error: %v", err)
 		}
-		if enc.Name != "iso-8859-2" {
-			t.Errorf("Expected iso-8859-2, got %s", enc.Name)
+		if enc.Name != encISO88592 {
+			t.Errorf("Expected %s, got %s", encISO88592, enc.Name)
 		}
 	})
 
 	t.Run("prescanForMetaCharset with tag that is not alphabetic", func(t *testing.T) {
+		t.Parallel()
 		// Test with < followed by non-alphabetic character
 		html := `<123><meta charset="utf-8">`
 		_, enc, err := encoding.Decode([]byte(html), "")
 		if err != nil {
 			t.Fatalf("Decode error: %v", err)
 		}
-		if enc.Name != "UTF-8" {
-			t.Errorf("Expected UTF-8, got %s", enc.Name)
+		if enc.Name != encUTF8 {
+			t.Errorf("Expected %s, got %s", encUTF8, enc.Name)
 		}
 	})
 
 	t.Run("prescanForMetaCharset restarts on < in attributes", func(t *testing.T) {
+		t.Parallel()
+
 		// Test with < character in attribute area (should restart scanning)
 		html := `<meta charset="utf-8" <test><meta charset="iso-8859-2">`
 		_, enc, err := encoding.Decode([]byte(html), "")
@@ -572,8 +594,8 @@ func TestEdgeCasesForCoverage(t *testing.T) {
 			t.Fatalf("Decode error: %v", err)
 		}
 		// Should find the second meta tag
-		if enc.Name != "iso-8859-2" {
-			t.Errorf("Expected iso-8859-2, got %s", enc.Name)
+		if enc.Name != encISO88592 {
+			t.Errorf("Expected %s, got %s", encISO88592, enc.Name)
 		}
 	})
 }
@@ -590,37 +612,38 @@ func TestExtractCharsetEdgeCases(t *testing.T) {
 		{
 			name:         "charset= with nothing after",
 			html:         `<meta http-equiv="Content-Type" content="charset=">`,
-			wantEncoding: "windows-1252", // No valid charset
+			wantEncoding: encWindows1252, // No valid charset
 		},
 		{
 			name:         "charset without =",
 			html:         `<meta http-equiv="Content-Type" content="charset">`,
-			wantEncoding: "windows-1252", // No valid charset
+			wantEncoding: encWindows1252, // No valid charset
 		},
 		{
 			name:         "charset at end of content",
 			html:         `<meta http-equiv="Content-Type" content="text/html; charset">`,
-			wantEncoding: "windows-1252", // No valid charset
+			wantEncoding: encWindows1252, // No valid charset
 		},
 		{
 			name:         "empty content attribute",
 			html:         `<meta http-equiv="Content-Type" content="">`,
-			wantEncoding: "windows-1252",
+			wantEncoding: encWindows1252,
 		},
 		{
 			name:         "charset with unclosed double quote",
 			html:         `<meta http-equiv="Content-Type" content='charset="utf-8'>`,
-			wantEncoding: "windows-1252", // Unclosed quote
+			wantEncoding: encWindows1252, // Unclosed quote
 		},
 		{
 			name:         "charset with space before =",
 			html:         `<meta http-equiv="Content-Type" content="charset  =  utf-8">`,
-			wantEncoding: "UTF-8",
+			wantEncoding: encUTF8,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			_, enc, err := encoding.Decode([]byte(tt.html), "")
 			if err != nil {
 				t.Fatalf("Decode error: %v", err)
@@ -637,6 +660,8 @@ func TestDecodeEncodingEdgeCases(t *testing.T) {
 	t.Parallel()
 
 	t.Run("ISO-8859-1 direct decode", func(t *testing.T) {
+		t.Parallel()
+
 		// Even though we define ISO-8859-1, it should map to windows-1252 per HTML spec
 		data := []byte{0xA9} // Copyright symbol
 		_, enc, err := encoding.Decode(data, "iso-8859-1")
@@ -650,6 +675,8 @@ func TestDecodeEncodingEdgeCases(t *testing.T) {
 	})
 
 	t.Run("windows-1252 special mappings", func(t *testing.T) {
+		t.Parallel()
+
 		// Test that bytes 0x80-0x9F are mapped correctly
 		data := []byte{0x99} // Trade mark sign in windows-1252
 		decoded, enc, err := encoding.Decode(data, "windows-1252")
@@ -666,6 +693,8 @@ func TestDecodeEncodingEdgeCases(t *testing.T) {
 	})
 
 	t.Run("EUC-JP with ASCII and multibyte", func(t *testing.T) {
+		t.Parallel()
+
 		// Mix of ASCII and multibyte characters
 		data := []byte{0x41, 0xA1, 0xA2, 0x42, 0xA3} // A, multibyte, B, partial multibyte
 		decoded, enc, err := encoding.Decode(data, "euc-jp")
@@ -681,6 +710,8 @@ func TestDecodeEncodingEdgeCases(t *testing.T) {
 	})
 
 	t.Run("UTF-16 with BOM detection in data", func(t *testing.T) {
+		t.Parallel()
+
 		// UTF-16 with BOM in data (not at start)
 		data := []byte{0xFF, 0xFE, 0x41, 0x00} // LE BOM + 'A'
 		decoded, enc, err := encoding.Decode(data, "utf-16")
@@ -696,6 +727,8 @@ func TestDecodeEncodingEdgeCases(t *testing.T) {
 	})
 
 	t.Run("UTF-16 with BE BOM in data", func(t *testing.T) {
+		t.Parallel()
+
 		// UTF-16 with BE BOM in data
 		data := []byte{0xFE, 0xFF, 0x00, 0x41} // BE BOM + 'A'
 		decoded, enc, err := encoding.Decode(data, "utf-16")
@@ -716,6 +749,8 @@ func TestPrescanEdgeCases(t *testing.T) {
 	t.Parallel()
 
 	t.Run("meta with attribute value without =", func(t *testing.T) {
+		t.Parallel()
+
 		// Attribute without value
 		html := `<meta charset utf-8>`
 		_, enc, err := encoding.Decode([]byte(html), "")
@@ -729,6 +764,8 @@ func TestPrescanEdgeCases(t *testing.T) {
 	})
 
 	t.Run("meta with unquoted attribute value", func(t *testing.T) {
+		t.Parallel()
+
 		html := `<meta http-equiv=Content-Type content=text/html;charset=utf-8>`
 		_, enc, err := encoding.Decode([]byte(html), "")
 		if err != nil {
@@ -740,6 +777,8 @@ func TestPrescanEdgeCases(t *testing.T) {
 	})
 
 	t.Run("end tag with quotes", func(t *testing.T) {
+		t.Parallel()
+
 		html := `</div class="test"><meta charset="iso-8859-2">`
 		_, enc, err := encoding.Decode([]byte(html), "")
 		if err != nil {
@@ -756,6 +795,8 @@ func TestBomLengthCoverage(t *testing.T) {
 	t.Parallel()
 
 	t.Run("UTF-16LE BOM strips correctly", func(t *testing.T) {
+		t.Parallel()
+
 		// UTF-16LE with BOM at start (should strip 2 bytes)
 		data := []byte{0xFF, 0xFE, 0x41, 0x00, 0x42, 0x00} // BOM + "AB"
 		_, enc, err := encoding.Decode(data, "")
@@ -768,6 +809,8 @@ func TestBomLengthCoverage(t *testing.T) {
 	})
 
 	t.Run("UTF-16BE BOM strips correctly", func(t *testing.T) {
+		t.Parallel()
+
 		// UTF-16BE with BOM at start (should strip 2 bytes)
 		data := []byte{0xFE, 0xFF, 0x00, 0x41, 0x00, 0x42} // BOM + "AB"
 		_, enc, err := encoding.Decode(data, "")
@@ -780,6 +823,8 @@ func TestBomLengthCoverage(t *testing.T) {
 	})
 
 	t.Run("ISO-8859-2 has no BOM", func(t *testing.T) {
+		t.Parallel()
+
 		// ISO-8859-2 with BOM-like bytes (should not be treated as BOM)
 		data := []byte{0xEF, 0xBB, 0xBF, 0x41}
 		_, enc, err := encoding.Decode(data, "iso-8859-2")
@@ -797,6 +842,8 @@ func TestDecodeWithEncodingFullCoverage(t *testing.T) {
 	t.Parallel()
 
 	t.Run("ISO-8859-1 byte-to-rune mapping", func(t *testing.T) {
+		t.Parallel()
+
 		// ISO-8859-1 maps each byte to a code point directly
 		// Test with extended ASCII range
 		data := []byte{0xFF, 0xFE, 0xFD} // ÿ þ ý
@@ -817,6 +864,8 @@ func TestDecodeWithEncodingFullCoverage(t *testing.T) {
 	})
 
 	t.Run("ISO-8859-2 extended range", func(t *testing.T) {
+		t.Parallel()
+
 		// ISO-8859-2 has special mappings for 0x80-0xFF
 		data := []byte{0x7F, 0x80, 0x81, 0xA0, 0xFF} // Mix of ASCII and extended
 		decoded, enc, err := encoding.Decode(data, "iso-8859-2")
@@ -832,6 +881,8 @@ func TestDecodeWithEncodingFullCoverage(t *testing.T) {
 	})
 
 	t.Run("windows-1252 all control chars", func(t *testing.T) {
+		t.Parallel()
+
 		// Test all special mappings in 0x80-0x9F range
 		data := make([]byte, 32)
 		for i := range data {
@@ -850,6 +901,8 @@ func TestDecodeWithEncodingFullCoverage(t *testing.T) {
 	})
 
 	t.Run("EUC-JP with only high bytes", func(t *testing.T) {
+		t.Parallel()
+
 		// EUC-JP with consecutive multibyte sequences
 		data := []byte{0xA1, 0xA2, 0xA3, 0xA4}
 		decoded, enc, err := encoding.Decode(data, "euc-jp")

@@ -296,6 +296,9 @@ func (tb *TreeBuilder) addMissingAttributes(el *dom.Element, attrs []tokenizer.A
 	if el == nil {
 		return
 	}
+	if len(tb.templateModes) > 0 {
+		return
+	}
 	for _, a := range attrs {
 		if a.Namespace != "" {
 			if !el.Attributes.HasNS(a.Namespace, a.Name) {
@@ -395,16 +398,17 @@ func shouldFosterForNode(el *dom.Element) bool {
 
 func (tb *TreeBuilder) fosterInsertionLocation() (dom.Node, dom.Node) {
 	tableEl, tableIndex := tb.lastTableElement()
+	templateEl, templateIndex := tb.lastTemplateElement()
+	if templateEl != nil && (tableEl == nil || templateIndex > tableIndex) {
+		if templateEl.TemplateContent == nil {
+			templateEl.TemplateContent = dom.NewDocumentFragment()
+		}
+		return templateEl.TemplateContent, nil
+	}
 	if tableEl == nil {
 		return tb.currentNode(), nil
 	}
 	if p := tableEl.Parent(); p != nil {
-		if templateEl := tb.templateAboveTable(tableIndex); templateEl != nil {
-			if templateEl.TemplateContent == nil {
-				templateEl.TemplateContent = dom.NewDocumentFragment()
-			}
-			return templateEl.TemplateContent, nil
-		}
 		return p, tableEl
 	}
 
@@ -425,15 +429,14 @@ func (tb *TreeBuilder) lastTableElement() (*dom.Element, int) {
 	return nil, -1
 }
 
-func (tb *TreeBuilder) templateAboveTable(tableIndex int) *dom.Element {
-	if tableIndex <= 0 || tableIndex > len(tb.openElements)-1 {
-		return nil
+func (tb *TreeBuilder) lastTemplateElement() (*dom.Element, int) {
+	for i := len(tb.openElements) - 1; i >= 0; i-- {
+		el := tb.openElements[i]
+		if el != nil && el.Namespace == dom.NamespaceHTML && el.TagName == "template" {
+			return el, i
+		}
 	}
-	el := tb.openElements[tableIndex-1]
-	if el != nil && el.Namespace == dom.NamespaceHTML && el.TagName == "template" {
-		return el
-	}
-	return nil
+	return nil, -1
 }
 
 func (tb *TreeBuilder) insertNode(node dom.Node, loc *insertionLocation) {

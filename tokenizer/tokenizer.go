@@ -1221,7 +1221,7 @@ func (t *Tokenizer) stateBeforeDoctypeName() {
 			return
 		}
 		if c >= 'A' && c <= 'Z' {
-			c = c + 32
+			c += 32
 		} else if c == 0 {
 			t.emitError("unexpected-null-character")
 			c = unicode.ReplacementChar
@@ -1252,7 +1252,7 @@ func (t *Tokenizer) stateDoctypeName() {
 			return
 		default:
 			if c >= 'A' && c <= 'Z' {
-				c = c + 32
+				c += 32
 			} else if c == 0 {
 				t.emitError("unexpected-null-character")
 				c = unicode.ReplacementChar

@@ -8,10 +8,13 @@ import (
 	htmlerrors "github.com/MeKo-Christian/JustGoHTML/errors"
 )
 
+const unknownError = "Unknown error"
+
 func TestParseError(t *testing.T) {
 	t.Parallel()
 
 	t.Run("Error with line and column", func(t *testing.T) {
+		t.Parallel()
 		err := &htmlerrors.ParseError{
 			Code:    "unexpected-null-character",
 			Message: "Unexpected null character found",
@@ -26,6 +29,7 @@ func TestParseError(t *testing.T) {
 	})
 
 	t.Run("Error without location", func(t *testing.T) {
+		t.Parallel()
 		err := &htmlerrors.ParseError{
 			Code:    "eof-in-tag",
 			Message: "Unexpected end of file in tag",
@@ -40,6 +44,7 @@ func TestParseError(t *testing.T) {
 	})
 
 	t.Run("Error with only line", func(t *testing.T) {
+		t.Parallel()
 		err := &htmlerrors.ParseError{
 			Code:    "test-error",
 			Message: "Test message",
@@ -59,6 +64,7 @@ func TestParseErrors(t *testing.T) {
 	t.Parallel()
 
 	t.Run("Empty errors", func(t *testing.T) {
+		t.Parallel()
 		errs := htmlerrors.ParseErrors{}
 		expected := "no parse errors"
 		if got := errs.Error(); got != expected {
@@ -67,6 +73,7 @@ func TestParseErrors(t *testing.T) {
 	})
 
 	t.Run("Single error", func(t *testing.T) {
+		t.Parallel()
 		errs := htmlerrors.ParseErrors{
 			{
 				Code:    "test-error",
@@ -83,6 +90,7 @@ func TestParseErrors(t *testing.T) {
 	})
 
 	t.Run("Multiple errors", func(t *testing.T) {
+		t.Parallel()
 		errs := htmlerrors.ParseErrors{
 			{
 				Code:    "error-one",
@@ -127,6 +135,7 @@ func TestParseErrors(t *testing.T) {
 	})
 
 	t.Run("Unwrap returns error slice", func(t *testing.T) {
+		t.Parallel()
 		err1 := &htmlerrors.ParseError{Code: "err1", Message: "Error 1"}
 		err2 := &htmlerrors.ParseError{Code: "err2", Message: "Error 2"}
 		errs := htmlerrors.ParseErrors{err1, err2}
@@ -146,6 +155,7 @@ func TestParseErrors(t *testing.T) {
 	})
 
 	t.Run("Unwrap with empty errors", func(t *testing.T) {
+		t.Parallel()
 		errs := htmlerrors.ParseErrors{}
 		unwrapped := errs.Unwrap()
 		if len(unwrapped) != 0 {
@@ -158,6 +168,7 @@ func TestSelectorError(t *testing.T) {
 	t.Parallel()
 
 	t.Run("Error with all fields", func(t *testing.T) {
+		t.Parallel()
 		err := &htmlerrors.SelectorError{
 			Selector: "div > .class[invalid",
 			Position: 15,
@@ -171,6 +182,7 @@ func TestSelectorError(t *testing.T) {
 	})
 
 	t.Run("Error at position 0", func(t *testing.T) {
+		t.Parallel()
 		err := &htmlerrors.SelectorError{
 			Selector: "*invalid",
 			Position: 0,
@@ -206,27 +218,30 @@ func TestMessage(t *testing.T) {
 	t.Parallel()
 
 	t.Run("Known error code", func(t *testing.T) {
+		t.Parallel()
 		// Test with a known error code from codes.go
 		msg := htmlerrors.Message("eof-in-tag")
 		if msg == "" {
 			t.Error("Message() should return a non-empty string for known error code")
 		}
-		if msg == "Unknown error" {
+		if msg == unknownError {
 			t.Error("Message() should not return 'Unknown error' for known error code")
 		}
 	})
 
 	t.Run("Unknown error code", func(t *testing.T) {
+		t.Parallel()
 		msg := htmlerrors.Message("this-error-does-not-exist")
-		expected := "Unknown error"
+		expected := unknownError
 		if msg != expected {
 			t.Errorf("Message() = %q, want %q for unknown error code", msg, expected)
 		}
 	})
 
 	t.Run("Empty error code", func(t *testing.T) {
+		t.Parallel()
 		msg := htmlerrors.Message("")
-		expected := "Unknown error"
+		expected := unknownError
 		if msg != expected {
 			t.Errorf("Message() = %q, want %q for empty error code", msg, expected)
 		}

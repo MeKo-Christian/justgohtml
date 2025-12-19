@@ -5,6 +5,12 @@ import (
 	"testing"
 )
 
+const (
+	encUTF8        = "UTF-8"
+	encISO88592    = "iso-8859-2"
+	encWindows1252 = "windows-1252"
+)
+
 func TestDecodeWithEncodingInvalid(t *testing.T) {
 	_, err := decodeWithEncoding([]byte("x"), &Encoding{Name: "bogus"})
 	if !errors.Is(err, ErrInvalidEncoding) {
@@ -14,7 +20,7 @@ func TestDecodeWithEncodingInvalid(t *testing.T) {
 
 func TestNormalizeMetaDeclaredEncoding(t *testing.T) {
 	enc := normalizeMetaDeclaredEncoding([]byte("utf-16"))
-	if enc == nil || enc.Name != "UTF-8" {
+	if enc == nil || enc.Name != encUTF8 {
 		t.Fatalf("expected UTF-8, got %#v", enc)
 	}
 
@@ -24,7 +30,7 @@ func TestNormalizeMetaDeclaredEncoding(t *testing.T) {
 	}
 
 	enc = normalizeMetaDeclaredEncoding([]byte("iso-8859-2"))
-	if enc == nil || enc.Name != "iso-8859-2" {
+	if enc == nil || enc.Name != encISO88592 {
 		t.Fatalf("expected iso-8859-2, got %#v", enc)
 	}
 }
@@ -32,13 +38,13 @@ func TestNormalizeMetaDeclaredEncoding(t *testing.T) {
 func TestPrescanForMetaCharset(t *testing.T) {
 	data := []byte("<!-- comment --><meta charset=\"utf-8\">")
 	enc := prescanForMetaCharset(data)
-	if enc == nil || enc.Name != "UTF-8" {
+	if enc == nil || enc.Name != encUTF8 {
 		t.Fatalf("expected UTF-8, got %#v", enc)
 	}
 
 	data = []byte("<meta http-equiv=\"content-type\" content=\"text/html; charset=ascii\">")
 	enc = prescanForMetaCharset(data)
-	if enc == nil || enc.Name != "windows-1252" {
+	if enc == nil || enc.Name != encWindows1252 {
 		t.Fatalf("expected windows-1252, got %#v", enc)
 	}
 }

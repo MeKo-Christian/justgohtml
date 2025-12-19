@@ -43,7 +43,7 @@ Go's performance means JustGoHTML is significantly faster than pure-Python parse
 
 | Parser                  | HTML5 Compliance | Pure Go? | Speed | Query API     | Notes                                                |
 | ----------------------- | :--------------: | :------: | ----- | ------------- | ---------------------------------------------------- |
-| **JustGoHTML**          |    In progress   |   Yes    | Fast  | CSS selectors | Spec-accurate but still closing html5lib failures.   |
+| **JustGoHTML**          |   In progress    |   Yes    | Fast  | CSS selectors | Spec-accurate but still closing html5lib failures.   |
 | `golang.org/x/net/html` |       ~70%       |   Yes    | Fast  | None          | Standard library. Good but not fully spec compliant. |
 | `goquery`               |       ~70%       |   Yes    | Fast  | CSS selectors | Wrapper around x/net/html. Same compliance issues.   |
 

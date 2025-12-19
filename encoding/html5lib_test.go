@@ -56,6 +56,7 @@ func runEncodingTestFile(t *testing.T, path string) {
 			testName = "empty"
 		}
 		t.Run(testName, func(t *testing.T) {
+			t.Parallel()
 			runSingleEncodingTest(t, test, i)
 		})
 	}
@@ -88,8 +89,8 @@ func normalizeEncodingName(name string) string {
 	name = strings.ToLower(strings.TrimSpace(name))
 	// Map common aliases to canonical names
 	switch name {
-	case "windows-1252", "cp1252", "x-cp1252":
-		return "windows-1252"
+	case encWindows1252, "cp1252", "x-cp1252":
+		return encWindows1252
 	case "iso-8859-1", "iso8859-1", "latin1":
 		return "iso-8859-1"
 	case "utf-8", "utf8":

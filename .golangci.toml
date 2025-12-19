@@ -55,6 +55,52 @@ min-complexity = 40
 [linters.settings.nestif]
 min-complexity = 8
 
+[linters.settings.goconst]
+# Ignore HTML5 standard element names and token types - these are spec-defined
+# literals that are clearer as strings than as constants
+ignore-string-values = [
+  'StartTag',
+  'EndTag',
+  'EmptyTag',
+  'Characters',
+  'Comment',
+  'Doctype',
+  'html',
+  'head',
+  'body',
+  'table',
+  'tbody',
+  'thead',
+  'tfoot',
+  'tr',
+  'td',
+  'th',
+  'colgroup',
+  'col',
+  'li',
+  'dt',
+  'dd',
+  'p',
+  'option',
+  'optgroup',
+  'rp',
+  'rt',
+  'select',
+  'script',
+  'style',
+  'title',
+  'textarea',
+  'plaintext',
+  'noframes',
+  'noscript',
+  'div',
+  'svg',
+  'br',
+  'meta',
+  'base',
+  'frameset',
+]
+
 [linters.exclusions]
 generated = 'lax'
 presets = ['comments', 'common-false-positives', 'legacy', 'std-error-handling']

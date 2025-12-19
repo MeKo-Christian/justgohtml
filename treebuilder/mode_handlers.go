@@ -8,6 +8,14 @@ import (
 	"github.com/MeKo-Christian/JustGoHTML/tokenizer"
 )
 
+const (
+	tagBase     = "base"
+	tagBasefont = "basefont"
+	tagBgsound  = "bgsound"
+	tagLink     = "link"
+	tagMeta     = "meta"
+)
+
 // These handlers are a growing implementation of the HTML5 tree construction
 // insertion modes. They focus on correctness and non-panicking behavior.
 
@@ -145,7 +153,7 @@ func (tb *TreeBuilder) processInHead(tok tokenizer.Token) bool {
 			tb.insertElement(tok.Name, tok.Attrs)
 			tb.mode = InHeadNoscript
 			return false
-		case "base", "basefont", "bgsound", "link", "meta":
+		case tagBase, tagBasefont, tagBgsound, tagLink, tagMeta:
 			// Void-ish head elements; do not stay on stack.
 			tb.insertElement(tok.Name, tok.Attrs)
 			tb.popCurrent()
@@ -217,6 +225,9 @@ func (tb *TreeBuilder) processInHeadNoscript(tok tokenizer.Token) bool {
 			// Table-structure elements are ignored in "in body".
 			return false
 		case "html":
+			if len(tb.templateModes) > 0 {
+				return false
+			}
 			if len(tb.openElements) > 0 && tb.openElements[0].TagName == "html" {
 				tb.addMissingAttributes(tb.openElements[0], tok.Attrs)
 			}
@@ -428,6 +439,9 @@ func (tb *TreeBuilder) processInBody(tok tokenizer.Token) bool {
 			}
 			return false
 		case "body":
+			if len(tb.templateModes) > 0 {
+				return false
+			}
 			// If a body element already exists, merge attrs.
 			if body := tb.document.Body(); body != nil {
 				tb.addMissingAttributes(body, tok.Attrs)
@@ -608,6 +622,9 @@ func (tb *TreeBuilder) processInBody(tok tokenizer.Token) bool {
 			return false
 		}
 	case tokenizer.EOF:
+		if len(tb.templateModes) > 0 {
+			return tb.processInTemplate(tok)
+		}
 		return false
 	default:
 		return false
@@ -659,9 +676,23 @@ func (tb *TreeBuilder) processInTable(tok tokenizer.Token) bool {
 			tb.mode = InTableBody
 			return true
 		case "table":
+			if !tb.hasElementInTableScope("table") {
+				return false
+			}
 			tb.popUntil("table")
 			tb.mode = InBody
 			return true
+		case "script", "style":
+			tb.insertElement(tok.Name, tok.Attrs)
+			tb.originalMode = tb.mode
+			tb.mode = Text
+			tb.tokenizer.SetLastStartTag(tok.Name)
+			if tok.Name == "script" {
+				tb.tokenizer.SetState(tokenizer.ScriptDataState)
+			} else {
+				tb.tokenizer.SetState(tokenizer.RAWTEXTState)
+			}
+			return false
 		case "template":
 			return tb.processInHead(tok)
 		}
@@ -672,6 +703,9 @@ func (tb *TreeBuilder) processInTable(tok tokenizer.Token) bool {
 	case tokenizer.EndTag:
 		switch tok.Name {
 		case "table":
+			if !tb.hasElementInTableScope("table") {
+				return false
+			}
 			tb.popUntil("table")
 			tb.mode = InBody
 			return false
@@ -684,6 +718,9 @@ func (tb *TreeBuilder) processInTable(tok tokenizer.Token) bool {
 			})
 		}
 	case tokenizer.EOF:
+		if len(tb.templateModes) > 0 {
+			return tb.processInTemplate(tok)
+		}
 		return false
 	}
 	return false
@@ -758,10 +795,17 @@ func (tb *TreeBuilder) processInCaption(tok tokenizer.Token) bool {
 }
 
 func (tb *TreeBuilder) processInColumnGroup(tok tokenizer.Token) bool {
+	current := tb.currentElement()
 	switch tok.Type {
 	case tokenizer.Character:
 		if isAllWhitespace(tok.Data) {
 			tb.insertText(tok.Data)
+			return false
+		}
+		if current != nil && current.TagName == "template" {
+			return false
+		}
+		if current != nil && current.TagName == "html" {
 			return false
 		}
 	case tokenizer.Comment:
@@ -775,43 +819,102 @@ func (tb *TreeBuilder) processInColumnGroup(tok tokenizer.Token) bool {
 			return false
 		case "template":
 			return tb.processInHead(tok)
+		case "colgroup":
+			if current != nil && current.TagName == "colgroup" {
+				tb.popUntil("colgroup")
+				tb.mode = InTable
+				return true
+			}
+			return false
 		}
 	case tokenizer.EndTag:
 		if tok.Name == "colgroup" {
-			tb.popUntil("colgroup")
-			tb.mode = InTable
+			if current != nil && current.TagName == "colgroup" {
+				tb.popUntil("colgroup")
+				tb.mode = InTable
+			}
 			return false
 		}
+		if tok.Name == "col" {
+			return false
+		}
+		if tok.Name == "template" {
+			return tb.processInHead(tok)
+		}
 	case tokenizer.EOF:
+		if current != nil && current.TagName == "colgroup" {
+			tb.popUntil("colgroup")
+			tb.mode = InTable
+			return true
+		}
+		if current != nil && current.TagName == "template" {
+			return tb.processInTemplate(tok)
+		}
 		return false
 	}
 
 	// Close colgroup and reprocess in table.
-	tb.popUntil("colgroup")
+	if current != nil && current.TagName == "colgroup" {
+		tb.popUntil("colgroup")
+		tb.mode = InTable
+		return true
+	}
+	if current != nil && current.TagName == "template" {
+		return false
+	}
+	if current != nil && current.TagName == "html" {
+		return false
+	}
 	tb.mode = InTable
 	return true
 }
 
 func (tb *TreeBuilder) processInTableBody(tok tokenizer.Token) bool {
+	current := tb.currentElement()
 	switch tok.Type {
+	case tokenizer.Character, tokenizer.Comment:
+		return tb.processInTable(tok)
 	case tokenizer.StartTag:
 		switch tok.Name {
 		case "tr":
+			tb.clearStackUntil(map[string]bool{"tbody": true, "tfoot": true, "thead": true, "template": true, "html": true})
 			tb.insertElement("tr", tok.Attrs)
 			tb.mode = InRow
 			return false
 		case "td", "th":
+			tb.clearStackUntil(map[string]bool{"tbody": true, "tfoot": true, "thead": true, "template": true, "html": true})
 			tb.insertElement("tr", nil)
 			tb.mode = InRow
+			return true
+		case "caption", "col", "colgroup", "tbody", "tfoot", "thead", "table":
+			if current != nil && current.TagName == "template" {
+				return false
+			}
+			if current != nil && (current.TagName == "tbody" || current.TagName == "thead" || current.TagName == "tfoot") {
+				tb.popCurrent()
+			}
+			tb.mode = InTable
 			return true
 		}
 	case tokenizer.EndTag:
 		switch tok.Name {
 		case "tbody", "thead", "tfoot":
+			if current != nil && current.TagName == "template" {
+				return false
+			}
+			if !tb.hasElementInTableScope(tok.Name) {
+				return false
+			}
 			tb.popUntil(tok.Name)
 			tb.mode = InTable
 			return false
 		case "table":
+			if current != nil && current.TagName == "template" {
+				return false
+			}
+			if !tb.hasElementInTableScope("table") {
+				return false
+			}
 			tb.popUntil("tbody")
 			tb.mode = InTable
 			return true
@@ -822,10 +925,15 @@ func (tb *TreeBuilder) processInTableBody(tok tokenizer.Token) bool {
 }
 
 func (tb *TreeBuilder) processInRow(tok tokenizer.Token) bool {
+	current := tb.currentElement()
 	switch tok.Type {
+	case tokenizer.Character, tokenizer.Comment:
+		return tb.processInTable(tok)
 	case tokenizer.StartTag:
 		if tok.Name == "td" || tok.Name == "th" {
+			tb.clearStackUntil(map[string]bool{"tr": true, "template": true, "html": true})
 			tb.insertElement(tok.Name, tok.Attrs)
+			tb.pushActiveFormattingMarker()
 			tb.mode = InCell
 			return false
 		}
@@ -834,17 +942,37 @@ func (tb *TreeBuilder) processInRow(tok tokenizer.Token) bool {
 			tb.mode = InTableBody
 			return true
 		}
-	case tokenizer.EndTag:
-		switch tok.Name {
-		case "tr":
-			tb.popUntil("tr")
-			tb.mode = InTableBody
-			return false
-		case "table":
+		if tok.Name == "caption" || tok.Name == "col" || tok.Name == "colgroup" || tok.Name == "tbody" || tok.Name == "tfoot" || tok.Name == "thead" || tok.Name == "table" {
+			if current != nil && current.TagName == "template" {
+				return false
+			}
+			if !tb.hasElementInTableScope("tr") {
+				return false
+			}
 			tb.popUntil("tr")
 			tb.mode = InTableBody
 			return true
 		}
+	case tokenizer.EndTag:
+		switch tok.Name {
+		case "tr":
+			if !tb.hasElementInTableScope("tr") {
+				return false
+			}
+			tb.popUntil("tr")
+			tb.mode = InTableBody
+			return false
+		case "table":
+			if !tb.hasElementInTableScope("tr") {
+				return false
+			}
+			tb.popUntil("tr")
+			tb.mode = InTableBody
+			return true
+		}
+	}
+	if !tb.hasElementInTableScope("tr") {
+		return false
 	}
 	tb.mode = InTableBody
 	return true
@@ -854,16 +982,27 @@ func (tb *TreeBuilder) processInCell(tok tokenizer.Token) bool {
 	switch tok.Type {
 	case tokenizer.EndTag:
 		if tok.Name == "td" || tok.Name == "th" {
+			if !tb.hasElementInTableScope(tok.Name) {
+				return false
+			}
 			tb.popUntil(tok.Name)
 			tb.mode = InRow
 			return false
 		}
 		if tok.Name == "tr" || tok.Name == "table" {
+			if !tb.hasElementInTableScope(tok.Name) {
+				return false
+			}
 			tb.popUntilAnyCell()
 			tb.mode = InRow
 			return true
 		}
 	case tokenizer.StartTag:
+		if tok.Name == "caption" || tok.Name == "col" || tok.Name == "colgroup" || tok.Name == "tbody" || tok.Name == "tfoot" || tok.Name == "thead" || tok.Name == "tr" {
+			tb.popUntilAnyCell()
+			tb.mode = InRow
+			return true
+		}
 		if tok.Name == "td" || tok.Name == "th" {
 			tb.popUntilAnyCell()
 			tb.mode = InRow
@@ -985,7 +1124,7 @@ func (tb *TreeBuilder) processInSelect(tok tokenizer.Token) bool {
 			return true
 		}
 	case tokenizer.EOF:
-		return false
+		return tb.processInBody(tok)
 	}
 	return false
 }
