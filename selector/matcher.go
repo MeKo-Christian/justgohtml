@@ -176,12 +176,21 @@ func matchAttribute(elem *dom.Element, sel SimpleSelector) bool {
 		return val == sel.Value || strings.HasPrefix(val, sel.Value+"-")
 
 	case AttrPrefixMatch:
+		if sel.Value == "" {
+			return false
+		}
 		return strings.HasPrefix(val, sel.Value)
 
 	case AttrSuffixMatch:
+		if sel.Value == "" {
+			return false
+		}
 		return strings.HasSuffix(val, sel.Value)
 
 	case AttrSubstring:
+		if sel.Value == "" {
+			return false
+		}
 		return strings.Contains(val, sel.Value)
 
 	default:

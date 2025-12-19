@@ -306,6 +306,36 @@
         color: #c084fc;
       }
 
+      /* HTML syntax highlighting */
+      .html-tag {
+        color: #7dd3fc;
+      }
+
+      .html-attr-name {
+        color: #fbbf24;
+      }
+
+      .html-attr-value {
+        color: #4ade80;
+      }
+
+      .html-comment {
+        color: #6b7280;
+        font-style: italic;
+      }
+
+      .html-doctype {
+        color: #c084fc;
+      }
+
+      .html-text {
+        color: #d4d4d4;
+      }
+
+      .html-entity {
+        color: #f472b6;
+      }
+
       /* Token view styles */
       .token {
         display: block;
@@ -668,6 +698,8 @@
           output.innerHTML = renderTokens(lastResult.tokens);
         } else if (currentFormat === "tree") {
           output.innerHTML = renderTree(lastResult.tree);
+        } else if (currentFormat === "html") {
+          output.innerHTML = highlightHtml(lastResult.result);
         } else {
           output.textContent = lastResult.result;
         }
@@ -763,6 +795,143 @@
           .replace(/\n/g, "\\n")
           .replace(/\r/g, "\\r")
           .replace(/\t/g, "\\t");
+      }
+
+      // Escape HTML for display (preserve whitespace)
+      function escapeForDisplay(str) {
+        if (typeof str !== "string") return str;
+        return str
+          .replace(/&/g, "&amp;")
+          .replace(/</g, "&lt;")
+          .replace(/>/g, "&gt;")
+          .replace(/"/g, "&quot;");
+      }
+
+      // Highlight HTML syntax
+      function highlightHtml(html) {
+        if (typeof html !== "string") return html;
+
+        let result = "";
+        let i = 0;
+
+        while (i < html.length) {
+          // Check for comments
+          if (html.substring(i, i + 4) === "<!--") {
+            const endIdx = html.indexOf("-->", i + 4);
+            if (endIdx !== -1) {
+              const comment = html.substring(i, endIdx + 3);
+              result += `<span class="html-comment">${escapeForDisplay(comment)}</span>`;
+              i = endIdx + 3;
+              continue;
+            }
+          }
+
+          // Check for DOCTYPE
+          if (html.substring(i, i + 9).toLowerCase() === "<!doctype") {
+            const endIdx = html.indexOf(">", i);
+            if (endIdx !== -1) {
+              const doctype = html.substring(i, endIdx + 1);
+              result += `<span class="html-doctype">${escapeForDisplay(doctype)}</span>`;
+              i = endIdx + 1;
+              continue;
+            }
+          }
+
+          // Check for tags
+          if (html[i] === "<") {
+            const endIdx = html.indexOf(">", i);
+            if (endIdx !== -1) {
+              const tag = html.substring(i, endIdx + 1);
+              result += highlightTag(tag);
+              i = endIdx + 1;
+              continue;
+            }
+          }
+
+          // Check for entities
+          if (html[i] === "&") {
+            const endIdx = html.indexOf(";", i);
+            if (endIdx !== -1 && endIdx - i < 12) {
+              const entity = html.substring(i, endIdx + 1);
+              if (/^&[#\w]+;$/.test(entity)) {
+                result += `<span class="html-entity">${escapeForDisplay(entity)}</span>`;
+                i = endIdx + 1;
+                continue;
+              }
+            }
+          }
+
+          // Regular text
+          result += escapeForDisplay(html[i]);
+          i++;
+        }
+
+        return result;
+      }
+
+      // Highlight a single HTML tag
+      function highlightTag(tag) {
+        // Simple closing tag
+        if (/^<\/[\w-]+>$/.test(tag)) {
+          return `<span class="html-tag">${escapeForDisplay(tag)}</span>`;
+        }
+
+        // Self-closing or opening tag with potential attributes
+        let result = "";
+        let inAttrValue = false;
+        let attrValueQuote = "";
+        let i = 0;
+
+        // Opening bracket and tag name
+        const tagNameMatch = tag.match(/^<\/?[\w-]+/);
+        if (tagNameMatch) {
+          result += `<span class="html-tag">${escapeForDisplay(tagNameMatch[0])}</span>`;
+          i = tagNameMatch[0].length;
+        }
+
+        // Process attributes
+        while (i < tag.length) {
+          if (!inAttrValue) {
+            // Look for attribute name
+            const attrMatch = tag.substring(i).match(/^\s*([\w-]+)\s*=/);
+            if (attrMatch) {
+              const spaces = tag.substring(i).match(/^\s*/)[0];
+              result += escapeForDisplay(spaces);
+              result += `<span class="html-attr-name">${escapeForDisplay(attrMatch[1])}</span>=`;
+              i += attrMatch[0].length;
+
+              // Check for quoted value
+              if (tag[i] === '"' || tag[i] === "'") {
+                attrValueQuote = tag[i];
+                inAttrValue = true;
+                result += `<span class="html-attr-value">${attrValueQuote}`;
+                i++;
+              }
+              continue;
+            }
+
+            // Closing bracket or other characters
+            if (tag[i] === ">" || tag.substring(i, i + 2) === "/>") {
+              result += `<span class="html-tag">${escapeForDisplay(tag.substring(i))}</span>`;
+              break;
+            }
+
+            result += escapeForDisplay(tag[i]);
+            i++;
+          } else {
+            // Inside attribute value
+            if (tag[i] === attrValueQuote) {
+              result += `${attrValueQuote}</span>`;
+              inAttrValue = false;
+              i++;
+            } else {
+              result += escapeForDisplay(tag[i]);
+              i++;
+            }
+          }
+        }
+
+        return result;
       }
 
       // Copy output to clipboard
