@@ -681,26 +681,26 @@ Implementation:
 
 ### 6.1 Test Infrastructure
 
-- [ ] Set up test helpers in `internal/testutil/`
-- [ ] Create test fixtures directory structure
-- [ ] Download html5lib-tests submodule or vendored copy
+- [x] Set up test helpers in `internal/testutil/`
+- [x] Create test fixtures directory structure
+- [x] Download html5lib-tests submodule or vendored copy
 
 ### 6.2 html5lib-tests Integration
 
 **Tests to pass:**
 
-| Test Category     | Count  | Priority |
-| ----------------- | ------ | -------- |
-| Tree Construction | 1,743  | Critical |
-| Tokenizer         | ~2,000 | Critical |
-| Serializer        | ~100   | High     |
-| Encoding          | ~50    | High     |
+| Test Category     | Count | Priority | Status                     |
+| ----------------- | ----- | -------- | -------------------------- |
+| Tree Construction | 1,843 | Critical | 70% (1,282 pass, 549 fail) |
+| Tokenizer         | 6,826 | Critical | 100% (all pass)            |
+| Serializer        | 236   | High     | 89% (210 pass, 26 fail)    |
+| Encoding          | 87    | High     | 100% (all pass)            |
 
-- [ ] Create test harness for tree construction tests
-- [ ] Create test harness for tokenizer tests
-- [ ] Create test harness for serializer tests
-- [ ] Create test harness for encoding tests
-- [ ] All 9,000+ tests passing
+- [x] Create test harness for tree construction tests
+- [x] Create test harness for tokenizer tests
+- [x] Create test harness for serializer tests
+- [x] Create test harness for encoding tests
+- [ ] All 9,000+ tests passing (currently ~8,100 passing)
 
 ### 6.3 Unit Test Coverage
 

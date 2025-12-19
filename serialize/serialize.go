@@ -125,7 +125,7 @@ func serializeElement(sb *strings.Builder, elem *dom.Element, opts Options, dept
 // It filters out whitespace-only text nodes and properly indents content.
 func serializeChildrenPretty(sb *strings.Builder, children []dom.Node, opts Options, depth int) {
 	// Filter to get significant children (skip whitespace-only text nodes)
-	var significantChildren []dom.Node
+	significantChildren := make([]dom.Node, 0, len(children))
 	for _, child := range children {
 		if text, ok := child.(*dom.Text); ok {
 			if isWhitespaceOnly(text.Data) {
@@ -243,7 +243,7 @@ func collapseWhitespace(s string) string {
 		result = " " + result
 	}
 	if hasTrailingSpace && len(result) > 0 {
-		result = result + " "
+		result += " "
 	}
 
 	return result

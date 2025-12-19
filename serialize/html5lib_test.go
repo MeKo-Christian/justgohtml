@@ -64,8 +64,48 @@ func runSingleSerializerTest(t *testing.T, test testutil.SerializerTest, _ int) 
 		return
 	}
 
-	// Serialize the token stream
-	actual, err := serialize.SerializeTokens(test.Input)
+	// Convert test options to SerializeTokenOptions
+	opts := serialize.DefaultSerializeTokenOptions()
+
+	// Apply test-specific options
+	if test.Options != nil {
+		if v, ok := test.Options["quote_char"].(string); ok && len(v) > 0 {
+			opts.QuoteChar = rune(v[0])
+		}
+		if v, ok := test.Options["use_trailing_solidus"].(bool); ok {
+			opts.UseTrailingSolidus = v
+		}
+		if v, ok := test.Options["minimize_boolean_attributes"].(bool); ok {
+			opts.MinimizeBooleanAttributes = v
+		}
+		if v, ok := test.Options["quote_attr_values"].(bool); ok && v {
+			// quote_attr_values=true means minimize boolean attrs (omit =value)
+			opts.MinimizeBooleanAttributes = true
+		}
+		if v, ok := test.Options["escape_lt_in_attrs"].(bool); ok {
+			opts.EscapeLtInAttrs = v
+		}
+		if v, ok := test.Options["escape_rcdata"].(bool); ok {
+			opts.EscapeRcdata = v
+		}
+		if v, ok := test.Options["strip_whitespace"].(bool); ok {
+			opts.StripWhitespace = v
+		}
+		if v, ok := test.Options["omit_optional_tags"].(bool); ok {
+			opts.OmitOptionalTags = v
+		}
+		if v, ok := test.Options["inject_meta_charset"].(bool); ok {
+			opts.InjectMetaCharset = v
+			// inject_meta_charset implies omit_optional_tags
+			opts.OmitOptionalTags = true
+		}
+		if v, ok := test.Options["encoding"].(string); ok {
+			opts.Encoding = v
+		}
+	}
+
+	// Serialize the token stream with options
+	actual, err := serialize.SerializeTokensWithOptions(test.Input, opts)
 	if err != nil {
 		t.Fatalf("Serialization error: %v", err)
 	}

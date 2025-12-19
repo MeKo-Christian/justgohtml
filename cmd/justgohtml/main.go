@@ -11,10 +11,9 @@ import (
 
 	"github.com/MeKo-Christian/JustGoHTML"
 	"github.com/MeKo-Christian/JustGoHTML/dom"
-	"github.com/MeKo-Christian/JustGoHTML/serialize"
-
 	// Import selector package to register selector functions via init()
 	_ "github.com/MeKo-Christian/JustGoHTML/selector"
+	"github.com/MeKo-Christian/JustGoHTML/serialize"
 )
 
 // Output format constants.
