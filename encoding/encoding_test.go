@@ -150,8 +150,8 @@ func TestEmptyEncodingLabel(t *testing.T) {
 		t.Fatalf("Decode with empty label error: %v", err)
 	}
 	// Empty label should fall back to windows-1252
-	if enc.Name != "windows-1252" {
-		t.Errorf("Decode with empty label encoding name = %q, want %q", enc.Name, "windows-1252")
+	if enc.Name != encWindows1252 {
+		t.Errorf("Decode with empty label encoding name = %q, want %q", enc.Name, encWindows1252)
 	}
 }
 
@@ -669,8 +669,8 @@ func TestDecodeEncodingEdgeCases(t *testing.T) {
 			t.Fatalf("Decode error: %v", err)
 		}
 		// Per normalizeEncodingLabel, ISO-8859-1 labels return Windows1252
-		if enc.Name != "windows-1252" {
-			t.Errorf("Expected windows-1252, got %s", enc.Name)
+		if enc.Name != encWindows1252 {
+			t.Errorf("Expected %s, got %s", encWindows1252, enc.Name)
 		}
 	})
 
@@ -784,8 +784,8 @@ func TestPrescanEdgeCases(t *testing.T) {
 		if err != nil {
 			t.Fatalf("Decode error: %v", err)
 		}
-		if enc.Name != "iso-8859-2" {
-			t.Errorf("Expected iso-8859-2, got %s", enc.Name)
+		if enc.Name != encISO88592 {
+			t.Errorf("Expected %s, got %s", encISO88592, enc.Name)
 		}
 	})
 }

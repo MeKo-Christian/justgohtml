@@ -144,11 +144,12 @@ func (tb *TreeBuilder) adoptionAgency(subject string) {
 		if p := lastNode.Parent(); p != nil {
 			p.RemoveChild(lastNode)
 		}
-		if commonAncestor != nil && commonAncestor.Namespace == dom.NamespaceHTML && commonAncestor.TagName == "template" && commonAncestor.TemplateContent != nil {
+		switch {
+		case commonAncestor != nil && commonAncestor.Namespace == dom.NamespaceHTML && commonAncestor.TagName == "template" && commonAncestor.TemplateContent != nil:
 			commonAncestor.TemplateContent.AppendChild(lastNode)
-		} else if shouldFosterParent(commonAncestor) {
+		case shouldFosterParent(commonAncestor):
 			tb.insertFosterNode(lastNode)
-		} else {
+		default:
 			commonAncestor.AppendChild(lastNode)
 		}
 

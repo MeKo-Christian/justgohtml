@@ -11,8 +11,8 @@ func (tb *TreeBuilder) hasElementInScope(tagName string, scope map[string]bool) 
 	return tb.hasElementInScopeInternal(tagName, scope, true)
 }
 
-func (tb *TreeBuilder) hasElementInButtonScope(tagName string) bool {
-	return tb.hasElementInScope(tagName, constants.ButtonScope)
+func (tb *TreeBuilder) hasPElementInButtonScope() bool {
+	return tb.hasElementInScope("p", constants.ButtonScope)
 }
 
 func (tb *TreeBuilder) hasElementInTableScope(tagName string) bool {

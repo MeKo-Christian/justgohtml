@@ -148,6 +148,8 @@ func (t *Tokenizer) SetState(state State) {
 	switch state {
 	case DataState, RCDATAState, RAWTEXTState, ScriptDataState, PLAINTEXTState, CDATASectionState:
 		t.textMode = state
+	default:
+		// Other states do not change textMode
 	}
 	// Ensure rawtext end-tag matching has a tag name.
 	if (state == RCDATAState || state == RAWTEXTState || state == ScriptDataState) && t.rawtextTagName == "" && t.lastStartTagName != "" {

@@ -252,10 +252,7 @@ func serializeEmptyTagToken(sb *strings.Builder, arr []json.RawMessage, opts Ser
 // serializeTokenAttrs serializes attributes from either array or object format.
 func serializeTokenAttrs(sb *strings.Builder, raw json.RawMessage, opts SerializeTokenOptions, tagName string) error {
 	// Try array format first: [{namespace, name, value}, ...]
-	attrs, err := parseTokenAttrs(raw)
-	if err != nil {
-		return err
-	}
+	attrs := parseTokenAttrs(raw)
 
 	if opts.InjectMetaCharset && opts.Encoding != "" && tagName == "meta" {
 		attrs = normalizeMetaCharsetAttrs(attrs, opts.Encoding)
@@ -704,7 +701,7 @@ type tokenAttr struct {
 	Value string
 }
 
-func parseTokenAttrs(raw json.RawMessage) ([]tokenAttr, error) {
+func parseTokenAttrs(raw json.RawMessage) []tokenAttr {
 	var attrArray []struct {
 		Namespace *string `json:"namespace"`
 		Name      string  `json:"name"`
@@ -712,28 +709,28 @@ func parseTokenAttrs(raw json.RawMessage) ([]tokenAttr, error) {
 	}
 	if err := json.Unmarshal(raw, &attrArray); err == nil {
 		if len(attrArray) == 0 {
-			return nil, nil
+			return nil
 		}
 		attrs := make([]tokenAttr, 0, len(attrArray))
 		for _, attr := range attrArray {
 			attrs = append(attrs, tokenAttr{Name: attr.Name, Value: attr.Value})
 		}
-		return attrs, nil
+		return attrs
 	}
 
 	var attrObj map[string]string
 	if err := json.Unmarshal(raw, &attrObj); err == nil {
 		if len(attrObj) == 0 {
-			return nil, nil
+			return nil
 		}
 		attrs := make([]tokenAttr, 0, len(attrObj))
 		for name, value := range attrObj {
 			attrs = append(attrs, tokenAttr{Name: name, Value: value})
 		}
-		return attrs, nil
+		return attrs
 	}
 
-	return nil, nil
+	return nil
 }
 
 func sortTokenAttrs(attrs []tokenAttr) {
@@ -808,7 +805,7 @@ func hasCharsetMetaAhead(tokens []json.RawMessage, idx int) bool {
 			if len(rawAttrs) == 0 {
 				continue
 			}
-			attrs, _ := parseTokenAttrs(rawAttrs)
+			attrs := parseTokenAttrs(rawAttrs)
 			for _, attr := range attrs {
 				if strings.EqualFold(attr.Name, "charset") {
 					return true

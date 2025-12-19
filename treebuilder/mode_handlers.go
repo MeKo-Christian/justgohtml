@@ -36,11 +36,12 @@ func (tb *TreeBuilder) processInitial(tok tokenizer.Token) bool {
 		tb.setQuirksModeFromDoctype(tok.Name, tok.PublicID, tok.SystemID, tok.ForceQuirks)
 		tb.mode = BeforeHTML
 		return false
-	default:
+	case tokenizer.Error, tokenizer.StartTag, tokenizer.EndTag, tokenizer.EOF:
 		tb.document.QuirksMode = dom.Quirks
 		tb.mode = BeforeHTML
 		return true
 	}
+	return false
 }
 
 func (tb *TreeBuilder) processBeforeHTML(tok tokenizer.Token) bool {
@@ -72,6 +73,8 @@ func (tb *TreeBuilder) processBeforeHTML(tok tokenizer.Token) bool {
 		tb.insertElement("html", nil)
 		tb.mode = BeforeHead
 		return true
+	case tokenizer.Error, tokenizer.DOCTYPE:
+		// Fall through to implicit <html> creation
 	}
 
 	// Create implicit <html> element.
@@ -105,6 +108,8 @@ func (tb *TreeBuilder) processBeforeHead(tok tokenizer.Token) bool {
 	case tokenizer.EndTag:
 		// Ignore most end tags here.
 		return false
+	case tokenizer.Error, tokenizer.DOCTYPE, tokenizer.EOF:
+		// Fall through to implicit <head> creation
 	}
 
 	// Implicit <head>.
@@ -200,6 +205,8 @@ func (tb *TreeBuilder) processInHead(tok tokenizer.Token) bool {
 		tb.popUntil("head")
 		tb.mode = AfterHead
 		return true
+	case tokenizer.Error, tokenizer.DOCTYPE:
+		// Fall through to implicit head closure
 	}
 
 	// Anything else: close head and reprocess in after head.
@@ -232,7 +239,7 @@ func (tb *TreeBuilder) processInHeadNoscript(tok tokenizer.Token) bool {
 				tb.addMissingAttributes(tb.openElements[0], tok.Attrs)
 			}
 			return false
-		case "basefont", "bgsound", "link", "meta", "noframes", "style":
+		case tagBasefont, tagBgsound, tagLink, tagMeta, "noframes", "style":
 			return tb.processInHead(tok)
 		case "head", "noscript":
 			return false
@@ -258,9 +265,10 @@ func (tb *TreeBuilder) processInHeadNoscript(tok tokenizer.Token) bool {
 		tb.popUntil("noscript")
 		tb.mode = InHead
 		return true
-	default:
+	case tokenizer.Error, tokenizer.DOCTYPE:
 		return false
 	}
+	return false
 }
 
 func (tb *TreeBuilder) processAfterHead(tok tokenizer.Token) bool {
@@ -292,7 +300,7 @@ func (tb *TreeBuilder) processAfterHead(tok tokenizer.Token) bool {
 			tb.insertElement("frameset", tok.Attrs)
 			tb.mode = InFrameset
 			return false
-		case "base", "basefont", "bgsound", "link", "meta", "noframes", "script", "style", "title", "noscript":
+		case tagBase, tagBasefont, tagBgsound, tagLink, tagMeta, "noframes", "script", "style", "title", "noscript":
 			if tb.headElement != nil {
 				tb.openElements = append(tb.openElements, tb.headElement)
 			}
@@ -347,9 +355,10 @@ func (tb *TreeBuilder) processText(tok tokenizer.Token) bool {
 		tb.mode = tb.originalMode
 		tb.tokenizer.SetState(tokenizer.DataState)
 		return true
-	default:
+	case tokenizer.Error, tokenizer.DOCTYPE, tokenizer.StartTag, tokenizer.Comment:
 		return false
 	}
+	return false
 }
 
 func (tb *TreeBuilder) processInBody(tok tokenizer.Token) bool {
@@ -379,14 +388,14 @@ func (tb *TreeBuilder) processInBody(tok tokenizer.Token) bool {
 			}
 			return false
 		case "address", "article", "aside", "blockquote", "center", "details", "dialog", "dir", "div", "dl", "fieldset", "figcaption", "figure", "footer", "header", "hgroup", "main", "menu", "nav", "ol", "section", "summary", "ul":
-			if tb.hasElementInButtonScope("p") {
+			if tb.hasPElementInButtonScope() {
 				tb.popUntil("p")
 			}
 			tb.insertElement(tok.Name, tok.Attrs)
 			tb.framesetOK = false
 			return false
 		case "h1", "h2", "h3", "h4", "h5", "h6":
-			if tb.hasElementInButtonScope("p") {
+			if tb.hasPElementInButtonScope() {
 				tb.popUntil("p")
 			}
 			// Close any open heading element to avoid nested headings.
@@ -400,20 +409,20 @@ func (tb *TreeBuilder) processInBody(tok tokenizer.Token) bool {
 			tb.framesetOK = false
 			return false
 		case "pre":
-			if tb.hasElementInButtonScope("p") {
+			if tb.hasPElementInButtonScope() {
 				tb.popUntil("p")
 			}
 			tb.insertElement(tok.Name, tok.Attrs)
 			tb.framesetOK = false
 			return false
 		case "listing":
-			if tb.hasElementInButtonScope("p") {
+			if tb.hasPElementInButtonScope() {
 				tb.popUntil("p")
 			}
 			tb.insertElement(tok.Name, tok.Attrs)
 			tb.framesetOK = false
 			return false
-		case "base", "basefont", "bgsound", "link", "meta":
+		case tagBase, tagBasefont, tagBgsound, tagLink, tagMeta:
 			// Per spec §13.2.6.4.7: process using the rules for "in head".
 			// These are void elements - insert and immediately pop.
 			tb.insertElement(tok.Name, tok.Attrs)
@@ -504,7 +513,7 @@ func (tb *TreeBuilder) processInBody(tok tokenizer.Token) bool {
 			tb.tokenizer.SetState(tokenizer.RCDATAState)
 			return false
 		case "xmp":
-			if tb.hasElementInButtonScope("p") {
+			if tb.hasPElementInButtonScope() {
 				tb.popUntil("p")
 			}
 			tb.insertElement(tok.Name, tok.Attrs)
@@ -515,7 +524,7 @@ func (tb *TreeBuilder) processInBody(tok tokenizer.Token) bool {
 			tb.framesetOK = false
 			return false
 		case "plaintext":
-			if tb.hasElementInButtonScope("p") {
+			if tb.hasPElementInButtonScope() {
 				tb.popUntil("p")
 			}
 			tb.insertElement(tok.Name, tok.Attrs)
@@ -535,7 +544,7 @@ func (tb *TreeBuilder) processInBody(tok tokenizer.Token) bool {
 			}
 			return false
 		case "p":
-			if tb.hasElementInButtonScope("p") {
+			if tb.hasPElementInButtonScope() {
 				tb.popUntil("p")
 			}
 			tb.insertElement("p", tok.Attrs)
@@ -596,7 +605,7 @@ func (tb *TreeBuilder) processInBody(tok tokenizer.Token) bool {
 			tb.framesetOK = false
 			return false
 		case "p":
-			if !tb.hasElementInButtonScope("p") {
+			if !tb.hasPElementInButtonScope() {
 				tb.insertElement("p", nil)
 			}
 			tb.popUntil("p")
@@ -722,6 +731,8 @@ func (tb *TreeBuilder) processInTable(tok tokenizer.Token) bool {
 			return tb.processInTemplate(tok)
 		}
 		return false
+	case tokenizer.Error:
+		return false
 	}
 	return false
 }
@@ -737,13 +748,14 @@ func (tb *TreeBuilder) processInTableText(tok tokenizer.Token) bool {
 		}
 		tb.pendingTableText = append(tb.pendingTableText, tok.Data)
 		return false
-	default:
+	case tokenizer.Error, tokenizer.DOCTYPE, tokenizer.StartTag, tokenizer.EndTag, tokenizer.Comment, tokenizer.EOF:
 		// Flush pending table text.
 		for _, s := range tb.pendingTableText {
 			if isAllWhitespace(s) {
 				tb.insertText(s)
 			} else {
 				_ = tb.withFosterParenting(func() bool {
+					tb.reconstructActiveFormattingElements()
 					tb.insertText(s)
 					return false
 				})
@@ -758,6 +770,7 @@ func (tb *TreeBuilder) processInTableText(tok tokenizer.Token) bool {
 		}
 		return true
 	}
+	return false
 }
 
 func (tb *TreeBuilder) processInCaption(tok tokenizer.Token) bool {
@@ -790,6 +803,8 @@ func (tb *TreeBuilder) processInCaption(tok tokenizer.Token) bool {
 			tb.mode = InTable
 			return true
 		}
+	case tokenizer.Error, tokenizer.DOCTYPE, tokenizer.EOF:
+		// Fall through to processInBody
 	}
 	return tb.processInBody(tok)
 }
@@ -851,6 +866,8 @@ func (tb *TreeBuilder) processInColumnGroup(tok tokenizer.Token) bool {
 			return tb.processInTemplate(tok)
 		}
 		return false
+	case tokenizer.Error, tokenizer.DOCTYPE:
+		// Fall through to implicit colgroup closure
 	}
 
 	// Close colgroup and reprocess in table.
@@ -986,6 +1003,7 @@ func (tb *TreeBuilder) processInCell(tok tokenizer.Token) bool {
 				return false
 			}
 			tb.popUntil(tok.Name)
+			tb.clearActiveFormattingElements()
 			tb.mode = InRow
 			return false
 		}
@@ -994,17 +1012,20 @@ func (tb *TreeBuilder) processInCell(tok tokenizer.Token) bool {
 				return false
 			}
 			tb.popUntilAnyCell()
+			tb.clearActiveFormattingElements()
 			tb.mode = InRow
 			return true
 		}
 	case tokenizer.StartTag:
 		if tok.Name == "caption" || tok.Name == "col" || tok.Name == "colgroup" || tok.Name == "tbody" || tok.Name == "tfoot" || tok.Name == "thead" || tok.Name == "tr" {
 			tb.popUntilAnyCell()
+			tb.clearActiveFormattingElements()
 			tb.mode = InRow
 			return true
 		}
 		if tok.Name == "td" || tok.Name == "th" {
 			tb.popUntilAnyCell()
+			tb.clearActiveFormattingElements()
 			tb.mode = InRow
 			return true
 		}
@@ -1125,6 +1146,8 @@ func (tb *TreeBuilder) processInSelect(tok tokenizer.Token) bool {
 		}
 	case tokenizer.EOF:
 		return tb.processInBody(tok)
+	case tokenizer.Error, tokenizer.DOCTYPE:
+		return false
 	}
 	return false
 }
@@ -1188,7 +1211,7 @@ func (tb *TreeBuilder) processInTemplate(tok tokenizer.Token) bool {
 			}
 			tb.mode = InRow
 			return true
-		case "base", "basefont", "bgsound", "link", "meta", "noframes", "script", "style", "template", "title":
+		case tagBase, tagBasefont, tagBgsound, tagLink, tagMeta, "noframes", "script", "style", "template", "title":
 			return tb.processInHead(tok)
 		default:
 			if len(tb.templateModes) > 0 {

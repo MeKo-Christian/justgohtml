@@ -252,7 +252,7 @@ func prepareForeignAttributes(namespace string, attrs []tokenizer.Attr) []dom.At
 	return out
 }
 
-func (tb *TreeBuilder) insertForeignElement(name, namespace string, attrs []dom.Attribute, selfClosing bool) *dom.Element {
+func (tb *TreeBuilder) insertForeignElement(name, namespace string, attrs []dom.Attribute, selfClosing bool) {
 	el := dom.NewElementNS(name, namespace)
 	for _, a := range attrs {
 		el.Attributes.SetNS(a.Namespace, a.Name, a.Value)
@@ -261,5 +261,4 @@ func (tb *TreeBuilder) insertForeignElement(name, namespace string, attrs []dom.
 	if !selfClosing {
 		tb.openElements = append(tb.openElements, el)
 	}
-	return el
 }
