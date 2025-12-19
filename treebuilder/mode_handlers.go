@@ -446,14 +446,8 @@ func (tb *TreeBuilder) processInBody(tok tokenizer.Token) bool {
 	case tokenizer.StartTag:
 		switch tok.Name {
 		case "caption", "col", "colgroup", "tbody", "tfoot", "thead", "tr", "td", "th":
-			// Table-structure elements are ignored in "in body".
-			if (tok.Name == "tr" || tok.Name == "td" || tok.Name == "th") && tb.hasForeignElementOnStack() && !tb.hasElementInTableScope("table") {
-				// If foreign content messed with the open-elements stack, these tokens can end up
-				// being processed with no sensible insertion point. The JustHTML regression suite
-				// expects these to become children of <html> (not the document root, and not SVG).
-				tb.insertElementUnderHTML(tok.Name, tok.Attrs)
-				tb.framesetOK = false
-			}
+			// Per WHATWG HTML spec §13.2.6.4.7: Table-structure elements without proper table
+			// scope are parse errors and should be ignored.
 			return false
 		case "head":
 			// Parse error; ignore in body.
