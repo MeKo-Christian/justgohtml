@@ -153,6 +153,7 @@ func (t *Tokenizer) SetAllowCDATA(enabled bool) {
 // This is used by the tree builder to switch to RCDATA, RAWTEXT, etc.
 func (t *Tokenizer) SetState(state State) {
 	t.state = state
+	//nolint:exhaustive // Only specific states affect textMode; others use default behavior
 	switch state {
 	case DataState, RCDATAState, RAWTEXTState, ScriptDataState, PLAINTEXTState, CDATASectionState:
 		t.textMode = state
@@ -195,7 +196,9 @@ func (t *Tokenizer) Next() Token {
 	return token
 }
 
+//nolint:gocyclo,exhaustive // HTML5 tokenizer state machine dispatcher - complexity mandated by spec
 func (t *Tokenizer) step() {
+	//nolint:exhaustive // Only active tokenizer states dispatched; others indicate implementation errors
 	switch t.state {
 	case DataState:
 		t.stateData()

@@ -36,6 +36,8 @@ func decodeNumericEntity(text string, isHex bool) rune {
 //
 // This follows the behavior of the Python reference implementation and is used
 // when flushing text and attribute values.
+//
+//nolint:gocyclo // Entity decoding complexity required for HTML5 character reference handling
 func decodeEntitiesInText(text string, inAttribute bool) string {
 	var out []rune
 	out = make([]rune, 0, len(text))
@@ -61,6 +63,7 @@ func decodeEntitiesInText(text string, inAttribute bool) string {
 
 		i = nextAmp
 		j := i + 1
+		//nolint:nestif // Numeric character reference parsing requires conditional nesting
 		if j < len(runes) && runes[j] == '#' {
 			j++
 			isHex := false
@@ -117,6 +120,7 @@ func decodeEntitiesInText(text string, inAttribute bool) string {
 		}
 
 		// Exact match with semicolon.
+		//nolint:nestif // Named entity matching requires conditional nesting for prefix matching
 		if hasSemicolon {
 			if value, ok := constants.NamedEntities[entityName]; ok {
 				out = append(out, []rune(value)...)

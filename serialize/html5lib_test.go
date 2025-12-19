@@ -68,6 +68,7 @@ func runSingleSerializerTest(t *testing.T, test testutil.SerializerTest, _ int) 
 	opts := serialize.DefaultSerializeTokenOptions()
 
 	// Apply test-specific options
+	//nolint:nestif // Test option parsing requires conditional nesting
 	if test.Options != nil {
 		if v, ok := test.Options["quote_char"].(string); ok && len(v) > 0 {
 			opts.QuoteChar = rune(v[0])

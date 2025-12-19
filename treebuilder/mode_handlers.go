@@ -412,6 +412,7 @@ func (tb *TreeBuilder) processText(tok tokenizer.Token) bool {
 	return false
 }
 
+//nolint:gocyclo,gocognit // Implements WHATWG HTML §13.2.6.4.7 (In body insertion mode) - largest mode in spec
 func (tb *TreeBuilder) processInBody(tok tokenizer.Token) bool {
 	switch tok.Type {
 	case tokenizer.Character:
@@ -562,7 +563,7 @@ func (tb *TreeBuilder) processInBody(tok tokenizer.Token) bool {
 			tb.insertElement("frameset", tok.Attrs)
 			tb.mode = InFrameset
 			return false
-		case "form":
+		case "form": //nolint:goconst // HTML element name, intentionally not a constant per linter config
 			if tb.formElement != nil {
 				return false
 			}
@@ -573,7 +574,7 @@ func (tb *TreeBuilder) processInBody(tok tokenizer.Token) bool {
 			tb.formElement = node
 			tb.framesetOK = false
 			return false
-		case "button":
+		case "button": //nolint:goconst // HTML element name, intentionally not a constant per linter config
 			if tb.hasElementInScope("button", constants.DefaultScope) {
 				tb.popUntil("button")
 			}
@@ -1032,10 +1033,7 @@ func (tb *TreeBuilder) processInCaption(tok tokenizer.Token) bool {
 			return false
 		}
 		if tok.Name == "table" {
-			if tb.closeCaptionElement() {
-				return true
-			}
-			return false
+			return tb.closeCaptionElement()
 		}
 		if tok.Name == "tbody" || tok.Name == "tfoot" || tok.Name == "thead" {
 			return false
@@ -1060,8 +1058,10 @@ func (tb *TreeBuilder) processInCaption(tok tokenizer.Token) bool {
 	return tb.processInBody(tok)
 }
 
+//nolint:gocyclo // Implements WHATWG HTML §13.2.6.4.13 (In column group insertion mode)
 func (tb *TreeBuilder) processInColumnGroup(tok tokenizer.Token) bool {
 	current := tb.currentElement()
+
 	switch tok.Type {
 	case tokenizer.Character:
 		if isAllWhitespace(tok.Data) {
@@ -1317,16 +1317,10 @@ func (tb *TreeBuilder) processInCell(tok tokenizer.Token) bool {
 		}
 	case tokenizer.StartTag:
 		if tok.Name == "caption" || tok.Name == "col" || tok.Name == "colgroup" || tok.Name == "tbody" || tok.Name == "tfoot" || tok.Name == "thead" || tok.Name == "tr" {
-			if tb.closeTableCell() {
-				return true
-			}
-			return false
+			return tb.closeTableCell()
 		}
 		if tok.Name == "td" || tok.Name == "th" {
-			if tb.closeTableCell() {
-				return true
-			}
-			return false
+			return tb.closeTableCell()
 		}
 	}
 	return tb.processInBody(tok)
@@ -1344,6 +1338,7 @@ func (tb *TreeBuilder) popUntilAnyCell() {
 	}
 }
 
+//nolint:gocyclo // Implements WHATWG HTML §13.2.6.4.16 (In select insertion mode)
 func (tb *TreeBuilder) processInSelect(tok tokenizer.Token) bool {
 	switch tok.Type {
 	case tokenizer.Character:

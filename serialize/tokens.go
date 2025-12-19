@@ -60,6 +60,8 @@ func SerializeTokens(tokens []json.RawMessage) (string, error) {
 }
 
 // SerializeTokensWithOptions serializes tokens with custom options.
+//
+//nolint:gocognit,gocyclo,cyclop // Token serialization complexity required for HTML5 conformance and optional tag omission
 func SerializeTokensWithOptions(tokens []json.RawMessage, opts SerializeTokenOptions) (string, error) {
 	var sb strings.Builder
 	var rawTextDepth int
@@ -94,6 +96,7 @@ func SerializeTokensWithOptions(tokens []json.RawMessage, opts SerializeTokenOpt
 		switch tokenType {
 		case "StartTag":
 			err = serializeStartTagToken(&sb, arr, opts, tokens, i)
+			//nolint:nestif // Tag state tracking requires conditional nesting
 			if err == nil {
 				tagName := tokenTagName(tokenType, arr)
 				if tagName == "head" {
@@ -587,6 +590,8 @@ func hasAttributes(arr []json.RawMessage) bool {
 }
 
 // shouldOmitEndTag checks if an end tag can be omitted per HTML5 spec.
+//
+//nolint:gocognit,gocyclo,cyclop // Tag omission rules require complex lookahead logic per HTML5 optional tags spec
 func shouldOmitEndTag(tagName string, tokens []json.RawMessage, idx int) bool {
 	nextType, nextTag := getNextTokenInfo(tokens, idx)
 
@@ -775,6 +780,7 @@ func normalizeMetaCharsetAttrs(attrs []tokenAttr, encoding string) []tokenAttr {
 	return attrs
 }
 
+//nolint:gocognit // Lookahead logic for charset meta injection requires complex nested checks
 func hasCharsetMetaAhead(tokens []json.RawMessage, idx int) bool {
 	for i := idx + 1; i < len(tokens); i++ {
 		typ, tag := getTokenInfo(tokens[i])
@@ -784,6 +790,7 @@ func hasCharsetMetaAhead(tokens []json.RawMessage, idx int) bool {
 		if typ == "EndTag" && tag == "head" {
 			return false
 		}
+		//nolint:nestif // Charset meta detection requires complex lookahead logic
 		if typ == "StartTag" || typ == "EmptyTag" {
 			if tag != "meta" {
 				continue

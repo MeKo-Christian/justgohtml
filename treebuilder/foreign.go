@@ -58,6 +58,7 @@ func (tb *TreeBuilder) processForeignContent(tok tokenizer.Token) bool {
 		return false
 	}
 
+	//nolint:exhaustive // HTML5 spec: unhandled token types trigger breakout from foreign content
 	switch tok.Type {
 	case tokenizer.Character:
 		if tok.Data == "" {

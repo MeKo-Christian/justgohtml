@@ -195,6 +195,8 @@ func (tb *TreeBuilder) FragmentNodes() []*dom.Element {
 }
 
 // ProcessToken consumes a tokenizer token and updates the DOM tree.
+//
+//nolint:gocyclo // Token dispatcher complexity mandated by HTML5 tree construction spec
 func (tb *TreeBuilder) ProcessToken(tok tokenizer.Token) {
 	// The full HTML5 algorithm is implemented incrementally; keep the current
 	// behavior non-panicking and deterministic.
@@ -220,6 +222,7 @@ func (tb *TreeBuilder) ProcessToken(tok tokenizer.Token) {
 		}
 		tb.forceHTMLMode = false
 		current := tb.currentElement()
+		//nolint:nestif // Foreign content processing requires complex conditional checks per HTML5 spec
 		if current != nil && current.Namespace != dom.NamespaceHTML {
 			if tok.Type == tokenizer.Character && tb.isMathMLTextIntegrationPoint(current) {
 				data := tok.Data

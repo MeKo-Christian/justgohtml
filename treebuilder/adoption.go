@@ -7,6 +7,8 @@ import (
 
 // adoptionAgency implements the adoption agency algorithm for handling misnested
 // formatting elements, per WHATWG HTML §13.2.5.2.5.
+//
+//nolint:gocyclo // Adoption agency algorithm complexity mandated by WHATWG HTML §13.2.5.2.5
 func (tb *TreeBuilder) adoptionAgency(subject string) {
 	// 1. If the current node is the subject, and it is not in the active formatting elements list...
 	if tb.currentElement() != nil && tb.currentElement().TagName == subject {

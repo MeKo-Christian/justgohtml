@@ -428,6 +428,8 @@ func TestMetaCharsetDetection(t *testing.T) {
 }
 
 // TestEdgeCasesForCoverage tests edge cases to achieve 100% coverage.
+//
+//nolint:gocognit,goconst,funlen // Comprehensive edge case testing requires many conditional branches and test strings
 func TestEdgeCasesForCoverage(t *testing.T) {
 	t.Parallel()
 
