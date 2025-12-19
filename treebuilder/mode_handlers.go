@@ -298,6 +298,7 @@ func (tb *TreeBuilder) processInHeadNoscript(tok tokenizer.Token) bool {
 }
 
 func (tb *TreeBuilder) processAfterHead(tok tokenizer.Token) bool {
+	//nolint:exhaustive // HTML5 spec: unhandled token types use default error recovery
 	switch tok.Type {
 	case tokenizer.Character:
 		data := tok.Data
@@ -412,8 +413,9 @@ func (tb *TreeBuilder) processText(tok tokenizer.Token) bool {
 	return false
 }
 
-//nolint:gocyclo,gocognit // Implements WHATWG HTML §13.2.6.4.7 (In body insertion mode) - largest mode in spec
+//nolint:gocyclo // Implements WHATWG HTML §13.2.6.4.7 (In body insertion mode) - largest mode in spec
 func (tb *TreeBuilder) processInBody(tok tokenizer.Token) bool {
+	//nolint:exhaustive // HTML5 spec: unhandled token types use default error recovery
 	switch tok.Type {
 	case tokenizer.Character:
 		data := tok.Data
@@ -868,6 +870,7 @@ func (tb *TreeBuilder) processInBody(tok tokenizer.Token) bool {
 }
 
 func (tb *TreeBuilder) processInTable(tok tokenizer.Token) bool {
+	//nolint:exhaustive // HTML5 spec: unhandled token types use default error recovery
 	switch tok.Type {
 	case tokenizer.Character:
 		// Switch to "in table text" and reprocess.
@@ -1177,6 +1180,7 @@ func (tb *TreeBuilder) processInColumnGroup(tok tokenizer.Token) bool {
 
 func (tb *TreeBuilder) processInTableBody(tok tokenizer.Token) bool {
 	current := tb.currentElement()
+	//nolint:exhaustive // HTML5 spec: unhandled token types use default error recovery
 	switch tok.Type {
 	case tokenizer.Character, tokenizer.Comment:
 		return tb.processInTable(tok)
@@ -1243,6 +1247,7 @@ func (tb *TreeBuilder) processInTableBody(tok tokenizer.Token) bool {
 
 func (tb *TreeBuilder) processInRow(tok tokenizer.Token) bool {
 	current := tb.currentElement()
+	//nolint:exhaustive // HTML5 spec: unhandled token types use default error recovery
 	switch tok.Type {
 	case tokenizer.Character, tokenizer.Comment:
 		return tb.processInTable(tok)
@@ -1295,6 +1300,7 @@ func (tb *TreeBuilder) processInRow(tok tokenizer.Token) bool {
 }
 
 func (tb *TreeBuilder) processInCell(tok tokenizer.Token) bool {
+	//nolint:exhaustive // HTML5 spec: unhandled token types use default error recovery
 	switch tok.Type {
 	case tokenizer.EndTag:
 		if tok.Name == "td" || tok.Name == "th" {
@@ -1525,6 +1531,7 @@ func (tb *TreeBuilder) processInSelectInTable(tok tokenizer.Token) bool {
 }
 
 func (tb *TreeBuilder) processInTemplate(tok tokenizer.Token) bool {
+	//nolint:exhaustive // HTML5 spec: unhandled token types use default error recovery
 	switch tok.Type {
 	case tokenizer.Character, tokenizer.Comment:
 		return tb.processInBody(tok)
@@ -1593,6 +1600,7 @@ func (tb *TreeBuilder) processInTemplate(tok tokenizer.Token) bool {
 }
 
 func (tb *TreeBuilder) processAfterBody(tok tokenizer.Token) bool {
+	//nolint:exhaustive // HTML5 spec: unhandled token types use default error recovery
 	switch tok.Type {
 	case tokenizer.Character:
 		if isAllWhitespace(tok.Data) {
@@ -1625,6 +1633,7 @@ func (tb *TreeBuilder) processAfterBody(tok tokenizer.Token) bool {
 }
 
 func (tb *TreeBuilder) processInFrameset(tok tokenizer.Token) bool {
+	//nolint:exhaustive // HTML5 spec: unhandled token types use default error recovery
 	switch tok.Type {
 	case tokenizer.Character:
 		if tok.Data != "" {
@@ -1672,6 +1681,7 @@ func (tb *TreeBuilder) processInFrameset(tok tokenizer.Token) bool {
 }
 
 func (tb *TreeBuilder) processAfterFrameset(tok tokenizer.Token) bool {
+	//nolint:exhaustive // HTML5 spec: unhandled token types use default error recovery
 	switch tok.Type {
 	case tokenizer.Character:
 		if tok.Data != "" {
@@ -1710,6 +1720,7 @@ func (tb *TreeBuilder) processAfterFrameset(tok tokenizer.Token) bool {
 }
 
 func (tb *TreeBuilder) processAfterAfterBody(tok tokenizer.Token) bool {
+	//nolint:exhaustive // HTML5 spec: unhandled token types use default error recovery
 	switch tok.Type {
 	case tokenizer.Comment:
 		if tb.fragmentContext != nil {
@@ -1738,6 +1749,7 @@ func (tb *TreeBuilder) processAfterAfterBody(tok tokenizer.Token) bool {
 }
 
 func (tb *TreeBuilder) processAfterAfterFrameset(tok tokenizer.Token) bool {
+	//nolint:exhaustive // HTML5 spec: unhandled token types use default error recovery
 	switch tok.Type {
 	case tokenizer.Comment:
 		if tb.fragmentContext != nil {

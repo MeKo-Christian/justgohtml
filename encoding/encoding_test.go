@@ -429,7 +429,7 @@ func TestMetaCharsetDetection(t *testing.T) {
 
 // TestEdgeCasesForCoverage tests edge cases to achieve 100% coverage.
 //
-//nolint:gocognit,goconst,funlen // Comprehensive edge case testing requires many conditional branches and test strings
+//nolint:gocognit,funlen // Comprehensive edge case testing requires many conditional branches
 func TestEdgeCasesForCoverage(t *testing.T) {
 	t.Parallel()
 
@@ -681,12 +681,12 @@ func TestDecodeEncodingEdgeCases(t *testing.T) {
 
 		// Test that bytes 0x80-0x9F are mapped correctly
 		data := []byte{0x99} // Trade mark sign in windows-1252
-		decoded, enc, err := encoding.Decode(data, "windows-1252")
+		decoded, enc, err := encoding.Decode(data, encWindows1252)
 		if err != nil {
 			t.Fatalf("Decode error: %v", err)
 		}
-		if enc.Name != "windows-1252" {
-			t.Errorf("Expected windows-1252, got %s", enc.Name)
+		if enc.Name != encWindows1252 {
+			t.Errorf("Expected %s, got %s", encWindows1252, enc.Name)
 		}
 		// Should contain the trademark symbol
 		if len(decoded) == 0 {
@@ -760,8 +760,8 @@ func TestPrescanEdgeCases(t *testing.T) {
 			t.Fatalf("Decode error: %v", err)
 		}
 		// charset attribute has no value, should fall back
-		if enc.Name != "windows-1252" {
-			t.Errorf("Expected windows-1252, got %s", enc.Name)
+		if enc.Name != encWindows1252 {
+			t.Errorf("Expected %s, got %s", encWindows1252, enc.Name)
 		}
 	})
 
@@ -857,8 +857,8 @@ func TestDecodeWithEncodingFullCoverage(t *testing.T) {
 		if err != nil {
 			t.Fatalf("Decode error: %v", err)
 		}
-		if enc.Name != "windows-1252" {
-			t.Errorf("Expected windows-1252 (ISO-8859-1 mapped), got %s", enc.Name)
+		if enc.Name != encWindows1252 {
+			t.Errorf("Expected %s (ISO-8859-1 mapped), got %s", encWindows1252, enc.Name)
 		}
 		if len(decoded) == 0 {
 			t.Error("Decoded string should not be empty")
@@ -890,12 +890,12 @@ func TestDecodeWithEncodingFullCoverage(t *testing.T) {
 		for i := range data {
 			data[i] = byte(0x80 + i)
 		}
-		decoded, enc, err := encoding.Decode(data, "windows-1252")
+		decoded, enc, err := encoding.Decode(data, encWindows1252)
 		if err != nil {
 			t.Fatalf("Decode error: %v", err)
 		}
-		if enc.Name != "windows-1252" {
-			t.Errorf("Expected windows-1252, got %s", enc.Name)
+		if enc.Name != encWindows1252 {
+			t.Errorf("Expected %s, got %s", encWindows1252, enc.Name)
 		}
 		if len(decoded) == 0 {
 			t.Error("Decoded string should not be empty")
