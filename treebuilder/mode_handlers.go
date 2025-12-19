@@ -1500,6 +1500,15 @@ func (tb *TreeBuilder) processInSelect(tok tokenizer.Token) bool {
 			tb.popUntil("select")
 			tb.resetInsertionModeAppropriately()
 			return true
+		default:
+			// Per WHATWG HTML spec §13.2.6.4.16: Handle end tags for elements allowed in select
+			// Pop the element if it's in the stack (for div, button, span, etc.)
+			if tb.elementInStack(tok.Name) {
+				tb.popUntil(tok.Name)
+				// After popping, reconstruct any active formatting elements
+				tb.reconstructActiveFormattingElements()
+			}
+			return false
 		}
 	case tokenizer.EOF:
 		return tb.processInBody(tok)
