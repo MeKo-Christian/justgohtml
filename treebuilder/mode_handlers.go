@@ -147,10 +147,27 @@ func (tb *TreeBuilder) processBeforeHead(tok tokenizer.Token) bool {
 func (tb *TreeBuilder) processInHead(tok tokenizer.Token) bool {
 	switch tok.Type {
 	case tokenizer.Character:
+		// Per WHATWG HTML §13.2.6.4.3: Insert leading whitespace, then handle non-whitespace
 		if isAllWhitespace(tok.Data) {
 			tb.insertText(tok.Data)
 			return false
 		}
+		// Split leading whitespace from non-whitespace
+		ws, rest := splitLeadingWhitespace(tok.Data)
+		if ws != "" {
+			tb.insertText(ws)
+		}
+		if rest != "" {
+			// Close head and reprocess the non-whitespace part
+			tb.popUntil("head")
+			tb.mode = AfterHead
+			// Create a new token with just the non-whitespace part
+			newTok := tok
+			newTok.Data = rest
+			tb.ProcessToken(newTok)
+			return false
+		}
+		return false
 	case tokenizer.Comment:
 		tb.insertComment(tok.Data)
 		return false
@@ -718,6 +735,8 @@ func (tb *TreeBuilder) processInBody(tok tokenizer.Token) bool {
 			tb.framesetOK = false
 			return false
 		case "br":
+			// Per WHATWG HTML §13.2.6.4.7: Reconstruct active formatting elements before inserting br
+			tb.reconstructActiveFormattingElements()
 			tb.insertElement("br", tok.Attrs)
 			tb.popCurrent()
 			tb.framesetOK = false
@@ -729,6 +748,13 @@ func (tb *TreeBuilder) processInBody(tok tokenizer.Token) bool {
 			if !isHiddenInput(tok.Attrs) {
 				tb.framesetOK = false
 			}
+			return false
+		case "marquee", "object", "applet":
+			// Per WHATWG HTML §13.2.6.4.7: These elements push a formatting marker
+			tb.reconstructActiveFormattingElements()
+			tb.insertElement(tok.Name, tok.Attrs)
+			tb.pushFormattingMarker()
+			tb.framesetOK = false
 			return false
 		}
 
@@ -851,6 +877,15 @@ func (tb *TreeBuilder) processInBody(tok tokenizer.Token) bool {
 				tb.templateModes = tb.templateModes[:len(tb.templateModes)-1]
 			}
 			tb.resetInsertionModeAppropriately()
+			return false
+		case "marquee", "object", "applet":
+			// Per WHATWG HTML §13.2.6.4.7: Clear active formatting up to marker
+			if !tb.hasElementInScope(tok.Name, constants.DefaultScope) {
+				return false
+			}
+			tb.generateImpliedEndTags("")
+			tb.popUntil(tok.Name)
+			tb.clearActiveFormattingUpToMarker()
 			return false
 		default:
 			if constants.FormattingElements[tok.Name] {

@@ -321,3 +321,19 @@ func isHiddenInput(attrs []tokenizer.Attr) bool {
 	}
 	return false
 }
+
+// splitLeadingWhitespace splits a string into leading whitespace and the rest.
+// Whitespace is defined as: tab, LF, FF, CR, or space.
+// Per WHATWG HTML §13.2.6.4.3 for "in head" insertion mode character handling.
+func splitLeadingWhitespace(s string) (whitespace, rest string) {
+	i := 0
+	for i < len(s) {
+		c := s[i]
+		if c == '\t' || c == '\n' || c == '\f' || c == '\r' || c == ' ' {
+			i++
+		} else {
+			break
+		}
+	}
+	return s[:i], s[i:]
+}
