@@ -148,7 +148,7 @@ func TestNthChildInvalidExpression(t *testing.T) {
 	doc.AppendChild(root)
 	ul := dom.NewElement("ul")
 	root.AppendChild(ul)
-	for i := 0; i < 2; i++ {
+	for range 2 {
 		ul.AppendChild(dom.NewElement("li"))
 	}
 

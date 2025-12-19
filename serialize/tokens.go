@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"sort"
 	"strings"
 )
 
@@ -61,9 +62,21 @@ func SerializeTokens(tokens []json.RawMessage) (string, error) {
 // SerializeTokensWithOptions serializes tokens with custom options.
 func SerializeTokensWithOptions(tokens []json.RawMessage, opts SerializeTokenOptions) (string, error) {
 	var sb strings.Builder
-	var openRawText string // tracks if we're inside script/style/etc.
+	var rawTextDepth int
+	var preformattedDepth int
+	var inHead bool
+	var headHasCharsetMeta bool
+	var injectedMeta bool
 
 	for i, raw := range tokens {
+		if inHead && opts.InjectMetaCharset && opts.Encoding != "" && !headHasCharsetMeta && !injectedMeta {
+			typ, tag := getTokenInfo(raw)
+			if typ == "EndTag" && tag == "head" {
+				serializeInjectedMeta(&sb, opts)
+				injectedMeta = true
+			}
+		}
+
 		var arr []json.RawMessage
 		if err := json.Unmarshal(raw, &arr); err != nil {
 			return "", fmt.Errorf("%w: %w", ErrInvalidTokenFormat, err)
@@ -80,13 +93,58 @@ func SerializeTokensWithOptions(tokens []json.RawMessage, opts SerializeTokenOpt
 		var err error
 		switch tokenType {
 		case "StartTag":
-			err = serializeStartTagToken(&sb, arr, &openRawText, opts, tokens, i)
+			err = serializeStartTagToken(&sb, arr, opts, tokens, i)
+			if err == nil {
+				tagName := tokenTagName(tokenType, arr)
+				if tagName == "head" {
+					inHead = true
+					injectedMeta = false
+					if opts.InjectMetaCharset && opts.Encoding != "" {
+						headHasCharsetMeta = hasCharsetMetaAhead(tokens, i)
+						if !headHasCharsetMeta {
+							serializeInjectedMeta(&sb, opts)
+							injectedMeta = true
+						}
+					}
+				}
+				if tagName == "pre" || tagName == "textarea" {
+					preformattedDepth++
+				}
+				if isRawTextElement(tagName) {
+					rawTextDepth++
+				}
+			}
 		case "EndTag":
-			err = serializeEndTagToken(&sb, arr, &openRawText, opts, tokens, i)
+			if inHead && opts.InjectMetaCharset && opts.Encoding != "" && !headHasCharsetMeta && !injectedMeta {
+				tagName := tokenTagName(tokenType, arr)
+				if tagName == "head" {
+					serializeInjectedMeta(&sb, opts)
+					injectedMeta = true
+				}
+			}
+			err = serializeEndTagToken(&sb, arr, opts, tokens, i)
+			if err == nil {
+				tagName := tokenTagName(tokenType, arr)
+				if tagName == "head" {
+					inHead = false
+					headHasCharsetMeta = false
+					injectedMeta = false
+				}
+				if tagName == "pre" || tagName == "textarea" {
+					if preformattedDepth > 0 {
+						preformattedDepth--
+					}
+				}
+				if isRawTextElement(tagName) && rawTextDepth > 0 {
+					rawTextDepth--
+				}
+			}
 		case "EmptyTag":
 			err = serializeEmptyTagToken(&sb, arr, opts)
 		case "Characters":
-			err = serializeCharactersToken(&sb, arr, openRawText != "", opts)
+			inRawText := rawTextDepth > 0
+			inPreformatted := preformattedDepth > 0
+			err = serializeCharactersToken(&sb, arr, inRawText, inPreformatted, opts)
 		case "Comment":
 			err = serializeCommentToken(&sb, arr)
 		case "Doctype":
@@ -103,7 +161,7 @@ func SerializeTokensWithOptions(tokens []json.RawMessage, opts SerializeTokenOpt
 }
 
 // serializeStartTagToken handles ["StartTag", namespace, tagName, attrs]
-func serializeStartTagToken(sb *strings.Builder, arr []json.RawMessage, openRawText *string, opts SerializeTokenOptions, tokens []json.RawMessage, idx int) error {
+func serializeStartTagToken(sb *strings.Builder, arr []json.RawMessage, opts SerializeTokenOptions, tokens []json.RawMessage, idx int) error {
 	if len(arr) < 3 {
 		return ErrStartTagMissingFields
 	}
@@ -115,10 +173,6 @@ func serializeStartTagToken(sb *strings.Builder, arr []json.RawMessage, openRawT
 
 	// Check if this start tag should be omitted
 	if opts.OmitOptionalTags && shouldOmitStartTag(tagName, arr, tokens, idx) {
-		// Track raw text elements even when tag is omitted
-		if isRawTextElement(tagName) {
-			*openRawText = tagName
-		}
 		return nil
 	}
 
@@ -127,7 +181,7 @@ func serializeStartTagToken(sb *strings.Builder, arr []json.RawMessage, openRawT
 
 	// Parse attributes if present
 	if len(arr) > 3 {
-		if err := serializeTokenAttrs(sb, arr[3], opts); err != nil {
+		if err := serializeTokenAttrs(sb, arr[3], opts, tagName); err != nil {
 			return err
 		}
 	}
@@ -139,16 +193,11 @@ func serializeStartTagToken(sb *strings.Builder, arr []json.RawMessage, openRawT
 
 	sb.WriteByte('>')
 
-	// Track raw text elements (content not escaped)
-	if isRawTextElement(tagName) {
-		*openRawText = tagName
-	}
-
 	return nil
 }
 
 // serializeEndTagToken handles ["EndTag", namespace, tagName]
-func serializeEndTagToken(sb *strings.Builder, arr []json.RawMessage, openRawText *string, opts SerializeTokenOptions, tokens []json.RawMessage, idx int) error {
+func serializeEndTagToken(sb *strings.Builder, arr []json.RawMessage, opts SerializeTokenOptions, tokens []json.RawMessage, idx int) error {
 	if len(arr) < 3 {
 		return ErrEndTagMissingFields
 	}
@@ -160,21 +209,12 @@ func serializeEndTagToken(sb *strings.Builder, arr []json.RawMessage, openRawTex
 
 	// Check if this end tag should be omitted
 	if opts.OmitOptionalTags && shouldOmitEndTag(tagName, tokens, idx) {
-		// Clear raw text tracking
-		if tagName == *openRawText {
-			*openRawText = ""
-		}
 		return nil
 	}
 
 	sb.WriteString("</")
 	sb.WriteString(tagName)
 	sb.WriteByte('>')
-
-	// Clear raw text tracking
-	if tagName == *openRawText {
-		*openRawText = ""
-	}
 
 	return nil
 }
@@ -195,7 +235,7 @@ func serializeEmptyTagToken(sb *strings.Builder, arr []json.RawMessage, opts Ser
 
 	// Parse attributes if present
 	if len(arr) > 2 {
-		if err := serializeTokenAttrs(sb, arr[2], opts); err != nil {
+		if err := serializeTokenAttrs(sb, arr[2], opts, tagName); err != nil {
 			return err
 		}
 	}
@@ -210,30 +250,26 @@ func serializeEmptyTagToken(sb *strings.Builder, arr []json.RawMessage, opts Ser
 }
 
 // serializeTokenAttrs serializes attributes from either array or object format.
-func serializeTokenAttrs(sb *strings.Builder, raw json.RawMessage, opts SerializeTokenOptions) error {
+func serializeTokenAttrs(sb *strings.Builder, raw json.RawMessage, opts SerializeTokenOptions, tagName string) error {
 	// Try array format first: [{namespace, name, value}, ...]
-	var attrArray []struct {
-		Namespace *string `json:"namespace"`
-		Name      string  `json:"name"`
-		Value     string  `json:"value"`
+	attrs, err := parseTokenAttrs(raw)
+	if err != nil {
+		return err
 	}
-	if err := json.Unmarshal(raw, &attrArray); err == nil && len(attrArray) > 0 {
-		for _, attr := range attrArray {
-			sb.WriteByte(' ')
-			sb.WriteString(attr.Name)
-			serializeTokenAttrValue(sb, attr.Name, attr.Value, opts)
-		}
+
+	if opts.InjectMetaCharset && opts.Encoding != "" && tagName == "meta" {
+		attrs = normalizeMetaCharsetAttrs(attrs, opts.Encoding)
+	}
+
+	if len(attrs) == 0 {
 		return nil
 	}
 
-	// Try object format: {name: value, ...}
-	var attrObj map[string]string
-	if err := json.Unmarshal(raw, &attrObj); err == nil && len(attrObj) > 0 {
-		for name, value := range attrObj {
-			sb.WriteByte(' ')
-			sb.WriteString(name)
-			serializeTokenAttrValue(sb, name, value, opts)
-		}
+	sortTokenAttrs(attrs)
+	for _, attr := range attrs {
+		sb.WriteByte(' ')
+		sb.WriteString(attr.Name)
+		serializeTokenAttrValue(sb, attr.Name, attr.Value, opts)
 	}
 
 	return nil
@@ -339,7 +375,7 @@ func needsTokenAttrQuoting(value string) bool {
 }
 
 // serializeCharactersToken handles ["Characters", data]
-func serializeCharactersToken(sb *strings.Builder, arr []json.RawMessage, inRawText bool, opts SerializeTokenOptions) error {
+func serializeCharactersToken(sb *strings.Builder, arr []json.RawMessage, inRawText bool, inPreformatted bool, opts SerializeTokenOptions) error {
 	if len(arr) < 2 {
 		return ErrCharactersMissing
 	}
@@ -347,6 +383,10 @@ func serializeCharactersToken(sb *strings.Builder, arr []json.RawMessage, inRawT
 	var data string
 	if err := json.Unmarshal(arr[1], &data); err != nil {
 		return fmt.Errorf("invalid character data: %w", err)
+	}
+
+	if opts.StripWhitespace && !inRawText && !inPreformatted {
+		data = collapseTokenWhitespace(data)
 	}
 
 	if inRawText && !opts.EscapeRcdata {
@@ -451,7 +491,7 @@ func isRawTextElement(tag string) bool {
 // Per https://html.spec.whatwg.org/multipage/syntax.html#optional-tags
 func shouldOmitStartTag(tagName string, arr []json.RawMessage, tokens []json.RawMessage, idx int) bool {
 	// Get the next token info
-	nextType, _ := getNextTokenInfo(tokens, idx)
+	nextType, nextTag := getNextTokenInfo(tokens, idx)
 
 	// Check if the element has attributes - if so, don't omit
 	if hasAttributes(arr) {
@@ -488,12 +528,18 @@ func shouldOmitStartTag(tagName string, arr []json.RawMessage, tokens []json.Raw
 	case "colgroup":
 		// A colgroup element's start tag can be omitted if the first thing inside
 		// the colgroup element is a col element.
-		return nextType == "EmptyTag" || nextType == "StartTag"
+		if nextType == "StartTag" || nextType == "EmptyTag" {
+			return nextTag == "col"
+		}
+		return false
 	case "tbody":
 		// A tbody element's start tag can be omitted if the first thing inside
-		// is a tr element and no thead or tfoot precedes.
-		// Simplified: just check if followed by tr
-		return nextType == "StartTag"
+		// the tbody element is a tr element and the tbody is the first in a table.
+		if nextType == "StartTag" && nextTag == "tr" {
+			prevType, prevTag := getPrevTokenInfo(tokens, idx)
+			return prevType == "StartTag" && prevTag == "table"
+		}
+		return false
 	}
 	return false
 }
@@ -562,22 +608,14 @@ func shouldOmitEndTag(tagName string, tokens []json.RawMessage, idx int) bool {
 	case "head":
 		// A head element's end tag can be omitted if the head element is not
 		// immediately followed by space character or a comment.
-		if nextType == "Comment" {
-			return false
-		}
-		if nextType == "Characters" {
-			// Check if it starts with space - don't omit
+		if nextType == "Comment" || (nextType == "Characters" && startsWithSpace(tokens, idx)) {
 			return false
 		}
 		return true
 	case "body":
 		// A body element's end tag can be omitted if the body element is not
 		// immediately followed by a comment.
-		if nextType == "Comment" {
-			return false
-		}
-		// Also don't omit if followed by space character
-		if nextType == "Characters" && startsWithSpace(tokens, idx) {
+		if nextType == "Comment" || (nextType == "Characters" && startsWithSpace(tokens, idx)) {
 			return false
 		}
 		return true
@@ -589,7 +627,7 @@ func shouldOmitEndTag(tagName string, tokens []json.RawMessage, idx int) bool {
 	case "dt":
 		// A dt element's end tag can be omitted if the dt element is
 		// immediately followed by another dt element or a dd element.
-		return nextType == "" || (nextType == "StartTag" && (nextTag == "dt" || nextTag == "dd"))
+		return nextType == "StartTag" && (nextTag == "dt" || nextTag == "dd")
 	case "dd":
 		// A dd element's end tag can be omitted if the dd element is
 		// immediately followed by another dd element or a dt element, or
@@ -625,14 +663,18 @@ func shouldOmitEndTag(tagName string, tokens []json.RawMessage, idx int) bool {
 		return nextType == "" || nextType == "EndTag" ||
 			(nextType == "StartTag" && (nextTag == "option" || nextTag == "optgroup"))
 	case "colgroup":
-		// A colgroup element's end tag can be omitted if the colgroup element
-		// is not immediately followed by space character or a comment.
-		return nextType != "Comment" && nextType != "Characters"
+		// A colgroup element's end tag can be omitted if it is not immediately
+		// followed by a comment or a space character.
+		if nextType == "Comment" || (nextType == "Characters" && startsWithSpace(tokens, idx)) {
+			return false
+		}
+		if nextType == "StartTag" && nextTag == "colgroup" {
+			return false
+		}
+		return true
 	case "thead":
-		// End tag can be omitted if immediately followed by tbody or tfoot,
-		// or if there is no more content.
-		return nextType == "" || nextType == "EndTag" ||
-			(nextType == "StartTag" && (nextTag == "tbody" || nextTag == "tfoot"))
+		// End tag can be omitted if immediately followed by tbody or tfoot.
+		return nextType == "StartTag" && (nextTag == "tbody" || nextTag == "tfoot")
 	case "tbody":
 		// End tag can be omitted if immediately followed by tbody or tfoot,
 		// or if there is no more content.
@@ -657,6 +699,198 @@ func shouldOmitEndTag(tagName string, tokens []json.RawMessage, idx int) bool {
 	return false
 }
 
+type tokenAttr struct {
+	Name  string
+	Value string
+}
+
+func parseTokenAttrs(raw json.RawMessage) ([]tokenAttr, error) {
+	var attrArray []struct {
+		Namespace *string `json:"namespace"`
+		Name      string  `json:"name"`
+		Value     string  `json:"value"`
+	}
+	if err := json.Unmarshal(raw, &attrArray); err == nil {
+		if len(attrArray) == 0 {
+			return nil, nil
+		}
+		attrs := make([]tokenAttr, 0, len(attrArray))
+		for _, attr := range attrArray {
+			attrs = append(attrs, tokenAttr{Name: attr.Name, Value: attr.Value})
+		}
+		return attrs, nil
+	}
+
+	var attrObj map[string]string
+	if err := json.Unmarshal(raw, &attrObj); err == nil {
+		if len(attrObj) == 0 {
+			return nil, nil
+		}
+		attrs := make([]tokenAttr, 0, len(attrObj))
+		for name, value := range attrObj {
+			attrs = append(attrs, tokenAttr{Name: name, Value: value})
+		}
+		return attrs, nil
+	}
+
+	return nil, nil
+}
+
+func sortTokenAttrs(attrs []tokenAttr) {
+	if len(attrs) < 2 {
+		return
+	}
+	sort.Slice(attrs, func(i, j int) bool {
+		return attrs[i].Name < attrs[j].Name
+	})
+}
+
+func normalizeMetaCharsetAttrs(attrs []tokenAttr, encoding string) []tokenAttr {
+	if len(attrs) == 0 {
+		return attrs
+	}
+	var hasHTTP bool
+	var httpIdx int
+	var hasContent bool
+	var contentIdx int
+	for i, attr := range attrs {
+		if strings.EqualFold(attr.Name, "charset") {
+			attrs[i].Value = encoding
+			return attrs
+		}
+		if strings.EqualFold(attr.Name, "http-equiv") {
+			hasHTTP = true
+			httpIdx = i
+		}
+		if strings.EqualFold(attr.Name, "content") {
+			hasContent = true
+			contentIdx = i
+		}
+	}
+	if hasHTTP && strings.EqualFold(attrs[httpIdx].Value, "content-type") {
+		content := "text/html; charset=" + encoding
+		if hasContent {
+			attrs[contentIdx].Value = content
+		} else {
+			attrs = append(attrs, tokenAttr{Name: "content", Value: content})
+		}
+	}
+	return attrs
+}
+
+func hasCharsetMetaAhead(tokens []json.RawMessage, idx int) bool {
+	for i := idx + 1; i < len(tokens); i++ {
+		typ, tag := getTokenInfo(tokens[i])
+		if typ == "" {
+			return false
+		}
+		if typ == "EndTag" && tag == "head" {
+			return false
+		}
+		if typ == "StartTag" || typ == "EmptyTag" {
+			if tag != "meta" {
+				continue
+			}
+			var arr []json.RawMessage
+			if err := json.Unmarshal(tokens[i], &arr); err != nil {
+				continue
+			}
+			var rawAttrs json.RawMessage
+			if typ == "StartTag" {
+				if len(arr) > 3 {
+					rawAttrs = arr[3]
+				}
+			} else {
+				if len(arr) > 2 {
+					rawAttrs = arr[2]
+				}
+			}
+			if len(rawAttrs) == 0 {
+				continue
+			}
+			attrs, _ := parseTokenAttrs(rawAttrs)
+			for _, attr := range attrs {
+				if strings.EqualFold(attr.Name, "charset") {
+					return true
+				}
+			}
+			var httpEquiv bool
+			for _, attr := range attrs {
+				if strings.EqualFold(attr.Name, "http-equiv") && strings.EqualFold(attr.Value, "content-type") {
+					httpEquiv = true
+					break
+				}
+			}
+			if httpEquiv {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+func getTokenInfo(raw json.RawMessage) (string, string) {
+	var arr []json.RawMessage
+	if err := json.Unmarshal(raw, &arr); err != nil || len(arr) == 0 {
+		return "", ""
+	}
+	var tokenType string
+	if err := json.Unmarshal(arr[0], &tokenType); err != nil {
+		return "", ""
+	}
+	return tokenType, tokenTagName(tokenType, arr)
+}
+
+func tokenTagName(tokenType string, arr []json.RawMessage) string {
+	var tagName string
+	switch tokenType {
+	case "StartTag", "EndTag":
+		if len(arr) >= 3 {
+			_ = json.Unmarshal(arr[2], &tagName)
+		}
+	case "EmptyTag":
+		if len(arr) >= 2 {
+			_ = json.Unmarshal(arr[1], &tagName)
+		}
+	}
+	return tagName
+}
+
+func serializeInjectedMeta(sb *strings.Builder, opts SerializeTokenOptions) {
+	if opts.Encoding == "" {
+		return
+	}
+	sb.WriteString("<meta charset")
+	serializeTokenAttrValue(sb, "charset", opts.Encoding, opts)
+	sb.WriteByte('>')
+}
+
+func collapseTokenWhitespace(s string) string {
+	var sb strings.Builder
+	inWhitespace := false
+	for _, r := range s {
+		if isWhitespaceRune(r) {
+			if !inWhitespace {
+				sb.WriteByte(' ')
+				inWhitespace = true
+			}
+			continue
+		}
+		sb.WriteRune(r)
+		inWhitespace = false
+	}
+	return sb.String()
+}
+
+func isWhitespaceRune(r rune) bool {
+	switch r {
+	case ' ', '\t', '\n', '\r', '\f':
+		return true
+	default:
+		return false
+	}
+}
+
 // getNextTokenInfo returns the type and tag name of the next token.
 func getNextTokenInfo(tokens []json.RawMessage, idx int) (tokenType, tagName string) {
 	if idx+1 >= len(tokens) {
@@ -673,6 +907,34 @@ func getNextTokenInfo(tokens []json.RawMessage, idx int) (tokenType, tagName str
 	}
 
 	// Get tag name for StartTag, EndTag, EmptyTag
+	switch tokenType {
+	case "StartTag", "EndTag":
+		if len(arr) >= 3 {
+			_ = json.Unmarshal(arr[2], &tagName)
+		}
+	case "EmptyTag":
+		if len(arr) >= 2 {
+			_ = json.Unmarshal(arr[1], &tagName)
+		}
+	}
+
+	return tokenType, tagName
+}
+
+func getPrevTokenInfo(tokens []json.RawMessage, idx int) (tokenType, tagName string) {
+	if idx-1 < 0 {
+		return "", ""
+	}
+
+	var arr []json.RawMessage
+	if err := json.Unmarshal(tokens[idx-1], &arr); err != nil || len(arr) == 0 {
+		return "", ""
+	}
+
+	if err := json.Unmarshal(arr[0], &tokenType); err != nil {
+		return "", ""
+	}
+
 	switch tokenType {
 	case "StartTag", "EndTag":
 		if len(arr) >= 3 {

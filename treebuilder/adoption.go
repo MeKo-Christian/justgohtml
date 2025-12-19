@@ -17,7 +17,7 @@ func (tb *TreeBuilder) adoptionAgency(subject string) {
 	}
 
 	// 2. Outer loop (at most 8 iterations).
-	for outer := 0; outer < 8; outer++ {
+	for range 8 {
 		// 3. Find formatting element.
 		formattingIndex, ok := tb.findActiveFormattingIndex(subject)
 		if !ok {

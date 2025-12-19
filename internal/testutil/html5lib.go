@@ -216,7 +216,7 @@ func decodeEscapes(s string) string {
 
 func parseHexByte(s string) (byte, bool) {
 	var v byte
-	for i := 0; i < len(s); i++ {
+	for i := range len(s) {
 		c := s[i]
 		switch {
 		case c >= '0' && c <= '9':
@@ -234,7 +234,7 @@ func parseHexByte(s string) (byte, bool) {
 
 func parseHexRune(s string) (rune, bool) {
 	var v rune
-	for i := 0; i < len(s); i++ {
+	for i := range len(s) {
 		c := s[i]
 		switch {
 		case c >= '0' && c <= '9':

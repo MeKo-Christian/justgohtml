@@ -255,9 +255,9 @@ func TestNonExistentEntities(t *testing.T) {
 func BenchmarkNamedEntityLookupCommon(b *testing.B) {
 	commonEntities := []string{"amp", "lt", "gt", "quot", "nbsp"}
 	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for i := range b.N {
 		name := commonEntities[i%len(commonEntities)]
-		_, _ = NamedEntities[name]
+		_ = NamedEntities[name]
 	}
 }
 
@@ -265,9 +265,9 @@ func BenchmarkNamedEntityLookupCommon(b *testing.B) {
 func BenchmarkNamedEntityLookupUncommon(b *testing.B) {
 	uncommonEntities := []string{"NotEqualTilde", "acE", "lang", "rang", "notin"}
 	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for i := range b.N {
 		name := uncommonEntities[i%len(uncommonEntities)]
-		_, _ = NamedEntities[name]
+		_ = NamedEntities[name]
 	}
 }
 
@@ -275,9 +275,9 @@ func BenchmarkNamedEntityLookupUncommon(b *testing.B) {
 func BenchmarkNamedEntityLookupMissing(b *testing.B) {
 	missingEntities := []string{"notanentity", "invalid", "xyz", "test"}
 	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for i := range b.N {
 		name := missingEntities[i%len(missingEntities)]
-		_, _ = NamedEntities[name]
+		_ = NamedEntities[name]
 	}
 }
 
@@ -285,7 +285,7 @@ func BenchmarkNamedEntityLookupMissing(b *testing.B) {
 func BenchmarkLegacyEntityLookup(b *testing.B) {
 	legacyNames := []string{"amp", "lt", "gt", "quot", "nbsp", "copy", "reg"}
 	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for i := range b.N {
 		name := legacyNames[i%len(legacyNames)]
 		_ = LegacyEntities[name]
 	}
@@ -295,9 +295,9 @@ func BenchmarkLegacyEntityLookup(b *testing.B) {
 func BenchmarkNumericReplacementLookup(b *testing.B) {
 	codes := []int{0x00, 0x80, 0x82, 0x91, 0x92, 0x99}
 	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for i := range b.N {
 		code := codes[i%len(codes)]
-		_, _ = NumericReplacements[code]
+		_ = NumericReplacements[code]
 	}
 }
 
@@ -310,9 +310,9 @@ func BenchmarkNamedEntityLookupAll(b *testing.B) {
 	}
 
 	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for i := range b.N {
 		name := names[i%len(names)]
-		_, _ = NamedEntities[name]
+		_ = NamedEntities[name]
 	}
 }
 
@@ -330,9 +330,9 @@ func BenchmarkNamedEntityLookupByLength(b *testing.B) {
 	for _, tt := range tests {
 		b.Run(tt.name, func(b *testing.B) {
 			b.ResetTimer()
-			for i := 0; i < b.N; i++ {
+			for i := range b.N {
 				name := tt.entities[i%len(tt.entities)]
-				_, _ = NamedEntities[name]
+				_ = NamedEntities[name]
 			}
 		})
 	}

@@ -996,9 +996,7 @@ func (t *Tokenizer) stateMarkupDeclarationOpen() {
 	if t.consumeIf("[CDATA[") {
 		t.emitError("cdata-in-html-content")
 		t.currentComment = t.currentComment[:0]
-		for _, r := range []rune("[CDATA[") {
-			t.currentComment = append(t.currentComment, r)
-		}
+		t.currentComment = append(t.currentComment, []rune("[CDATA[")...)
 		t.state = BogusCommentState
 		return
 	}

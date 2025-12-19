@@ -137,10 +137,10 @@ func TestParseErrors(t *testing.T) {
 		}
 
 		// Verify the errors are the same
-		if unwrapped[0] != err1 {
+		if !errors.Is(unwrapped[0], err1) {
 			t.Error("Unwrap()[0] should be err1")
 		}
-		if unwrapped[1] != err2 {
+		if !errors.Is(unwrapped[1], err2) {
 			t.Error("Unwrap()[1] should be err2")
 		}
 	})

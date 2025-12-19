@@ -249,11 +249,11 @@ func BenchmarkTreeBuilderTables(b *testing.B) {
 // BenchmarkTreeBuilderNested benchmarks parsing deeply nested HTML.
 func BenchmarkTreeBuilderNested(b *testing.B) {
 	var sb strings.Builder
-	for i := 0; i < 100; i++ {
+	for range 100 {
 		sb.WriteString("<div>")
 	}
 	sb.WriteString("content")
-	for i := 0; i < 100; i++ {
+	for range 100 {
 		sb.WriteString("</div>")
 	}
 	html := sb.String()
