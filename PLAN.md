@@ -706,13 +706,27 @@ Implementation:
 
 Target: 100% coverage (matching Python version)
 
-- [ ] tokenizer package: 100%
-- [ ] treebuilder package: 100%
-- [ ] dom package: 100%
-- [ ] selector package: 100%
-- [ ] encoding package: 100%
-- [ ] serialize package: 100%
-- [ ] stream package: 100%
+| Package     | Current | Target | Status                              |
+| ----------- | ------- | ------ | ----------------------------------- |
+| tokenizer   | 92.6%   | 100%   | Near target                         |
+| treebuilder | 92.2%   | 100%   | Near target (547 html5lib failures) |
+| dom         | 99.1%   | 100%   | Near target                         |
+| selector    | 76.9%   | 100%   | Needs improvement                   |
+| encoding    | 95.9%   | 100%   | Near target                         |
+| serialize   | 57.7%   | 100%   | Needs improvement (26 failures)     |
+| stream      | 89.2%   | 100%   | Near target                         |
+| errors      | 100.0%  | 100%   | ✓ Complete                          |
+
+Overall coverage: 78.7%
+
+- [x] errors package: 100%
+- [ ] tokenizer package: 92.6% → 100%
+- [ ] treebuilder package: 92.2% → 100%
+- [x] dom package: 99.1% (essentially complete)
+- [ ] selector package: 76.9% → 100%
+- [ ] encoding package: 95.9% → 100%
+- [ ] serialize package: 57.7% → 100%
+- [ ] stream package: 89.2% → 100%
 
 ### 6.4 Fuzz Testing
 
