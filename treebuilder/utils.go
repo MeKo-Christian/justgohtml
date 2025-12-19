@@ -211,16 +211,6 @@ func (tb *TreeBuilder) setQuirksModeFromDoctype(name string, publicID, systemID 
 	tb.document.QuirksMode = mode
 }
 
-func (tb *TreeBuilder) popUntilCaseInsensitive(name string) {
-	target := strings.ToLower(name)
-	for i := len(tb.openElements) - 1; i >= 0; i-- {
-		if strings.ToLower(tb.openElements[i].TagName) == target {
-			tb.openElements = tb.openElements[:i]
-			return
-		}
-	}
-}
-
 func (tb *TreeBuilder) anyOtherEndTag(name string) {
 	target := strings.ToLower(name)
 	for i := len(tb.openElements) - 1; i >= 0; i-- {

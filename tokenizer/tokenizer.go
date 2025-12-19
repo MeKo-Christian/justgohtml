@@ -1314,6 +1314,7 @@ func (t *Tokenizer) stateAfterDoctypeName() {
 	}
 }
 
+//nolint:dupl // stateAfterDoctypePublicKeyword and stateAfterDoctypeSystemKeyword follow same HTML5 spec pattern
 func (t *Tokenizer) stateAfterDoctypePublicKeyword() {
 	for {
 		c, ok := t.getChar()
@@ -1356,6 +1357,7 @@ func (t *Tokenizer) stateAfterDoctypePublicKeyword() {
 	}
 }
 
+//nolint:dupl // stateAfterDoctypePublicKeyword and stateAfterDoctypeSystemKeyword follow same HTML5 spec pattern
 func (t *Tokenizer) stateAfterDoctypeSystemKeyword() {
 	for {
 		c, ok := t.getChar()
@@ -1817,6 +1819,7 @@ func (t *Tokenizer) stateRCDATAEndTagOpen() {
 	t.state = RCDATAState
 }
 
+//nolint:dupl // stateRCDATAEndTagName and stateRAWTEXTEndTagName follow same HTML5 spec pattern with different fallback states
 func (t *Tokenizer) stateRCDATAEndTagName() {
 	for {
 		c, ok := t.getChar()
@@ -1950,6 +1953,7 @@ func (t *Tokenizer) stateRAWTEXTEndTagOpen() {
 	}
 }
 
+//nolint:dupl // stateRCDATAEndTagName and stateRAWTEXTEndTagName follow same HTML5 spec pattern with different fallback states
 func (t *Tokenizer) stateRAWTEXTEndTagName() {
 	for {
 		c, ok := t.getChar()
