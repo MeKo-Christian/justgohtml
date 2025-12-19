@@ -696,7 +696,7 @@ func (tb *TreeBuilder) processInTable(tok tokenizer.Token) bool {
 				return false
 			}
 			tb.popUntil("table")
-			tb.mode = InBody
+			tb.resetInsertionModeAppropriately()
 			return true
 		case "script", "style":
 			tb.insertElement(tok.Name, tok.Attrs)
@@ -723,7 +723,7 @@ func (tb *TreeBuilder) processInTable(tok tokenizer.Token) bool {
 				return false
 			}
 			tb.popUntil("table")
-			tb.mode = InBody
+			tb.resetInsertionModeAppropriately()
 			return false
 		case "body", "caption", "col", "colgroup", "html", "tbody", "tfoot", "thead", "tr", "td", "th":
 			return false
@@ -995,11 +995,7 @@ func (tb *TreeBuilder) processInRow(tok tokenizer.Token) bool {
 			return true
 		}
 	}
-	if !tb.hasElementInTableScope("tr") {
-		return false
-	}
-	tb.mode = InTableBody
-	return true
+	return tb.processInTable(tok)
 }
 
 func (tb *TreeBuilder) processInCell(tok tokenizer.Token) bool {
