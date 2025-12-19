@@ -637,7 +637,7 @@ func ToText(node dom.Node, opts ...TextOption) string
 func ToMarkdown(node dom.Node) string
 ```
 
-### 7.4 CLI Tool
+### 5.4 CLI Tool
 
 **File: `cmd/JustGoHTML/main.go`**
 
