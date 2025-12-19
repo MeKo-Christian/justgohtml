@@ -146,6 +146,30 @@ var FormattingElements = map[string]bool{
 	"u":      true,
 }
 
+// TableFosterTargets are elements that trigger foster parenting.
+var TableFosterTargets = map[string]bool{
+	"table": true,
+	"tbody": true,
+	"tfoot": true,
+	"thead": true,
+	"tr":    true,
+}
+
+// TableAllowedChildren are elements allowed as direct children of table elements.
+var TableAllowedChildren = map[string]bool{
+	"caption":  true,
+	"colgroup": true,
+	"tbody":    true,
+	"tfoot":    true,
+	"thead":    true,
+	"tr":       true,
+	"td":       true,
+	"th":       true,
+	"script":   true,
+	"template": true,
+	"style":    true,
+}
+
 // ImpliedEndTagElements are elements that can have implied end tags.
 var ImpliedEndTagElements = map[string]bool{
 	"dd":       true,

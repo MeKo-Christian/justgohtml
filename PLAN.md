@@ -689,12 +689,12 @@ Implementation:
 
 **Tests to pass:**
 
-| Test Category     | Count | Priority | Status (current)                 |
-| ----------------- | ----- | -------- | -------------------------------- |
-| Tree Construction | 1,843 | Critical | 409 failures in latest local run |
-| Tokenizer         | 6,826 | Critical | Passing in prior runs; re-verify |
-| Serializer        | 236   | High     | Passing in prior runs; re-verify |
-| Encoding          | 87    | High     | Passing in prior runs; re-verify |
+| Test Category     | Count | Priority | Status (current)                          |
+| ----------------- | ----- | -------- | ----------------------------------------- |
+| Tree Construction | 1,843 | Critical | 409 failures in latest local run          |
+| Tokenizer         | 6,826 | Critical | Passing in prior runs; re-verify          |
+| Serializer        | 236   | High     | Passing in prior runs; re-verify          |
+| Encoding          | 87    | High     | Passing in prior runs; re-verify          |
 
 - [x] Create test harness for tree construction tests
 - [x] Create test harness for tokenizer tests

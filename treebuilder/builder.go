@@ -2,6 +2,7 @@ package treebuilder
 
 import (
 	"github.com/MeKo-Christian/JustGoHTML/dom"
+	"github.com/MeKo-Christian/JustGoHTML/internal/constants"
 	"github.com/MeKo-Christian/JustGoHTML/tokenizer"
 )
 
@@ -388,12 +389,26 @@ func shouldFosterForNode(el *dom.Element) bool {
 	if el == nil || el.Namespace != dom.NamespaceHTML {
 		return false
 	}
-	switch el.TagName {
-	case "table", "tbody", "tfoot", "thead", "tr":
-		return true
-	default:
+	return constants.TableFosterTargets[el.TagName]
+}
+
+func (tb *TreeBuilder) shouldFosterParenting(target *dom.Element, forTag string, isText bool) bool {
+	if !tb.fosterParenting {
 		return false
 	}
+	if target == nil || target.Namespace != dom.NamespaceHTML {
+		return false
+	}
+	if !constants.TableFosterTargets[target.TagName] {
+		return false
+	}
+	if isText {
+		return true
+	}
+	if forTag != "" && constants.TableAllowedChildren[forTag] {
+		return false
+	}
+	return true
 }
 
 func (tb *TreeBuilder) fosterInsertionLocation() (dom.Node, dom.Node) {

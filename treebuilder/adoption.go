@@ -104,15 +104,19 @@ func (tb *TreeBuilder) adoptionAgency(subject string) {
 					return
 				}
 				tb.removeOpenElementAt(idx)
-				if idx < len(tb.openElements) {
-					node = tb.openElements[idx]
+				if len(tb.openElements) == 0 {
+					return
 				}
+				if idx >= len(tb.openElements) {
+					idx = len(tb.openElements) - 1
+				}
+				node = tb.openElements[idx]
 				continue
 			}
 
 			// 10.4 Replace entry with new element.
 			entry := tb.activeFormatting[nodeFormattingIndex]
-			newElement := dom.NewElement(entry.name)
+			newElement := newFormattingElement(entry)
 			for _, a := range entry.attrs {
 				if a.Namespace != "" {
 					newElement.Attributes.SetNS(a.Namespace, a.Name, a.Value)
@@ -145,9 +149,12 @@ func (tb *TreeBuilder) adoptionAgency(subject string) {
 			p.RemoveChild(lastNode)
 		}
 		switch {
-		case commonAncestor != nil && commonAncestor.Namespace == dom.NamespaceHTML && commonAncestor.TagName == "template" && commonAncestor.TemplateContent != nil:
+		case commonAncestor != nil && commonAncestor.Namespace == dom.NamespaceHTML && commonAncestor.TagName == "template":
+			if commonAncestor.TemplateContent == nil {
+				commonAncestor.TemplateContent = dom.NewDocumentFragment()
+			}
 			commonAncestor.TemplateContent.AppendChild(lastNode)
-		case shouldFosterParent(commonAncestor):
+		case shouldFosterForNode(commonAncestor):
 			tb.insertFosterNode(lastNode)
 		default:
 			commonAncestor.AppendChild(lastNode)
@@ -155,7 +162,7 @@ func (tb *TreeBuilder) adoptionAgency(subject string) {
 
 		// 12. Create new formatting element (clone of formatting element).
 		entry := tb.activeFormatting[formattingIndex]
-		newFormattingElement := dom.NewElement(entry.name)
+		newFormattingElement := newFormattingElement(entry)
 		for _, a := range entry.attrs {
 			if a.Namespace != "" {
 				newFormattingElement.Attributes.SetNS(a.Namespace, a.Name, a.Value)
@@ -207,13 +214,16 @@ func isSpecialElement(el *dom.Element) bool {
 	return constants.SpecialElements[el.TagName]
 }
 
-func shouldFosterParent(commonAncestor *dom.Element) bool {
-	return shouldFosterForNode(commonAncestor)
-}
-
 func (tb *TreeBuilder) insertFosterNode(node dom.Node) {
 	parent, before := tb.fosterInsertionLocation()
 	tb.insertNode(node, &insertionLocation{parent: parent, before: before})
+}
+
+func newFormattingElement(entry formattingEntry) *dom.Element {
+	if entry.node != nil && entry.node.Namespace != dom.NamespaceHTML {
+		return dom.NewElementNS(entry.node.TagName, entry.node.Namespace)
+	}
+	return dom.NewElement(entry.name)
 }
 
 func (tb *TreeBuilder) indexOfOpenElement(target *dom.Element) (int, bool) {
