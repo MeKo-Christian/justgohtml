@@ -462,6 +462,15 @@ Implement all 21 mode handlers:
   - BenchmarkTreeBuilderNested: ~64µs for 100-level deep nesting
   - BenchmarkTreeBuilderForeign: ~355µs for 100 SVG elements
   - Implemented xml-coercion/iframe-srcdoc options in parser and test harness; tree-construction tests now decode escaped input sequences
+- [x] Fragment parsing: html5lib `tests_innerHTML_1.dat` now passes
+
+Current html5lib tree-construction gaps to resolve:
+
+- Adoption agency edge cases (`nobr`, nested formatting in `tests23.dat`, `tests26.dat`)
+- RAWTEXT/RCDATA/comment handling around `<script>`, `<style>`, `<title>` (`tests1.dat`, `tests5.dat`, `tests4.dat`)
+- Select mode content model edge cases (`webkit02.dat`)
+- Foreign content table-tag collisions (SVG/MathML `<tr>` in `svg.dat`, `math.dat`)
+- Foster parenting/table text placement (`webkit02.dat`)
 
 ---
 

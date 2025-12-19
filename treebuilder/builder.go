@@ -500,25 +500,6 @@ func shouldFosterForNode(el *dom.Element) bool {
 	return constants.TableFosterTargets[el.TagName]
 }
 
-func (tb *TreeBuilder) shouldFosterParenting(target *dom.Element, forTag string, isText bool) bool {
-	if !tb.fosterParenting {
-		return false
-	}
-	if target == nil || target.Namespace != dom.NamespaceHTML {
-		return false
-	}
-	if !constants.TableFosterTargets[target.TagName] {
-		return false
-	}
-	if isText {
-		return true
-	}
-	if forTag != "" && constants.TableAllowedChildren[forTag] {
-		return false
-	}
-	return true
-}
-
 func (tb *TreeBuilder) fosterInsertionLocation() (dom.Node, dom.Node) {
 	tableEl, tableIndex := tb.lastTableElement()
 	templateEl, templateIndex := tb.lastTemplateElement()
