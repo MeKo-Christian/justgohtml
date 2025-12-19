@@ -892,11 +892,12 @@ func isWhitespaceRune(r rune) bool {
 }
 
 // getNextTokenInfo returns the type and tag name of the next token.
-func getNextTokenInfo(tokens []json.RawMessage, idx int) (tokenType, tagName string) {
+func getNextTokenInfo(tokens []json.RawMessage, idx int) (string, string) {
 	if idx+1 >= len(tokens) {
 		return "", "" // EOF
 	}
 
+	var tokenType, tagName string
 	var arr []json.RawMessage
 	if err := json.Unmarshal(tokens[idx+1], &arr); err != nil || len(arr) == 0 {
 		return "", ""
@@ -921,11 +922,12 @@ func getNextTokenInfo(tokens []json.RawMessage, idx int) (tokenType, tagName str
 	return tokenType, tagName
 }
 
-func getPrevTokenInfo(tokens []json.RawMessage, idx int) (tokenType, tagName string) {
+func getPrevTokenInfo(tokens []json.RawMessage, idx int) (string, string) {
 	if idx-1 < 0 {
 		return "", ""
 	}
 
+	var tokenType, tagName string
 	var arr []json.RawMessage
 	if err := json.Unmarshal(tokens[idx-1], &arr); err != nil || len(arr) == 0 {
 		return "", ""

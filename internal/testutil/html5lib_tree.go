@@ -2,6 +2,7 @@ package testutil
 
 import (
 	"fmt"
+	"sort"
 	"strings"
 
 	"github.com/MeKo-Christian/JustGoHTML/dom"
@@ -20,7 +21,15 @@ func SerializeHTML5LibTree(doc *dom.Document) string {
 			sb.WriteString(">")
 		} else {
 			sb.WriteString(doc.Doctype.Name)
-			sb.WriteString(">")
+			if doc.Doctype.PublicID != "" || doc.Doctype.SystemID != "" {
+				sb.WriteString(" \"")
+				sb.WriteString(doc.Doctype.PublicID)
+				sb.WriteString("\" \"")
+				sb.WriteString(doc.Doctype.SystemID)
+				sb.WriteString("\">")
+			} else {
+				sb.WriteString(">")
+			}
 		}
 		sb.WriteByte('\n')
 	}
@@ -52,7 +61,11 @@ func serializeHTML5LibNode(sb *strings.Builder, node dom.Node, depth int) {
 		sb.WriteString(">")
 		sb.WriteByte('\n')
 
-		for _, attr := range n.Attributes.All() {
+		attrs := n.Attributes.All()
+		sort.Slice(attrs, func(i, j int) bool {
+			return formatHTML5LibAttributeName(attrs[i]) < formatHTML5LibAttributeName(attrs[j])
+		})
+		for _, attr := range attrs {
 			sb.WriteString("| ")
 			sb.WriteString(indent)
 			sb.WriteString("  ")
@@ -119,7 +132,7 @@ func formatHTML5LibTagName(el *dom.Element) string {
 }
 
 func formatHTML5LibAttributeName(attr dom.Attribute) string {
-	designator := ""
+	var designator string
 	switch attr.Namespace {
 	case "":
 		designator = ""
@@ -146,17 +159,5 @@ func formatHTML5LibAttributeName(attr dom.Attribute) string {
 }
 
 func escapeHTML5LibString(s string) string {
-	var sb strings.Builder
-	sb.Grow(len(s))
-	for _, r := range s {
-		switch r {
-		case '\\':
-			sb.WriteString(`\\`)
-		case '"':
-			sb.WriteString(`\"`)
-		default:
-			sb.WriteRune(r)
-		}
-	}
-	return sb.String()
+	return s
 }

@@ -1,6 +1,7 @@
 package treebuilder_test
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -13,6 +14,12 @@ import (
 	"github.com/MeKo-Christian/JustGoHTML/internal/testutil"
 	"github.com/MeKo-Christian/JustGoHTML/tokenizer"
 	"github.com/MeKo-Christian/JustGoHTML/treebuilder"
+)
+
+var (
+	errEmptyFragmentContext   = errors.New("empty fragment context")
+	errMissingDocumentElement = errors.New("missing document element")
+	errMissingContextElement  = errors.New("missing context element")
 )
 
 const (
@@ -120,7 +127,9 @@ func runTreeConstructionTestFile(t *testing.T, path string) {
 	}
 }
 
-func runSingleTreeConstructionTest(test testutil.TreeConstructionTest) (got string, want string, skipReason string, err error) {
+func runSingleTreeConstructionTest(test testutil.TreeConstructionTest) (string, string, string, error) {
+	var got, want string
+	var err error
 	// Skip script tests for now.
 	if test.ScriptDirective == "script-on" {
 		return "", "", "script-on tests not yet supported", nil
@@ -176,7 +185,7 @@ func parseHTML5LibFragment(input string, ctx string, xmlCoercion bool) (string, 
 func parseFragmentContext(s string) (*treebuilder.FragmentContext, error) {
 	fields := strings.Fields(s)
 	if len(fields) == 0 {
-		return nil, fmt.Errorf("empty fragment context")
+		return nil, errEmptyFragmentContext
 	}
 	if len(fields) == 1 {
 		return &treebuilder.FragmentContext{TagName: fields[0], Namespace: "html"}, nil
@@ -197,14 +206,14 @@ func parseFragmentContext(s string) (*treebuilder.FragmentContext, error) {
 
 func firstChildElement(el *dom.Element) (*dom.Element, error) {
 	if el == nil {
-		return nil, fmt.Errorf("missing document element")
+		return nil, errMissingDocumentElement
 	}
 	for _, child := range el.Children() {
 		if e, ok := child.(*dom.Element); ok {
 			return e, nil
 		}
 	}
-	return nil, fmt.Errorf("missing context element")
+	return nil, errMissingContextElement
 }
 
 func truncate(s string, maxLen int) string {

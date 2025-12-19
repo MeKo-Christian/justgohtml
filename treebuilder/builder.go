@@ -21,6 +21,9 @@ type TreeBuilder struct {
 
 	activeFormatting []formattingEntry
 
+	// Template insertion modes stack.
+	templateModes []InsertionMode
+
 	// Table parsing support.
 	pendingTableText      []string
 	tableTextOriginalMode *InsertionMode
@@ -50,6 +53,7 @@ func New(tok *tokenizer.Tokenizer) *TreeBuilder {
 		originalMode:     Initial,
 		openElements:     nil,
 		activeFormatting: nil,
+		templateModes:    nil,
 		pendingTableText: nil,
 		framesetOK:       true,
 		fragmentRoot:     nil,
@@ -66,6 +70,7 @@ func NewFragment(tok *tokenizer.Tokenizer, ctx *FragmentContext) *TreeBuilder {
 		originalMode:     Initial,
 		openElements:     nil,
 		activeFormatting: nil,
+		templateModes:    nil,
 		pendingTableText: nil,
 		framesetOK:       false,
 		fragmentContext:  ctx,
@@ -185,7 +190,7 @@ func (tb *TreeBuilder) ProcessToken(tok tokenizer.Token) {
 			continue
 		}
 		tb.forceHTMLMode = false
-		reprocess := false
+		var reprocess bool
 		switch tb.mode {
 		case Initial:
 			reprocess = tb.processInitial(tok)
@@ -363,7 +368,7 @@ func (tb *TreeBuilder) withFosterParenting(fn func() bool) bool {
 	return fn()
 }
 
-func (tb *TreeBuilder) appropriateInsertionLocation() (parent dom.Node, before dom.Node) {
+func (tb *TreeBuilder) appropriateInsertionLocation() (dom.Node, dom.Node) {
 	if current := tb.currentElement(); current != nil && current.Namespace == dom.NamespaceHTML && current.TagName == "template" {
 		if current.TemplateContent == nil {
 			current.TemplateContent = dom.NewDocumentFragment()
@@ -388,7 +393,7 @@ func shouldFosterForNode(el *dom.Element) bool {
 	}
 }
 
-func (tb *TreeBuilder) fosterInsertionLocation() (parent dom.Node, before dom.Node) {
+func (tb *TreeBuilder) fosterInsertionLocation() (dom.Node, dom.Node) {
 	tableEl, tableIndex := tb.lastTableElement()
 	if tableEl == nil {
 		return tb.currentNode(), nil
@@ -432,7 +437,7 @@ func (tb *TreeBuilder) templateAboveTable(tableIndex int) *dom.Element {
 }
 
 func (tb *TreeBuilder) insertNode(node dom.Node, loc *insertionLocation) {
-	parent := dom.Node(tb.currentNode())
+	var parent dom.Node
 	var before dom.Node
 	if loc != nil && loc.parent != nil {
 		parent = loc.parent

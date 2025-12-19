@@ -70,6 +70,7 @@ func TestResetInsertionModeAppropriately(t *testing.T) {
 
 	tb = newTBWithStack(t, "html", "body", "template")
 	tb.mode = InBody
+	tb.templateModes = []InsertionMode{InTemplate}
 	tb.resetInsertionModeAppropriately()
 	if tb.mode != InTemplate {
 		t.Fatalf("mode = %v, want %v", tb.mode, InTemplate)

@@ -4,6 +4,11 @@ import (
 	"testing"
 )
 
+const (
+	testContainer = "container"
+	testModified  = "modified"
+)
+
 // =============================================================================
 // Node Interface Tests (baseNode)
 // =============================================================================
@@ -329,8 +334,8 @@ func TestElementAttributes(t *testing.T) {
 	elem := NewElement("div")
 
 	// SetAttr and Attr
-	elem.SetAttr("class", "container")
-	if elem.Attr("class") != "container" {
+	elem.SetAttr("class", testContainer)
+	if elem.Attr("class") != testContainer {
 		t.Error("SetAttr/Attr failed")
 	}
 
@@ -1065,9 +1070,9 @@ func TestAttributesAll(t *testing.T) {
 	}
 
 	// Verify it's a copy
-	all[0].Value = "modified"
+	all[0].Value = testModified
 	original, _ := attrs.Get("class")
-	if original == "modified" {
+	if original == testModified {
 		t.Error("All should return a copy")
 	}
 }
@@ -1100,9 +1105,9 @@ func TestAttributesClone(t *testing.T) {
 	}
 
 	// Modifying clone should not affect original
-	clone.Set("class", "modified")
+	clone.Set("class", testModified)
 	original, _ := attrs.Get("class")
-	if original == "modified" {
+	if original == testModified {
 		t.Error("modifying clone should not affect original")
 	}
 }

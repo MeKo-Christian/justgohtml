@@ -172,26 +172,6 @@ func decodeEscapes(s string) string {
 			continue
 		}
 		switch s[i+1] {
-		case '\\':
-			b.WriteByte('\\')
-			i++
-			continue
-		case 'n':
-			b.WriteByte('\n')
-			i++
-			continue
-		case 't':
-			b.WriteByte('\t')
-			i++
-			continue
-		case 'f':
-			b.WriteByte('\f')
-			i++
-			continue
-		case 'r':
-			b.WriteByte('\r')
-			i++
-			continue
 		case 'x':
 			if i+3 < len(s) {
 				if v, ok := parseHexByte(s[i+2 : i+4]); ok {

@@ -19,9 +19,11 @@ func (tb *TreeBuilder) hasElementInTableScope(tagName string) bool {
 	return tb.hasElementInScopeInternal(tagName, constants.TableScope, false)
 }
 
+/*
 func (tb *TreeBuilder) hasElementInListItemScope(tagName string) bool {
 	return tb.hasElementInScope(tagName, constants.ListItemScope)
 }
+*/
 
 func (tb *TreeBuilder) hasElementInScopeInternal(tagName string, scope map[string]bool, checkIntegrationPoints bool) bool {
 	// Per WHATWG HTML §13.2.5.2.5 (has an element in scope).
@@ -99,8 +101,10 @@ func (tb *TreeBuilder) resetInsertionModeAppropriately() {
 			tb.mode = InTable
 			return
 		case "template":
-			tb.mode = InTemplate
-			return
+			if len(tb.templateModes) > 0 {
+				tb.mode = tb.templateModes[len(tb.templateModes)-1]
+				return
+			}
 		case "head":
 			tb.mode = InHead
 			return

@@ -689,18 +689,43 @@ Implementation:
 
 **Tests to pass:**
 
-| Test Category     | Count | Priority | Status                     |
-| ----------------- | ----- | -------- | -------------------------- |
-| Tree Construction | 1,843 | Critical | 70% (1,282 pass, 549 fail) |
-| Tokenizer         | 6,826 | Critical | 100% (all pass)            |
-| Serializer        | 236   | High     | 100% (all pass)            |
-| Encoding          | 87    | High     | 100% (all pass)            |
+| Test Category     | Count | Priority | Status (current)                          |
+| ----------------- | ----- | -------- | ----------------------------------------- |
+| Tree Construction | 1,843 | Critical | 409 failures in latest local run          |
+| Tokenizer         | 6,826 | Critical | Passing in prior runs; re-verify          |
+| Serializer        | 236   | High     | Passing in prior runs; re-verify          |
+| Encoding          | 87    | High     | Passing in prior runs; re-verify          |
 
 - [x] Create test harness for tree construction tests
 - [x] Create test harness for tokenizer tests
 - [x] Create test harness for serializer tests
 - [x] Create test harness for encoding tests
-- [ ] All 9,000+ tests passing (currently ~8,100+)
+- [ ] All 9,000+ tests passing (tree construction: 409 failing cases in latest run)
+
+**Tree construction failure buckets (latest run):**
+
+Top offenders by file (count = failing cases):
+
+- `template.dat` (99)
+- `tests_innerHTML_1.dat` (60)
+- `tests1.dat` (27)
+- `tests19.dat` (27)
+- `webkit02.dat` (26)
+- `plain-text-unsafe.dat` (24)
+- `tests6.dat` (21)
+- `tests21.dat` (13)
+- `tests7.dat` (13)
+- `tests18.dat` (11)
+- `tests3.dat` (11)
+- `webkit01.dat` (11)
+- `foreign-fragment.dat` (10)
+- `svg.dat` (9)
+- `tests2.dat` (8)
+- `tests9.dat` (8)
+- `tests15.dat` (7)
+- `tests10.dat` (7)
+- `tests20.dat` (6)
+- `tricky01.dat` (6)
 
 ### 6.3 Unit Test Coverage
 
@@ -709,7 +734,7 @@ Target: 100% coverage (matching Python version)
 | Package     | Current | Target | Status                              |
 | ----------- | ------- | ------ | ----------------------------------- |
 | tokenizer   | 92.6%   | 100%   | Near target                         |
-| treebuilder | 92.2%   | 100%   | Near target (547 html5lib failures) |
+| treebuilder | 92.2%   | 100%   | Near target (409 html5lib failures) |
 | dom         | 99.1%   | 100%   | Near target                         |
 | selector    | 76.9%   | 100%   | Needs improvement                   |
 | encoding    | 95.9%   | 100%   | Near target                         |
@@ -727,6 +752,17 @@ Overall coverage: 78.7%
 - [ ] encoding package: 95.9% → 100%
 - [ ] serialize package: 57.7% → 100%
 - [ ] stream package: 89.2% → 100%
+
+**6.3 Detailed subtasks (treebuilder + spec gaps):**
+
+- [ ] Adoption agency algorithm: formatting elements in tables and nested anchors (e.g., `tests1.dat`, `tricky01.dat`, `adoption01.dat`)
+- [ ] Template insertion mode: stack handling, template modes, and reprocessing (e.g., `template.dat`)
+- [ ] Fragment parsing for table-related contexts: correct implicit containers and reprocess rules (e.g., `tests_innerHTML_1.dat`)
+- [ ] Table insertion modes: tbody/tr/td handling, stray end tags, and foster parenting (e.g., `tests6.dat`, `tests19.dat`, `tables01.dat`, `webkit02.dat`)
+- [ ] Frameset vs body switching: framesetOK transitions and AfterFrameset handling (e.g., `tests18.dat`, `tests19.dat`)
+- [ ] Foreign content integration points: MathML/SVG text integration, foreignObject, and script/title in SVG (e.g., `foreign-fragment.dat`, `svg.dat`, `tests9.dat`)
+- [ ] Select insertion mode edge cases: hr/script/style/plaintext behavior and reprocess rules (e.g., `webkit02.dat`, `tests18.dat`)
+- [ ] Plaintext/rawtext handling across contexts (e.g., `plain-text-unsafe.dat`, `tests18.dat`)
 
 ### 6.4 Fuzz Testing
 

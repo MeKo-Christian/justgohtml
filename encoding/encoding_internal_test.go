@@ -1,10 +1,13 @@
 package encoding
 
-import "testing"
+import (
+	"errors"
+	"testing"
+)
 
 func TestDecodeWithEncodingInvalid(t *testing.T) {
 	_, err := decodeWithEncoding([]byte("x"), &Encoding{Name: "bogus"})
-	if err != ErrInvalidEncoding {
+	if !errors.Is(err, ErrInvalidEncoding) {
 		t.Fatalf("expected ErrInvalidEncoding, got %v", err)
 	}
 }

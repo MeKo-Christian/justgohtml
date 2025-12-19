@@ -7,6 +7,14 @@ import (
 	"github.com/MeKo-Christian/JustGoHTML/encoding"
 )
 
+const (
+	encUTF8        = "UTF-8"
+	encWindows1252 = "windows-1252"
+	encUTF16       = "utf-16"
+	encEUCJP       = "euc-jp"
+	encISO88592    = "iso-8859-2"
+)
+
 // TestEncodingLabelNormalization tests that all WHATWG-defined encoding labels
 // are correctly recognized and normalized to their canonical encodings.
 // This ensures support for 20+ encoding labels as required.
@@ -18,41 +26,41 @@ func TestEncodingLabelNormalization(t *testing.T) {
 		wantName string // Expected canonical encoding name
 	}{
 		// UTF-8 labels (WHATWG standard)
-		{"utf-8", "UTF-8"},
-		{"utf8", "UTF-8"},
-		{"unicode-1-1-utf-8", "UTF-8"},
-		{"unicode11utf8", "UTF-8"},
-		{"unicode20utf8", "UTF-8"},
-		{"x-unicode20utf8", "UTF-8"},
+		{"utf-8", encUTF8},
+		{"utf8", encUTF8},
+		{"unicode-1-1-utf-8", encUTF8},
+		{"unicode11utf8", encUTF8},
+		{"unicode20utf8", encUTF8},
+		{"x-unicode20utf8", encUTF8},
 
 		// windows-1252 labels (including ASCII labels per WHATWG)
-		{"windows-1252", "windows-1252"},
-		{"windows1252", "windows-1252"},
-		{"cp1252", "windows-1252"},
-		{"x-cp1252", "windows-1252"},
-		{"ansi_x3.4-1968", "windows-1252"},
-		{"ascii", "windows-1252"},
-		{"cp819", "windows-1252"},
-		{"csisolatin1", "windows-1252"},
-		{"ibm819", "windows-1252"},
-		{"iso-8859-1", "windows-1252"},
-		{"iso-ir-100", "windows-1252"},
-		{"iso8859-1", "windows-1252"},
-		{"iso88591", "windows-1252"},
-		{"iso_8859-1", "windows-1252"},
-		{"iso_8859-1:1987", "windows-1252"},
-		{"l1", "windows-1252"},
-		{"latin1", "windows-1252"},
-		{"us-ascii", "windows-1252"},
+		{"windows-1252", encWindows1252},
+		{"windows1252", encWindows1252},
+		{"cp1252", encWindows1252},
+		{"x-cp1252", encWindows1252},
+		{"ansi_x3.4-1968", encWindows1252},
+		{"ascii", encWindows1252},
+		{"cp819", encWindows1252},
+		{"csisolatin1", encWindows1252},
+		{"ibm819", encWindows1252},
+		{"iso-8859-1", encWindows1252},
+		{"iso-ir-100", encWindows1252},
+		{"iso8859-1", encWindows1252},
+		{"iso88591", encWindows1252},
+		{"iso_8859-1", encWindows1252},
+		{"iso_8859-1:1987", encWindows1252},
+		{"l1", encWindows1252},
+		{"latin1", encWindows1252},
+		{"us-ascii", encWindows1252},
 
 		// ISO-8859-2 labels
-		{"iso-8859-2", "iso-8859-2"},
-		{"iso8859-2", "iso-8859-2"},
-		{"iso88592", "iso-8859-2"},
-		{"iso_8859-2", "iso-8859-2"},
-		{"iso_8859-2:1987", "iso-8859-2"},
-		{"iso-ir-101", "iso-8859-2"},
-		{"latin2", "iso-8859-2"},
+		{"iso-8859-2", encISO88592},
+		{"iso8859-2", encISO88592},
+		{"iso88592", encISO88592},
+		{"iso_8859-2", encISO88592},
+		{"iso_8859-2:1987", encISO88592},
+		{"l2", encISO88592},
+		{"latin2", encISO88592},
 		{"l2", "iso-8859-2"},
 		{"csisolatin2", "iso-8859-2"},
 

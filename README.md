@@ -8,13 +8,13 @@ A pure Go HTML5 parser that just works. No CGO. No dependencies. No complex API 
 
 ## Why use JustGoHTML?
 
-### 1. Just... Correct
+### 1. Just... Correct (in progress)
 
 It implements the official WHATWG HTML5 specification exactly. If a browser can parse it, JustGoHTML can parse it. It handles all the complex error-handling rules that browsers use.
 
-- **Verified Compliance**: Passes all 9k+ tests in the official [html5lib-tests](https://github.com/html5lib/html5lib-tests) suite (used by browser vendors).
-- **100% Coverage**: Every line and branch of code is covered by tests.
-- **Fuzz Tested**: Has parsed millions of randomized broken HTML documents to ensure it never crashes or hangs.
+- **Compliance Status**: Tokenizer/serializer/encoding are in good shape; latest local run still shows 409 failing html5lib tree-construction cases.
+- **Coverage Goal**: Targeting 100% coverage; several packages are still below that target.
+- **Fuzzing**: Planned but not yet run at full scale.
 - **Living Standard**: It tracks the living standard, not a snapshot from 2012.
 
 ### 2. Just... Go
@@ -43,7 +43,7 @@ Go's performance means JustGoHTML is significantly faster than pure-Python parse
 
 | Parser                  | HTML5 Compliance | Pure Go? | Speed | Query API     | Notes                                                |
 | ----------------------- | :--------------: | :------: | ----- | ------------- | ---------------------------------------------------- |
-| **JustGoHTML**          |       100%       |   Yes    | Fast  | CSS selectors | Correct, easy to install, and fast.                  |
+| **JustGoHTML**          |    In progress   |   Yes    | Fast  | CSS selectors | Spec-accurate but still closing html5lib failures.   |
 | `golang.org/x/net/html` |       ~70%       |   Yes    | Fast  | None          | Standard library. Good but not fully spec compliant. |
 | `goquery`               |       ~70%       |   Yes    | Fast  | CSS selectors | Wrapper around x/net/html. Same compliance issues.   |
 

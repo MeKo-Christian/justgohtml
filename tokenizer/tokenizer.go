@@ -450,7 +450,8 @@ func (t *Tokenizer) finishAttribute() {
 	t.currentAttrValueHasAmp = false
 }
 
-func (t *Tokenizer) emitCurrentTag() (switchedTextMode bool) {
+func (t *Tokenizer) emitCurrentTag() bool {
+	var switchedTextMode bool
 	name := string(t.currentTagName)
 	attrs := append([]Attr(nil), t.currentTagAttrs...)
 	tok := Token{
@@ -601,7 +602,7 @@ func (t *Tokenizer) startTag(kind TokenKind, first rune) {
 	t.currentTagSelfClosing = false
 
 	if first >= 'A' && first <= 'Z' {
-		first = first + 32
+		first += 32
 	}
 	t.currentTagName = append(t.currentTagName, first)
 }
@@ -689,7 +690,7 @@ func (t *Tokenizer) stateTagName() {
 			t.currentTagName = append(t.currentTagName, unicode.ReplacementChar)
 		default:
 			if c >= 'A' && c <= 'Z' {
-				c = c + 32
+				c += 32
 			}
 			t.currentTagName = append(t.currentTagName, c)
 		}
@@ -722,12 +723,13 @@ func (t *Tokenizer) stateBeforeAttributeName() {
 			t.currentAttrName = t.currentAttrName[:0]
 			t.currentAttrValue = t.currentAttrValue[:0]
 			t.currentAttrValueHasAmp = false
-			if c == 0 {
+			switch {
+			case c == 0:
 				t.emitError("unexpected-null-character")
 				c = unicode.ReplacementChar
-			} else if c >= 'A' && c <= 'Z' {
-				c = c + 32
-			} else if c == '=' {
+			case c >= 'A' && c <= 'Z':
+				c += 32
+			case c == '=':
 				t.emitError("unexpected-equals-sign-before-attribute-name")
 			}
 			t.currentAttrName = append(t.currentAttrName, c)
@@ -771,7 +773,7 @@ func (t *Tokenizer) stateAttributeName() {
 				t.emitError("unexpected-character-in-attribute-name")
 			}
 			if c >= 'A' && c <= 'Z' {
-				c = c + 32
+				c += 32
 			}
 			t.currentAttrName = append(t.currentAttrName, c)
 		}
@@ -811,7 +813,7 @@ func (t *Tokenizer) stateAfterAttributeName() {
 				t.emitError("unexpected-null-character")
 				c = unicode.ReplacementChar
 			} else if c >= 'A' && c <= 'Z' {
-				c = c + 32
+				c += 32
 			}
 			t.currentAttrName = append(t.currentAttrName, c)
 			t.state = AttributeNameState
@@ -2338,11 +2340,4 @@ func coerceTextForXML(text string) string {
 
 func coerceCommentForXML(text string) string {
 	return strings.ReplaceAll(text, "--", "- -")
-}
-
-func max(a, b int) int {
-	if a > b {
-		return a
-	}
-	return b
 }

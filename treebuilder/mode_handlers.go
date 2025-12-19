@@ -130,7 +130,7 @@ func (tb *TreeBuilder) processInHead(tok tokenizer.Token) bool {
 			tb.tokenizer.SetLastStartTag(tok.Name)
 			tb.tokenizer.SetState(tokenizer.RCDATAState)
 			return false
-		case "script", "style", "xmp", "iframe", "noembed", "noframes":
+		case "script", "style", "noframes":
 			tb.insertElement(tok.Name, tok.Attrs)
 			tb.originalMode = tb.mode
 			tb.mode = Text
@@ -152,12 +152,18 @@ func (tb *TreeBuilder) processInHead(tok tokenizer.Token) bool {
 			return false
 		case "template":
 			tb.insertElement("template", tok.Attrs)
+			tb.pushActiveFormattingMarker()
+			tb.framesetOK = false
 			tb.mode = InTemplate
+			tb.templateModes = append(tb.templateModes, InTemplate)
 			return false
 		case "head":
 			// Ignore additional heads.
 			return false
 		}
+		tb.popUntil("head")
+		tb.mode = AfterHead
+		return true
 	case tokenizer.EndTag:
 		switch tok.Name {
 		case "head":
@@ -169,9 +175,18 @@ func (tb *TreeBuilder) processInHead(tok tokenizer.Token) bool {
 			if !tb.elementInStack("template") {
 				return false
 			}
+			tb.generateImpliedEndTags("")
 			tb.popUntil("template")
-			tb.mode = InHead
+			tb.clearActiveFormattingElements()
+			if len(tb.templateModes) > 0 {
+				tb.templateModes = tb.templateModes[:len(tb.templateModes)-1]
+			}
+			tb.resetInsertionModeAppropriately()
 			return false
+		case "body", "html", "br":
+			tb.popUntil("head")
+			tb.mode = AfterHead
+			return true
 		}
 	case tokenizer.EOF:
 		tb.popUntil("head")
@@ -266,6 +281,24 @@ func (tb *TreeBuilder) processAfterHead(tok tokenizer.Token) bool {
 			tb.insertElement("frameset", tok.Attrs)
 			tb.mode = InFrameset
 			return false
+		case "base", "basefont", "bgsound", "link", "meta", "noframes", "script", "style", "title", "noscript":
+			if tb.headElement != nil {
+				tb.openElements = append(tb.openElements, tb.headElement)
+			}
+			reprocess := tb.processInHead(tok)
+			for i := len(tb.openElements) - 1; i >= 0; i-- {
+				if tb.openElements[i] == tb.headElement {
+					tb.openElements = append(tb.openElements[:i], tb.openElements[i+1:]...)
+					break
+				}
+			}
+			return reprocess
+		case "template":
+			if tb.headElement != nil {
+				tb.openElements = append(tb.openElements, tb.headElement)
+			}
+			tb.mode = InHead
+			return true
 		case "head":
 			// Parse error; ignore token.
 			return false
@@ -274,7 +307,6 @@ func (tb *TreeBuilder) processAfterHead(tok tokenizer.Token) bool {
 		if tok.Name == "body" || tok.Name == "html" || tok.Name == "br" {
 			// Act as if a start tag "body" was seen, then reprocess.
 			tb.insertElement("body", nil)
-			tb.framesetOK = false
 			tb.mode = InBody
 			return true
 		}
@@ -286,7 +318,6 @@ func (tb *TreeBuilder) processAfterHead(tok tokenizer.Token) bool {
 
 	// Implicit <body>.
 	tb.insertElement("body", nil)
-	tb.framesetOK = false
 	tb.mode = InBody
 	return true
 }
@@ -336,15 +367,15 @@ func (tb *TreeBuilder) processInBody(tok tokenizer.Token) bool {
 				tb.addMissingAttributes(tb.openElements[0], tok.Attrs)
 			}
 			return false
-		case "address", "article", "aside", "blockquote", "center", "details", "dialog", "dir", "div", "dl", "fieldset", "figcaption", "figure", "footer", "header", "hgroup", "listing", "main", "menu", "nav", "ol", "section", "summary", "ul":
-			if tb.hasElementInScope("p", constants.ButtonScope) {
+		case "address", "article", "aside", "blockquote", "center", "details", "dialog", "dir", "div", "dl", "fieldset", "figcaption", "figure", "footer", "header", "hgroup", "main", "menu", "nav", "ol", "section", "summary", "ul":
+			if tb.hasElementInButtonScope("p") {
 				tb.popUntil("p")
 			}
 			tb.insertElement(tok.Name, tok.Attrs)
 			tb.framesetOK = false
 			return false
 		case "h1", "h2", "h3", "h4", "h5", "h6":
-			if tb.hasElementInScope("p", constants.ButtonScope) {
+			if tb.hasElementInButtonScope("p") {
 				tb.popUntil("p")
 			}
 			// Close any open heading element to avoid nested headings.
@@ -358,7 +389,14 @@ func (tb *TreeBuilder) processInBody(tok tokenizer.Token) bool {
 			tb.framesetOK = false
 			return false
 		case "pre":
-			if tb.hasElementInScope("p", constants.ButtonScope) {
+			if tb.hasElementInButtonScope("p") {
+				tb.popUntil("p")
+			}
+			tb.insertElement(tok.Name, tok.Attrs)
+			tb.framesetOK = false
+			return false
+		case "listing":
+			if tb.hasElementInButtonScope("p") {
 				tb.popUntil("p")
 			}
 			tb.insertElement(tok.Name, tok.Attrs)
@@ -370,6 +408,8 @@ func (tb *TreeBuilder) processInBody(tok tokenizer.Token) bool {
 			tb.insertElement(tok.Name, tok.Attrs)
 			tb.popCurrent()
 			return false
+		case "template":
+			return tb.processInHead(tok)
 		case "frameset":
 			if !tb.framesetOK {
 				return false
@@ -380,6 +420,12 @@ func (tb *TreeBuilder) processInBody(tok tokenizer.Token) bool {
 			}
 			tb.insertElement("frameset", tok.Attrs)
 			tb.mode = InFrameset
+			return false
+		case "frame":
+			if tb.fragmentContext != nil {
+				tb.insertElement("frame", tok.Attrs)
+				tb.popCurrent()
+			}
 			return false
 		case "body":
 			// If a body element already exists, merge attrs.
@@ -443,6 +489,26 @@ func (tb *TreeBuilder) processInBody(tok tokenizer.Token) bool {
 			tb.tokenizer.SetLastStartTag(tok.Name)
 			tb.tokenizer.SetState(tokenizer.RCDATAState)
 			return false
+		case "xmp":
+			if tb.hasElementInButtonScope("p") {
+				tb.popUntil("p")
+			}
+			tb.insertElement(tok.Name, tok.Attrs)
+			tb.originalMode = tb.mode
+			tb.mode = Text
+			tb.tokenizer.SetLastStartTag(tok.Name)
+			tb.tokenizer.SetState(tokenizer.RAWTEXTState)
+			tb.framesetOK = false
+			return false
+		case "plaintext":
+			if tb.hasElementInButtonScope("p") {
+				tb.popUntil("p")
+			}
+			tb.insertElement(tok.Name, tok.Attrs)
+			tb.tokenizer.SetLastStartTag(tok.Name)
+			tb.tokenizer.SetState(tokenizer.PLAINTEXTState)
+			tb.framesetOK = false
+			return false
 		case "script", "style":
 			tb.insertElement(tok.Name, tok.Attrs)
 			tb.originalMode = tb.mode
@@ -455,10 +521,15 @@ func (tb *TreeBuilder) processInBody(tok tokenizer.Token) bool {
 			}
 			return false
 		case "p":
-			if tb.hasElementInScope("p", constants.ButtonScope) {
+			if tb.hasElementInButtonScope("p") {
 				tb.popUntil("p")
 			}
 			tb.insertElement("p", tok.Attrs)
+			return false
+		case "image":
+			tb.insertElement("img", tok.Attrs)
+			tb.popCurrent()
+			tb.framesetOK = false
 			return false
 		case "br":
 			tb.insertElement("br", tok.Attrs)
@@ -496,7 +567,6 @@ func (tb *TreeBuilder) processInBody(tok tokenizer.Token) bool {
 		switch tok.Name {
 		case "body":
 			if tb.hasElementInScope("body", constants.DefaultScope) {
-				tb.popUntil("body")
 				tb.mode = AfterBody
 			}
 			return false
@@ -506,11 +576,28 @@ func (tb *TreeBuilder) processInBody(tok tokenizer.Token) bool {
 				return true
 			}
 			return false
+		case "br":
+			tb.insertElement("br", nil)
+			tb.popCurrent()
+			tb.framesetOK = false
+			return false
 		case "p":
-			if !tb.hasElementInScope("p", constants.ButtonScope) {
+			if !tb.hasElementInButtonScope("p") {
 				tb.insertElement("p", nil)
 			}
 			tb.popUntil("p")
+			return false
+		case "template":
+			if !tb.elementInStack("template") {
+				return false
+			}
+			tb.generateImpliedEndTags("")
+			tb.popUntil("template")
+			tb.clearActiveFormattingElements()
+			if len(tb.templateModes) > 0 {
+				tb.templateModes = tb.templateModes[:len(tb.templateModes)-1]
+			}
+			tb.resetInsertionModeAppropriately()
 			return false
 		default:
 			if constants.FormattingElements[tok.Name] {
@@ -546,6 +633,11 @@ func (tb *TreeBuilder) processInTable(tok tokenizer.Token) bool {
 			tb.insertElement("caption", tok.Attrs)
 			tb.mode = InCaption
 			return false
+		case "col":
+			tb.clearStackUntil(map[string]bool{"table": true, "template": true, "html": true})
+			tb.insertElement("colgroup", nil)
+			tb.mode = InColumnGroup
+			return true
 		case "colgroup":
 			tb.clearStackUntil(map[string]bool{"table": true, "template": true, "html": true})
 			tb.insertElement("colgroup", tok.Attrs)
@@ -571,9 +663,7 @@ func (tb *TreeBuilder) processInTable(tok tokenizer.Token) bool {
 			tb.mode = InBody
 			return true
 		case "template":
-			tb.insertElement("template", tok.Attrs)
-			tb.mode = InTemplate
-			return false
+			return tb.processInHead(tok)
 		}
 		// Default: parse error; foster parent and process using "in body" rules.
 		return tb.withFosterParenting(func() bool {
@@ -684,9 +774,7 @@ func (tb *TreeBuilder) processInColumnGroup(tok tokenizer.Token) bool {
 			tb.popCurrent()
 			return false
 		case "template":
-			tb.insertElement("template", tok.Attrs)
-			tb.mode = InTemplate
-			return false
+			return tb.processInHead(tok)
 		}
 	case tokenizer.EndTag:
 		if tok.Name == "colgroup" {
@@ -798,7 +886,14 @@ func (tb *TreeBuilder) popUntilAnyCell() {
 func (tb *TreeBuilder) processInSelect(tok tokenizer.Token) bool {
 	switch tok.Type {
 	case tokenizer.Character:
-		tb.insertText(tok.Data)
+		data := tok.Data
+		if strings.ContainsRune(data, 0) || strings.ContainsRune(data, '\f') {
+			data = strings.ReplaceAll(data, "\x00", "")
+			data = strings.ReplaceAll(data, "\x0c", "")
+		}
+		if data != "" {
+			tb.insertText(data)
+		}
 		return false
 	case tokenizer.Comment:
 		tb.insertComment(tok.Data)
@@ -810,6 +905,28 @@ func (tb *TreeBuilder) processInSelect(tok tokenizer.Token) bool {
 				tb.addMissingAttributes(tb.openElements[0], tok.Attrs)
 			}
 			return false
+		case "script", "style", "template":
+			return tb.processInHead(tok)
+		case "hr":
+			if tb.currentElement() != nil && tb.currentElement().TagName == "option" {
+				tb.popCurrent()
+			}
+			if tb.currentElement() != nil && tb.currentElement().TagName == "optgroup" {
+				tb.popCurrent()
+			}
+			tb.insertElement("hr", tok.Attrs)
+			tb.popCurrent()
+			return false
+		case "svg":
+			tb.insertForeignElement("svg", dom.NamespaceSVG, prepareForeignAttributes(dom.NamespaceSVG, tok.Attrs), tok.SelfClosing)
+			return false
+		case "math":
+			tb.insertForeignElement("math", dom.NamespaceMathML, prepareForeignAttributes(dom.NamespaceMathML, tok.Attrs), tok.SelfClosing)
+			return false
+		case "input", "textarea":
+			tb.popUntil("select")
+			tb.resetInsertionModeAppropriately()
+			return true
 		case "caption", "table", "tbody", "tfoot", "thead", "tr", "td", "th", "col", "colgroup":
 			// Parse error; pop the select and reprocess the token.
 			tb.popUntil("select")
@@ -835,6 +952,11 @@ func (tb *TreeBuilder) processInSelect(tok tokenizer.Token) bool {
 			// Close the current select.
 			tb.popUntil("select")
 			tb.resetInsertionModeAppropriately()
+			return false
+		case "plaintext":
+			tb.insertElement("plaintext", tok.Attrs)
+			tb.tokenizer.SetLastStartTag("plaintext")
+			tb.tokenizer.SetState(tokenizer.PLAINTEXTState)
 			return false
 		}
 	case tokenizer.EndTag:
@@ -891,26 +1013,78 @@ func (tb *TreeBuilder) processInSelectInTable(tok tokenizer.Token) bool {
 
 func (tb *TreeBuilder) processInTemplate(tok tokenizer.Token) bool {
 	switch tok.Type {
+	case tokenizer.Character, tokenizer.Comment:
+		return tb.processInBody(tok)
+	case tokenizer.StartTag:
+		switch tok.Name {
+		case "caption", "colgroup", "tbody", "tfoot", "thead":
+			if len(tb.templateModes) > 0 {
+				tb.templateModes[len(tb.templateModes)-1] = InTable
+			} else {
+				tb.templateModes = append(tb.templateModes, InTable)
+			}
+			tb.mode = InTable
+			return true
+		case "col":
+			if len(tb.templateModes) > 0 {
+				tb.templateModes[len(tb.templateModes)-1] = InColumnGroup
+			} else {
+				tb.templateModes = append(tb.templateModes, InColumnGroup)
+			}
+			tb.mode = InColumnGroup
+			return true
+		case "tr":
+			if len(tb.templateModes) > 0 {
+				tb.templateModes[len(tb.templateModes)-1] = InTableBody
+			} else {
+				tb.templateModes = append(tb.templateModes, InTableBody)
+			}
+			tb.mode = InTableBody
+			return true
+		case "td", "th":
+			if len(tb.templateModes) > 0 {
+				tb.templateModes[len(tb.templateModes)-1] = InRow
+			} else {
+				tb.templateModes = append(tb.templateModes, InRow)
+			}
+			tb.mode = InRow
+			return true
+		case "base", "basefont", "bgsound", "link", "meta", "noframes", "script", "style", "template", "title":
+			return tb.processInHead(tok)
+		default:
+			if len(tb.templateModes) > 0 {
+				tb.templateModes[len(tb.templateModes)-1] = InBody
+			} else {
+				tb.templateModes = append(tb.templateModes, InBody)
+			}
+			tb.mode = InBody
+			return true
+		}
 	case tokenizer.EndTag:
 		if tok.Name == "template" {
-			tb.popUntil("template")
-			tb.mode = InHead
-			return false
+			return tb.processInHead(tok)
 		}
 	case tokenizer.EOF:
-		return false
+		if !tb.elementInStack("template") {
+			return false
+		}
+		tb.popUntil("template")
+		tb.clearActiveFormattingElements()
+		if len(tb.templateModes) > 0 {
+			tb.templateModes = tb.templateModes[:len(tb.templateModes)-1]
+		}
+		tb.resetInsertionModeAppropriately()
+		return true
 	}
-	// For now, treat template contents like "in body".
-	tb.mode = InBody
-	return true
+	return false
 }
 
 func (tb *TreeBuilder) processAfterBody(tok tokenizer.Token) bool {
 	switch tok.Type {
 	case tokenizer.Character:
 		if isAllWhitespace(tok.Data) {
-			tb.mode = InBody
-			return true
+			tb.processInBody(tok)
+			return false
 		}
 	case tokenizer.Comment:
 		// Comments after body attach to the <html> element.
@@ -1011,8 +1185,8 @@ func (tb *TreeBuilder) processAfterAfterBody(tok tokenizer.Token) bool {
 		return false
 	case tokenizer.Character:
 		if isAllWhitespace(tok.Data) {
-			tb.mode = InBody
-			return true
+			tb.processInBody(tok)
+			return false
 		}
 	case tokenizer.StartTag:
 		if tok.Name == "html" {
