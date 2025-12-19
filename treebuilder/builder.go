@@ -85,29 +85,29 @@ func NewFragment(tok *tokenizer.Tokenizer, ctx *FragmentContext) *TreeBuilder {
 		tokenizer:        tok,
 	}
 
-	// Minimal fragment setup: create an <html> root and a context element.
+	// Minimal fragment setup: create an <html> root.
 	html := dom.NewElement("html")
 	tb.document.AppendChild(html)
 	tb.openElements = append(tb.openElements, html)
 	tb.fragmentRoot = html
 
 	if ctx != nil && ctx.TagName != "" {
-		contextEl := dom.NewElement(ctx.TagName)
+		tag := strings.ToLower(ctx.TagName)
 		switch ctx.Namespace {
 		case "svg":
-			contextEl = dom.NewElementNS(ctx.TagName, dom.NamespaceSVG)
-		case "mathml":
-			contextEl = dom.NewElementNS(ctx.TagName, dom.NamespaceMathML)
-		}
-		html.AppendChild(contextEl)
-		tb.openElements = append(tb.openElements, contextEl)
-		tb.fragmentElement = contextEl
-
-		// Set the initial insertion mode based on the context element, per HTML5 fragment parsing.
-		tag := contextEl.TagName
-		if ctx.Namespace != "" && ctx.Namespace != "html" {
+			contextEl := dom.NewElementNS(ctx.TagName, dom.NamespaceSVG)
+			html.AppendChild(contextEl)
+			tb.openElements = append(tb.openElements, contextEl)
+			tb.fragmentElement = contextEl
 			tb.mode = InBody
-		} else {
+		case "mathml":
+			contextEl := dom.NewElementNS(ctx.TagName, dom.NamespaceMathML)
+			html.AppendChild(contextEl)
+			tb.openElements = append(tb.openElements, contextEl)
+			tb.fragmentElement = contextEl
+			tb.mode = InBody
+		default:
+			// HTML namespace fragments do not create a context element on the stack.
 			switch tag {
 			case "html":
 				tb.mode = BeforeHead
@@ -364,6 +364,29 @@ func (tb *TreeBuilder) insertElement(name string, attrs []tokenizer.Attr) *dom.E
 		el.SetAttr(a.Name, a.Value)
 	}
 	tb.insertNode(el, nil)
+	tb.openElements = append(tb.openElements, el)
+	return el
+}
+
+func (tb *TreeBuilder) insertElementUnderHTML(name string, attrs []tokenizer.Attr) *dom.Element {
+	el := dom.NewElement(name)
+	if el.TagName == "template" && el.Namespace == dom.NamespaceHTML && el.TemplateContent == nil {
+		el.TemplateContent = dom.NewDocumentFragment()
+	}
+	for _, a := range attrs {
+		if a.Namespace != "" {
+			el.Attributes.SetNS(a.Namespace, a.Name, a.Value)
+			continue
+		}
+		el.SetAttr(a.Name, a.Value)
+	}
+
+	parent := dom.Node(tb.document.DocumentElement())
+	if parent == nil {
+		parent = tb.document
+	}
+
+	tb.insertNode(el, &insertionLocation{parent: parent})
 	tb.openElements = append(tb.openElements, el)
 	return el
 }

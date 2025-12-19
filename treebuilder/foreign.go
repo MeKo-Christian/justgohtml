@@ -64,7 +64,7 @@ func (tb *TreeBuilder) processForeignContent(tok tokenizer.Token) bool {
 			return false
 		}
 		data := strings.ReplaceAll(tok.Data, "\x00", string('\uFFFD'))
-		if !isAllWhitespace(data) {
+		if !isAllWhitespaceIgnoringNull(tok.Data) {
 			tb.framesetOK = false
 		}
 		tb.insertText(data)
@@ -170,6 +170,21 @@ func (tb *TreeBuilder) popUntilHTMLOrIntegrationPoint() {
 		}
 		tb.popCurrent()
 	}
+}
+
+func isAllWhitespaceIgnoringNull(s string) bool {
+	for _, r := range s {
+		if r == 0 {
+			continue
+		}
+		switch r {
+		case '\t', '\n', '\f', '\r', ' ':
+			continue
+		default:
+			return false
+		}
+	}
+	return true
 }
 
 func (tb *TreeBuilder) isHTMLIntegrationPoint(node *dom.Element) bool {

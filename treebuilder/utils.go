@@ -28,6 +28,15 @@ func (tb *TreeBuilder) hasElementInDefinitionScope(tagName string) bool {
 	return tb.hasElementInScope(tagName, constants.DefinitionScope)
 }
 
+func (tb *TreeBuilder) hasForeignElementOnStack() bool {
+	for _, node := range tb.openElements {
+		if node.Namespace != dom.NamespaceHTML {
+			return true
+		}
+	}
+	return false
+}
+
 func (tb *TreeBuilder) hasElementInScopeInternal(tagName string, scope map[string]bool, checkIntegrationPoints bool) bool {
 	// Per WHATWG HTML §13.2.5.2.5 (has an element in scope).
 	for i := len(tb.openElements) - 1; i >= 0; i-- {
@@ -114,10 +123,41 @@ func (tb *TreeBuilder) clearStackUntil(tagNames map[string]bool) {
 	}
 }
 
+func (tb *TreeBuilder) closeCaptionElement() bool {
+	if !tb.hasElementInTableScope("caption") {
+		return false
+	}
+	tb.generateImpliedEndTags("")
+	for len(tb.openElements) > 0 {
+		node := tb.popCurrent()
+		if node.TagName == "caption" {
+			break
+		}
+	}
+	tb.clearActiveFormattingUpToMarker()
+	tb.mode = InTable
+	return true
+}
+
+func (tb *TreeBuilder) closeTableCell() bool {
+	if !tb.hasElementInTableScope("td") && !tb.hasElementInTableScope("th") {
+		return false
+	}
+	tb.popUntilAnyCell()
+	tb.clearActiveFormattingElements()
+	tb.mode = InRow
+	return true
+}
+
 func (tb *TreeBuilder) resetInsertionModeAppropriately() {
 	// Per WHATWG HTML §13.2.5.2.4 (reset the insertion mode appropriately).
 	for i := len(tb.openElements) - 1; i >= 0; i-- {
 		node := tb.openElements[i]
+		// Only HTML namespace elements participate in insertion-mode selection.
+		// Foreign elements like SVG <tr>/<th> must not switch us into table modes.
+		if node.Namespace != dom.NamespaceHTML {
+			continue
+		}
 		switch strings.ToLower(node.TagName) {
 		case "select":
 			tb.mode = InSelect

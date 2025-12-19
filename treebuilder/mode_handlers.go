@@ -437,6 +437,13 @@ func (tb *TreeBuilder) processInBody(tok tokenizer.Token) bool {
 		switch tok.Name {
 		case "caption", "col", "colgroup", "tbody", "tfoot", "thead", "tr", "td", "th":
 			// Table-structure elements are ignored in "in body".
+			if (tok.Name == "tr" || tok.Name == "td" || tok.Name == "th") && tb.hasForeignElementOnStack() && !tb.hasElementInTableScope("table") {
+				// If foreign content messed with the open-elements stack, these tokens can end up
+				// being processed with no sensible insertion point. The JustHTML regression suite
+				// expects these to become children of <html> (not the document root, and not SVG).
+				tb.insertElementUnderHTML(tok.Name, tok.Attrs)
+				tb.framesetOK = false
+			}
 			return false
 		case "head":
 			// Parse error; ignore in body.
@@ -892,6 +899,7 @@ func (tb *TreeBuilder) processInTable(tok tokenizer.Token) bool {
 			return false
 		case "caption":
 			tb.clearStackUntil(map[string]bool{"table": true, "template": true, "html": true})
+			tb.pushFormattingMarker()
 			tb.insertElement("caption", tok.Attrs)
 			tb.mode = InCaption
 			return false
@@ -1020,26 +1028,31 @@ func (tb *TreeBuilder) processInCaption(tok tokenizer.Token) bool {
 		return false
 	case tokenizer.EndTag:
 		if tok.Name == "caption" {
-			tb.popUntil("caption")
-			tb.mode = InTable
+			tb.closeCaptionElement()
 			return false
 		}
 		if tok.Name == "table" {
-			tb.popUntil("caption")
-			tb.mode = InTable
-			return true
+			if tb.closeCaptionElement() {
+				return true
+			}
+			return false
+		}
+		if tok.Name == "tbody" || tok.Name == "tfoot" || tok.Name == "thead" {
+			return false
 		}
 	case tokenizer.StartTag:
 		switch tok.Name {
 		case "caption", "col", "colgroup", "tbody", "tfoot", "thead", "tr", "td", "th":
-			tb.popUntil("caption")
-			tb.mode = InTable
-			return true
+			if tb.closeCaptionElement() {
+				return true
+			}
+			return false
 		}
 		if tok.Name == "table" {
-			tb.popUntil("caption")
-			tb.mode = InTable
-			return true
+			if tb.closeCaptionElement() {
+				return true
+			}
+			return tb.processInBody(tok)
 		}
 	case tokenizer.Error, tokenizer.DOCTYPE, tokenizer.EOF:
 		// Fall through to processInBody
@@ -1096,6 +1109,13 @@ func (tb *TreeBuilder) processInColumnGroup(tok tokenizer.Token) bool {
 		tb.insertComment(tok.Data)
 		return false
 	case tokenizer.StartTag:
+		if tb.fragmentContext != nil && strings.EqualFold(tb.fragmentContext.TagName, "colgroup") && !tb.hasElementInTableScope("table") {
+			switch tok.Name {
+			case "col", "colgroup", "template", "html":
+			default:
+				return false
+			}
+		}
 		switch tok.Name {
 		case "col":
 			tb.insertElement("col", tok.Attrs)
@@ -1173,6 +1193,12 @@ func (tb *TreeBuilder) processInTableBody(tok tokenizer.Token) bool {
 			tb.mode = InRow
 			return true
 		case "caption", "col", "colgroup", "tbody", "tfoot", "thead", "table":
+			if tb.fragmentContext != nil && current != nil && current.TagName == "html" {
+				switch strings.ToLower(tb.fragmentContext.TagName) {
+				case "tbody", "tfoot", "thead":
+					return false
+				}
+			}
 			if current != nil && current.TagName == "template" {
 				return false
 			}
@@ -1198,6 +1224,12 @@ func (tb *TreeBuilder) processInTableBody(tok tokenizer.Token) bool {
 			if current != nil && current.TagName == "template" {
 				return false
 			}
+			if tb.fragmentContext != nil && current != nil && current.TagName == "html" {
+				switch strings.ToLower(tb.fragmentContext.TagName) {
+				case "tbody", "tfoot", "thead":
+					return false
+				}
+			}
 			if !tb.hasElementInTableScope("table") {
 				return false
 			}
@@ -1206,8 +1238,7 @@ func (tb *TreeBuilder) processInTableBody(tok tokenizer.Token) bool {
 			return true
 		}
 	}
-	tb.mode = InTable
-	return true
+	return tb.processInTable(tok)
 }
 
 func (tb *TreeBuilder) processInRow(tok tokenizer.Token) bool {
@@ -1224,6 +1255,9 @@ func (tb *TreeBuilder) processInRow(tok tokenizer.Token) bool {
 			return false
 		}
 		if tok.Name == "tr" {
+			if !tb.hasElementInTableScope("tr") {
+				return false
+			}
 			tb.popUntil("tr")
 			tb.mode = InTableBody
 			return true
@@ -1283,16 +1317,16 @@ func (tb *TreeBuilder) processInCell(tok tokenizer.Token) bool {
 		}
 	case tokenizer.StartTag:
 		if tok.Name == "caption" || tok.Name == "col" || tok.Name == "colgroup" || tok.Name == "tbody" || tok.Name == "tfoot" || tok.Name == "thead" || tok.Name == "tr" {
-			tb.popUntilAnyCell()
-			tb.clearActiveFormattingElements()
-			tb.mode = InRow
-			return true
+			if tb.closeTableCell() {
+				return true
+			}
+			return false
 		}
 		if tok.Name == "td" || tok.Name == "th" {
-			tb.popUntilAnyCell()
-			tb.clearActiveFormattingElements()
-			tb.mode = InRow
-			return true
+			if tb.closeTableCell() {
+				return true
+			}
+			return false
 		}
 	}
 	return tb.processInBody(tok)
@@ -1357,11 +1391,19 @@ func (tb *TreeBuilder) processInSelect(tok tokenizer.Token) bool {
 			tb.insertForeignElement("math", dom.NamespaceMathML, prepareForeignAttributes(dom.NamespaceMathML, tok.Attrs), tok.SelfClosing)
 			return false
 		case "input", "textarea":
+			if !tb.elementInStack("select") {
+				tb.mode = InBody
+				return tb.processInBody(tok)
+			}
 			tb.popUntil("select")
 			tb.resetInsertionModeAppropriately()
 			return true
 		case "caption", "table", "tbody", "tfoot", "thead", "tr", "td", "th", "col", "colgroup":
 			// Parse error; pop the select and reprocess the token.
+			if !tb.elementInStack("select") {
+				tb.mode = InBody
+				return tb.processInBody(tok)
+			}
 			tb.popUntil("select")
 			tb.resetInsertionModeAppropriately()
 			return true
@@ -1383,6 +1425,10 @@ func (tb *TreeBuilder) processInSelect(tok tokenizer.Token) bool {
 			return false
 		case "select":
 			// Close the current select.
+			if !tb.elementInStack("select") {
+				tb.mode = InBody
+				return false
+			}
 			tb.popUntil("select")
 			tb.resetInsertionModeAppropriately()
 			return false
@@ -1437,11 +1483,19 @@ func (tb *TreeBuilder) processInSelect(tok tokenizer.Token) bool {
 			}
 			return false
 		case "select":
+			if !tb.elementInStack("select") {
+				tb.mode = InBody
+				return false
+			}
 			tb.popUntil("select")
 			tb.resetInsertionModeAppropriately()
 			return false
 		case "caption", "table", "tbody", "tfoot", "thead", "tr", "td", "th", "col", "colgroup":
 			// Parse error; pop the select and reprocess the token.
+			if !tb.elementInStack("select") {
+				tb.mode = InBody
+				return tb.processInBody(tok)
+			}
 			tb.popUntil("select")
 			tb.resetInsertionModeAppropriately()
 			return true
@@ -1663,6 +1717,12 @@ func (tb *TreeBuilder) processAfterFrameset(tok tokenizer.Token) bool {
 func (tb *TreeBuilder) processAfterAfterBody(tok tokenizer.Token) bool {
 	switch tok.Type {
 	case tokenizer.Comment:
+		if tb.fragmentContext != nil {
+			if html := tb.document.DocumentElement(); html != nil {
+				html.AppendChild(dom.NewComment(tok.Data))
+				return false
+			}
+		}
 		tb.document.AppendChild(dom.NewComment(tok.Data))
 		return false
 	case tokenizer.Character:
@@ -1685,6 +1745,12 @@ func (tb *TreeBuilder) processAfterAfterBody(tok tokenizer.Token) bool {
 func (tb *TreeBuilder) processAfterAfterFrameset(tok tokenizer.Token) bool {
 	switch tok.Type {
 	case tokenizer.Comment:
+		if tb.fragmentContext != nil {
+			if html := tb.document.DocumentElement(); html != nil {
+				html.AppendChild(dom.NewComment(tok.Data))
+				return false
+			}
+		}
 		tb.document.AppendChild(dom.NewComment(tok.Data))
 		return false
 	case tokenizer.Character:

@@ -176,17 +176,25 @@ func parseHTML5LibFragment(input string, ctx string, xmlCoercion bool) (string, 
 	}
 
 	doc := tb.Document()
-	contextEl, err := firstChildElement(doc.DocumentElement())
-	if err != nil {
-		return "", err
-	}
-	if contextEl.Namespace == dom.NamespaceHTML && contextEl.TagName == "template" {
-		if contextEl.TemplateContent != nil {
-			return testutil.SerializeHTML5LibNodes(contextEl.TemplateContent.Children()), nil
+	if fc.Namespace != "" && fc.Namespace != "html" {
+		contextEl, err := firstChildElement(doc.DocumentElement())
+		if err != nil {
+			return "", err
 		}
-		return "", nil
+		if contextEl.Namespace == dom.NamespaceHTML && contextEl.TagName == "template" {
+			if contextEl.TemplateContent != nil {
+				return testutil.SerializeHTML5LibNodes(contextEl.TemplateContent.Children()), nil
+			}
+			return "", nil
+		}
+		return testutil.SerializeHTML5LibNodes(contextEl.Children()), nil
 	}
-	return testutil.SerializeHTML5LibNodes(contextEl.Children()), nil
+
+	root := doc.DocumentElement()
+	if root == nil {
+		return "", errMissingDocumentElement
+	}
+	return testutil.SerializeHTML5LibNodes(root.Children()), nil
 }
 
 func parseFragmentContext(s string) (*treebuilder.FragmentContext, error) {

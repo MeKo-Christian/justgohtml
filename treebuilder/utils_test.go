@@ -33,6 +33,21 @@ func TestHasElementInScope_TerminatorsStopSearch(t *testing.T) {
 	}
 }
 
+func TestHasForeignElementOnStack(t *testing.T) {
+	tb := newTBWithStack(t, "html", "body")
+	if tb.hasForeignElementOnStack() {
+		t.Fatalf("hasForeignElementOnStack() = true, want false")
+	}
+
+	svg := dom.NewElementNS("svg", dom.NamespaceSVG)
+	tb.document.DocumentElement().AppendChild(svg)
+	tb.openElements = append(tb.openElements, svg)
+
+	if !tb.hasForeignElementOnStack() {
+		t.Fatalf("hasForeignElementOnStack() = false, want true")
+	}
+}
+
 func TestGenerateImpliedEndTags(t *testing.T) {
 	tb := newTBWithStack(t, "html", "body", "p", "li", "dt")
 	tb.generateImpliedEndTags("")

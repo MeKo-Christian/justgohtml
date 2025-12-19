@@ -437,6 +437,7 @@ Implement all 21 mode handlers:
 - [x] `hasElementInListItemScope(tagName)`
 - [x] `generateImpliedEndTags(except)`
 - [x] `resetInsertionModeAppropriately()`
+- [x] Ensure foreign namespace elements do not affect insertion-mode selection (prevents SVG/MathML local-name collisions like SVG `<tr>`)
 - [x] `reconstructActiveFormattingElements()`
 - [x] `clearActiveFormattingElements()`
 - [x] `pushActiveFormattingMarker()`
@@ -446,9 +447,10 @@ Implement all 21 mode handlers:
 
 - [x] Port tree-construction tests from html5lib-tests (4,543 tests total)
   - Test harness complete: runs all 56 .dat files
-  - Current results: 2,773 passed (61%), 1,028 failed (23%), 742 skipped (16%)
+  - Current results: see `just test` / `just test-spec` (counts change frequently while treebuilder is evolving)
   - No infinite loops or timeouts
   - Fixed: void elements (basefont, bgsound, link, meta, base) now handled correctly in InBody mode
+- [x] JustHTML regression suite: `testdata/justhtml-tests/*.dat` (includes empty-stack + foreign-content edge cases)
 - [~] Test all insertion modes (partially covered via html5lib tests)
 - [~] Test quirks mode detection (partially covered via html5lib tests)
 - [~] Test fragment parsing (partially covered via html5lib tests)

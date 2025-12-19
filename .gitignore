@@ -17,6 +17,7 @@ JustGoHTML-*
 # Output of go coverage
 *.out
 coverage.html
+coverage.*.html
 
 # Go workspace file
 go.work

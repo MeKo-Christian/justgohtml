@@ -12,10 +12,11 @@ A pure Go HTML5 parser that just works. No CGO. No dependencies. No complex API 
 
 It implements the official WHATWG HTML5 specification exactly. If a browser can parse it, JustGoHTML can parse it. It handles all the complex error-handling rules that browsers use.
 
-- **Compliance Status**: Tokenizer/serializer/encoding are in good shape; latest local run still shows 409 failing html5lib tree-construction cases.
-- **Latest Full Test Run**: `go test ./... -coverprofile=coverage.out` currently fails in `internal/constants` (VoidElements count) and `treebuilder` (tree-construction cases around foreign content, frameset switching, plaintext/NULL handling, selectedcontent, and table hidden input handling).
-- **Coverage Goal**: Targeting 100% coverage; several packages are still below that target.
-- **Coverage Snapshot**: treebuilder 92.6%, tokenizer 92.5%, serialize 86.8%, selector 80.8%, stream 89.2%, encoding 96.2%, dom 99.1%, errors 100%.
+- **Compliance Status**: In progress. Tokenizer/serializer/encoding are in good shape; tree construction still has known html5lib mismatches.
+- **Test Status**: `just test` runs `go test ./...` (includes html5lib integration tests where present) and may fail while the tree builder is still being completed.
+- **Quick Sanity Check**: `go test ./treebuilder -run TestJustHTMLTreeConstruction` (small regression suite under `testdata/justhtml-tests`).
+- **Coverage Goal**: Targeting 100% coverage across packages.
+- **Coverage**: Use `just test-coverage` (writes `coverage.html`). Note: this requires the full test suite to pass.
 - **Fuzzing**: Planned but not yet run at full scale.
 - **Living Standard**: It tracks the living standard, not a snapshot from 2012.
 
