@@ -407,6 +407,16 @@ func (tb *TreeBuilder) popUntil(name string) {
 	}
 }
 
+func (tb *TreeBuilder) popUntilHTML(name string) {
+	for len(tb.openElements) > 0 {
+		el := tb.openElements[len(tb.openElements)-1]
+		tb.openElements = tb.openElements[:len(tb.openElements)-1]
+		if el.Namespace == dom.NamespaceHTML && el.TagName == name {
+			return
+		}
+	}
+}
+
 func (tb *TreeBuilder) elementInStack(name string) bool {
 	for i := len(tb.openElements) - 1; i >= 0; i-- {
 		if tb.openElements[i].TagName == name {

@@ -1267,7 +1267,7 @@ func (tb *TreeBuilder) processInCell(tok tokenizer.Token) bool {
 			if !tb.hasElementInTableScope(tok.Name) {
 				return false
 			}
-			tb.popUntil(tok.Name)
+			tb.popUntilHTML(tok.Name)
 			tb.clearActiveFormattingElements()
 			tb.mode = InRow
 			return false
@@ -1300,9 +1300,11 @@ func (tb *TreeBuilder) processInCell(tok tokenizer.Token) bool {
 
 func (tb *TreeBuilder) popUntilAnyCell() {
 	for len(tb.openElements) > 0 {
-		name := tb.currentElement().TagName
+		el := tb.currentElement()
+		name := el.TagName
+		ns := el.Namespace
 		tb.popCurrent()
-		if name == "td" || name == "th" {
+		if ns == dom.NamespaceHTML && (name == "td" || name == "th") {
 			return
 		}
 	}

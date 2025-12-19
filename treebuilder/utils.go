@@ -32,7 +32,7 @@ func (tb *TreeBuilder) hasElementInScopeInternal(tagName string, scope map[strin
 	// Per WHATWG HTML §13.2.5.2.5 (has an element in scope).
 	for i := len(tb.openElements) - 1; i >= 0; i-- {
 		node := tb.openElements[i]
-		if node.TagName == tagName {
+		if node.Namespace == dom.NamespaceHTML && node.TagName == tagName {
 			return true
 		}
 		if node.Namespace == dom.NamespaceHTML {
@@ -51,7 +51,7 @@ func (tb *TreeBuilder) hasElementInScopeInternal(tagName string, scope map[strin
 func (tb *TreeBuilder) hasAnyElementInScope(tagSet map[string]bool, scope map[string]bool) bool {
 	for i := len(tb.openElements) - 1; i >= 0; i-- {
 		node := tb.openElements[i]
-		if tagSet[node.TagName] {
+		if node.Namespace == dom.NamespaceHTML && tagSet[node.TagName] {
 			return true
 		}
 		if node.Namespace == dom.NamespaceHTML {

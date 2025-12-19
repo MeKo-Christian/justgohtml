@@ -61,6 +61,17 @@ func TestResetInsertionModeAppropriately(t *testing.T) {
 		t.Fatalf("mode = %v, want %v", tb.mode, InCell)
 	}
 
+	// Foreign elements with colliding local names must not affect mode selection.
+	tb = New(tokenizer.New(""))
+	svgTD := dom.NewElementNS("td", dom.NamespaceSVG)
+	tb.document.AppendChild(svgTD)
+	tb.openElements = append(tb.openElements, svgTD)
+	tb.mode = InCell
+	tb.resetInsertionModeAppropriately()
+	if tb.mode != InBody {
+		t.Fatalf("mode = %v, want %v", tb.mode, InBody)
+	}
+
 	tb = newTBWithStack(t, "html", "body", "table", "colgroup")
 	tb.mode = InBody
 	tb.resetInsertionModeAppropriately()
@@ -93,6 +104,40 @@ func TestActiveFormattingMarkers(t *testing.T) {
 	tb.pushActiveFormattingMarker()
 	if len(tb.activeFormatting) != 2 || !tb.activeFormatting[1].marker {
 		t.Fatalf("activeFormatting = %#v, want trailing marker", tb.activeFormatting)
+	}
+}
+
+func TestTableScopeAndCellPopIgnoreForeignTagNameCollisions(t *testing.T) {
+	tb := New(tokenizer.New(""))
+	// Stack: html > body > table > tr > td (HTML) > svg (SVG) > td (SVG) > span (HTML)
+	html := dom.NewElement("html")
+	body := dom.NewElement("body")
+	table := dom.NewElement("table")
+	tr := dom.NewElement("tr")
+	td := dom.NewElement("td")
+	svg := dom.NewElementNS("svg", dom.NamespaceSVG)
+	svgTD := dom.NewElementNS("td", dom.NamespaceSVG)
+	span := dom.NewElement("span")
+
+	tb.document.AppendChild(html)
+	html.AppendChild(body)
+	body.AppendChild(table)
+	table.AppendChild(tr)
+	tr.AppendChild(td)
+	td.AppendChild(svg)
+	svg.AppendChild(svgTD)
+	svgTD.AppendChild(span)
+
+	tb.openElements = []*dom.Element{html, body, table, tr, td, svg, svgTD, span}
+
+	if !tb.hasElementInTableScope("td") {
+		t.Fatalf("hasElementInTableScope(td) = false, want true (HTML td is in table scope)")
+	}
+
+	// Closing the cell should pop through foreign nodes and stop at the HTML td.
+	tb.popUntilHTML("td")
+	if got := tb.currentElement(); got == nil || got.TagName != "tr" {
+		t.Fatalf("currentElement after popUntilHTML(td) = %v, want tr", got)
 	}
 }
 
