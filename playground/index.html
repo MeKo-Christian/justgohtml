@@ -442,8 +442,12 @@
             <button class="tab" data-format="query">Query</button>
           </div>
         </div>
-        <div class="query-section" id="query-section" style="display: none;">
-          <input type="text" id="selector-input" placeholder="CSS selector (e.g., p.intro, ul > li, h1)" />
+        <div class="query-section" id="query-section" style="display: none">
+          <input
+            type="text"
+            id="selector-input"
+            placeholder="CSS selector (e.g., p.intro, ul > li, h1)"
+          />
           <button class="action" id="query-btn">Query</button>
         </div>
         <div class="output-container">
@@ -554,7 +558,8 @@
         const selector = selectorInput.value.trim();
 
         if (!selector) {
-          output.innerHTML = '<span class="no-matches">Enter a CSS selector above to query the document</span>';
+          output.innerHTML =
+            '<span class="no-matches">Enter a CSS selector above to query the document</span>';
           timing.textContent = "";
           return;
         }
@@ -594,11 +599,12 @@
         const { count, matches } = lastResult;
 
         if (count === 0) {
-          output.innerHTML = '<span class="no-matches">No elements match the selector</span>';
+          output.innerHTML =
+            '<span class="no-matches">No elements match the selector</span>';
           return;
         }
 
-        let html = `<div class="match-count">${count} match${count === 1 ? '' : 'es'} found</div>\n\n`;
+        let html = `<div class="match-count">${count} match${count === 1 ? "" : "es"} found</div>\n\n`;
 
         matches.forEach((match, i) => {
           html += `<div class="match-item">`;

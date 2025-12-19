@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/MeKo-Christian/JustGoHTML/internal/testutil"
+	"github.com/MeKo-Christian/JustGoHTML/serialize"
 )
 
 const html5libTestsDir = "../testdata/html5lib-tests/serializer"
@@ -54,9 +55,28 @@ func runSerializerTestFile(t *testing.T, path string) {
 	}
 }
 
-func runSingleSerializerTest(t *testing.T, _ testutil.SerializerTest, _ int) {
+func runSingleSerializerTest(t *testing.T, test testutil.SerializerTest, _ int) {
 	t.Helper()
-	// TODO: Implement serializer test
-	// For now, we just skip since we need to build DOM from token stream
-	t.Skip("Serializer test infrastructure not yet implemented")
+
+	// Skip tests that only have XHTML expected output (no HTML5 expected)
+	if len(test.Expected) == 0 {
+		t.Skip("No expected output")
+		return
+	}
+
+	// Serialize the token stream
+	actual, err := serialize.SerializeTokens(test.Input)
+	if err != nil {
+		t.Fatalf("Serialization error: %v", err)
+	}
+
+	// Check if actual matches any of the expected outputs
+	for _, expected := range test.Expected {
+		if actual == expected {
+			return // Success!
+		}
+	}
+
+	// No match found - report failure
+	t.Errorf("Serialization mismatch\nExpected: %q\nActual:   %q", test.Expected[0], actual)
 }

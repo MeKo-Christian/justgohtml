@@ -637,12 +637,12 @@ func ToText(node dom.Node, opts ...TextOption) string
 func ToMarkdown(node dom.Node) string
 ```
 
-### 5.4 CLI Tool
+### 5.4 CLI Tool ✅
 
-**File: `cmd/JustGoHTML/main.go`**
+**File: `cmd/justgohtml/main.go`**
 
 ```go
-Usage: JustGoHTML [options] <file>
+Usage: justgohtml [options] <file>
 
 Arguments:
   file                 HTML file path or '-' for stdin
@@ -661,12 +661,12 @@ Options:
 
 Implementation:
 
-- [ ] Argument parsing with `flag` package
-- [ ] Stdin reading
-- [ ] File reading
-- [ ] Selector filtering
-- [ ] Format output
-- [ ] Error handling and exit codes
+- [x] Argument parsing with `flag` package
+- [x] Stdin reading
+- [x] File reading
+- [x] Selector filtering
+- [x] Format output (HTML, text, markdown)
+- [x] Error handling and exit codes
 
 ### 5.5 Testing
 
