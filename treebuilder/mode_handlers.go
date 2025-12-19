@@ -52,6 +52,13 @@ func (tb *TreeBuilder) processBeforeHTML(tok tokenizer.Token) bool {
 		}
 		// Strip leading whitespace so that implicit root creation behaves like the spec.
 		tok.Data = strings.TrimLeft(tok.Data, "\t\n\f\r ")
+		if tok.Data == "" {
+			return false
+		}
+		tb.insertElement("html", nil)
+		tb.mode = BeforeHead
+		tb.ProcessToken(tok)
+		return false
 	case tokenizer.Comment:
 		tb.document.AppendChild(dom.NewComment(tok.Data))
 		return false
