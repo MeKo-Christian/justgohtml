@@ -32,7 +32,7 @@ func main() {
 
 // parse parses HTML and returns a serialized result.
 // Arguments: html (string), options (object)
-// Options: { format: "html"|"text"|"tree", selector: string, pretty: bool }
+// Options: { format: "html"|"text"|"tree"|"markdown", selector: string, pretty: bool }
 func parse(this js.Value, args []js.Value) any {
 	if len(args) < 1 {
 		return errorResult("parse requires an HTML string argument")
@@ -114,7 +114,7 @@ func tokenize(this js.Value, args []js.Value) any {
 
 // query parses HTML and runs a CSS selector query.
 // Arguments: html (string), selector (string), options (object)
-// Options: { format: "html"|"text", pretty: bool }
+// Options: { format: "html"|"text"|"markdown", pretty: bool }
 // Returns: array of matching elements serialized according to format
 func query(this js.Value, args []js.Value) any {
 	if len(args) < 2 {
@@ -153,6 +153,8 @@ func query(this js.Value, args []js.Value) any {
 		switch opts.Format {
 		case "text":
 			serialized = extractElementText(elem)
+		case "markdown":
+			serialized = serialize.ToMarkdown(elem)
 		default:
 			serialized = serialize.ToHTML(elem, serialize.Options{
 				Pretty:     opts.Pretty,
@@ -216,6 +218,8 @@ func formatOutput(doc *dom.Document, opts parseOptions) any {
 		})
 	case "text":
 		result = extractText(doc)
+	case "markdown":
+		result = serialize.ToMarkdown(doc)
 	case "tree":
 		return treeToJS(doc)
 	default:

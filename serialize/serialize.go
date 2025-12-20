@@ -2,6 +2,7 @@
 package serialize
 
 import (
+	"strconv"
 	"strings"
 
 	"github.com/MeKo-Christian/JustGoHTML/dom"
@@ -29,6 +30,13 @@ func ToHTML(node dom.Node, opts Options) string {
 	var sb strings.Builder
 	serializeNode(&sb, node, opts, 0)
 	return sb.String()
+}
+
+// ToMarkdown serializes a node to Markdown.
+func ToMarkdown(node dom.Node) string {
+	var sb strings.Builder
+	serializeMarkdown(&sb, node, 0, false)
+	return strings.TrimSpace(sb.String())
 }
 
 func serializeNode(sb *strings.Builder, node dom.Node, opts Options, depth int) {
@@ -309,4 +317,169 @@ func isBlockElement(tag string) bool {
 		return true
 	}
 	return false
+}
+
+// serializeMarkdown converts DOM nodes to Markdown format.
+func serializeMarkdown(sb *strings.Builder, node dom.Node, listDepth int, inList bool) {
+	switch n := node.(type) {
+	case *dom.Document:
+		for _, child := range n.Children() {
+			serializeMarkdown(sb, child, listDepth, inList)
+		}
+	case *dom.Element:
+		serializeElementMarkdown(sb, n, listDepth, inList)
+	case *dom.Text:
+		// Normalize whitespace - collapse multiple spaces/newlines into single spaces
+		text := collapseMarkdownWhitespace(n.Data)
+		if text != "" {
+			sb.WriteString(text)
+		}
+	case *dom.Comment:
+		// Comments are omitted in markdown
+	}
+}
+
+// collapseMarkdownWhitespace collapses runs of whitespace including newlines.
+func collapseMarkdownWhitespace(s string) string {
+	if len(s) == 0 {
+		return s
+	}
+
+	var result strings.Builder
+	inWhitespace := true
+
+	for _, r := range s {
+		if isWhitespaceChar(r) {
+			if !inWhitespace {
+				result.WriteByte(' ')
+				inWhitespace = true
+			}
+		} else {
+			result.WriteRune(r)
+			inWhitespace = false
+		}
+	}
+
+	return strings.TrimSpace(result.String())
+}
+
+// serializeElementMarkdown converts an element to Markdown.
+//
+//nolint:funlen // Markdown serialization requires many element type cases
+func serializeElementMarkdown(sb *strings.Builder, elem *dom.Element, listDepth int, inList bool) {
+	switch elem.TagName {
+	case "h1":
+		sb.WriteString("# ")
+		serializeChildrenMarkdown(sb, elem, listDepth, false)
+		sb.WriteString("\n\n")
+	case "h2":
+		sb.WriteString("## ")
+		serializeChildrenMarkdown(sb, elem, listDepth, false)
+		sb.WriteString("\n\n")
+	case "h3":
+		sb.WriteString("### ")
+		serializeChildrenMarkdown(sb, elem, listDepth, false)
+		sb.WriteString("\n\n")
+	case "h4":
+		sb.WriteString("#### ")
+		serializeChildrenMarkdown(sb, elem, listDepth, false)
+		sb.WriteString("\n\n")
+	case "h5":
+		sb.WriteString("##### ")
+		serializeChildrenMarkdown(sb, elem, listDepth, false)
+		sb.WriteString("\n\n")
+	case "h6":
+		sb.WriteString("###### ")
+		serializeChildrenMarkdown(sb, elem, listDepth, false)
+		sb.WriteString("\n\n")
+	case "p":
+		serializeChildrenMarkdown(sb, elem, listDepth, false)
+		sb.WriteString("\n\n")
+	case "br":
+		sb.WriteString("  \n")
+	case "hr":
+		sb.WriteString("---\n\n")
+	case "strong", "b":
+		sb.WriteString(" **")
+		serializeChildrenMarkdown(sb, elem, listDepth, false)
+		sb.WriteString("** ")
+	case "em", "i":
+		sb.WriteString(" *")
+		serializeChildrenMarkdown(sb, elem, listDepth, false)
+		sb.WriteString("* ")
+	case "code":
+		sb.WriteString(" `")
+		serializeChildrenMarkdown(sb, elem, listDepth, false)
+		sb.WriteString("` ")
+	case "pre":
+		sb.WriteString("```\n")
+		serializeChildrenMarkdown(sb, elem, listDepth, false)
+		sb.WriteString("\n```\n\n")
+	case "a":
+		href, _ := elem.Attributes.Get("href")
+		sb.WriteString(" [")
+		serializeChildrenMarkdown(sb, elem, listDepth, false)
+		sb.WriteString("](")
+		sb.WriteString(href)
+		sb.WriteString(") ")
+	case "img":
+		alt, _ := elem.Attributes.Get("alt")
+		src, _ := elem.Attributes.Get("src")
+		sb.WriteString("![")
+		sb.WriteString(alt)
+		sb.WriteString("](")
+		sb.WriteString(src)
+		sb.WriteString(")")
+	case "ul":
+		for _, child := range elem.Children() {
+			serializeMarkdown(sb, child, listDepth, true)
+		}
+		if listDepth == 0 {
+			sb.WriteString("\n")
+		}
+	case "ol":
+		index := 1
+		for _, child := range elem.Children() {
+			if li, ok := child.(*dom.Element); ok && li.TagName == "li" {
+				sb.WriteString(strings.Repeat("  ", listDepth))
+				sb.WriteString(strconv.Itoa(index))
+				sb.WriteString(". ")
+				serializeChildrenMarkdown(sb, li, listDepth+1, true)
+				sb.WriteString("\n")
+				index++
+			}
+		}
+		if listDepth == 0 {
+			sb.WriteString("\n")
+		}
+	case "li":
+		// List items are handled by parent ul/ol elements
+		sb.WriteString(strings.Repeat("  ", listDepth))
+		sb.WriteString("- ")
+		serializeChildrenMarkdown(sb, elem, listDepth+1, true)
+		sb.WriteString("\n")
+	case "blockquote":
+		sb.WriteString("> ")
+		serializeChildrenMarkdown(sb, elem, listDepth, false)
+		sb.WriteString("\n\n")
+	case "table", "thead", "tbody", "tr", "th", "td":
+		// Basic table support - just extract text for now
+		serializeChildrenMarkdown(sb, elem, listDepth, false)
+		if elem.TagName == "tr" {
+			sb.WriteString("\n")
+		}
+	case "head", "title", "meta", "link", "script", "style":
+		// Skip head elements in markdown
+		return
+	default:
+		// For other elements, just serialize children
+		serializeChildrenMarkdown(sb, elem, listDepth, inList)
+	}
+}
+
+// serializeChildrenMarkdown serializes all children of an element to Markdown.
+func serializeChildrenMarkdown(sb *strings.Builder, elem *dom.Element, listDepth int, inList bool) {
+	for _, child := range elem.Children() {
+		serializeMarkdown(sb, child, listDepth, inList)
+	}
 }
