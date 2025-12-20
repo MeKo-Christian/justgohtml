@@ -126,7 +126,7 @@ func TestSerializeTokensMetaInjectionBeforeEndHead(t *testing.T) {
 	opts := DefaultSerializeTokenOptions()
 
 	opts.InjectMetaCharset = true
-	opts.Encoding = "UTF-8"
+	opts.Encoding = testEncodingUTF8
 	opts.OmitOptionalTags = false
 
 	// Test the path where meta is injected right before </head> when no charset is found
@@ -152,7 +152,7 @@ func TestSerializeTokensNoMetaInjectionWhenCharsetExists(t *testing.T) {
 	opts := DefaultSerializeTokenOptions()
 
 	opts.InjectMetaCharset = true
-	opts.Encoding = "UTF-8"
+	opts.Encoding = testEncodingUTF8
 	opts.OmitOptionalTags = false
 
 	tokens := []json.RawMessage{
@@ -180,7 +180,7 @@ func TestSerializeTokensEndTagBeforeMetaInjection(t *testing.T) {
 	opts := DefaultSerializeTokenOptions()
 
 	opts.InjectMetaCharset = true
-	opts.Encoding = "UTF-8"
+	opts.Encoding = testEncodingUTF8
 	opts.OmitOptionalTags = false
 
 	// This tests line 121-126 in SerializeTokensWithOptions

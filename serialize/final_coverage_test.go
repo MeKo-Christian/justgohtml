@@ -299,13 +299,13 @@ func TestNormalizeMetaCharsetAttrsCaseInsensitive(t *testing.T) {
 		{Name: "CHARSET", Value: "ISO-8859-1"},
 	}
 
-	result := normalizeMetaCharsetAttrs(attrs, "UTF-8")
+	result := normalizeMetaCharsetAttrs(attrs, testEncodingUTF8)
 
 	if len(result) != 1 {
 		t.Fatalf("expected 1 attribute, got %d", len(result))
 	}
 
-	if result[0].Value != "UTF-8" {
+	if result[0].Value != testEncodingUTF8 {
 		t.Fatalf("expected charset normalized to UTF-8, got %q", result[0].Value)
 	}
 }

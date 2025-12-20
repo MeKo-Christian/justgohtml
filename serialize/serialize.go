@@ -309,7 +309,7 @@ func isVoidElement(tag string) bool {
 // isBlockElement returns true if the tag is typically block-level.
 func isBlockElement(tag string) bool {
 	switch tag {
-	case "address", "article", "aside", "blockquote", "body", "canvas", "dd", "div",
+	case "address", "article", "aside", "blockquote", "body", "canvas", "dd", "div", //nolint:goconst
 		"dl", "dt", "fieldset", "figcaption", "figure", "footer", "form",
 		"h1", "h2", "h3", "h4", "h5", "h6", "head", "header", "hr", "html", "li", "main",
 		"nav", "noscript", "ol", "p", "pre", "section", "table", "tbody", "td", "tfoot",

@@ -274,22 +274,6 @@ func getParentElement(elem *dom.Element) *dom.Element {
 	return nil
 }
 
-// getElementSiblings returns all element siblings (including the element itself).
-func getElementSiblings(elem *dom.Element) []*dom.Element {
-	parent := elem.Parent()
-	if parent == nil {
-		return []*dom.Element{elem}
-	}
-
-	var siblings []*dom.Element
-	for _, child := range parent.Children() {
-		if e, ok := child.(*dom.Element); ok {
-			siblings = append(siblings, e)
-		}
-	}
-	return siblings
-}
-
 // getElementIndex returns the 1-based index of the element among its siblings.
 func getElementIndex(elem *dom.Element, siblings []*dom.Element) int {
 	for i, sib := range siblings {
