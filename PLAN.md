@@ -52,20 +52,97 @@ Target: 100% for all packages.
 - [x] Parse speed benchmark (simple, medium, complex HTML)
 - [x] Memory allocation benchmark
 - [x] Selector matching benchmark
-- [ ] Serialization benchmark
-- [ ] Streaming benchmark
+- [x] Serialization benchmark (see `serialize/benchmark_test.go`)
+- [x] Streaming benchmark (see `stream/stream_test.go`)
 - [x] Comparison with other Go HTML parsers (`golang.org/x/net/html`, `goquery`)
-  - See [BENCHMARK_RESULTS.md](BENCHMARK_RESULTS.md) for detailed results
+  - See [BENCHMARK_RESULTS.md](BENCHMARK_RESULTS.md) for detailed comparison results
+  - Run `go test -bench=. -benchmem` to execute all benchmarks
 
-## 3. Documentation & Release
+## 3. Performance Optimization (Phase 4)
 
-### 3.1 Documentation
+### 3.1 Quick Wins (1-2 days each)
+
+- [ ] **String interning for tag/attribute names**
+  - Pre-allocate common tag names ("div", "span", "p", "a", etc.)
+  - Pre-allocate common attribute names ("class", "id", "href", "src", etc.)
+  - Use interning in tokenizer when creating tag/attr name strings
+  - Expected: 10-15% memory reduction, 5-10% speedup
+  - Location: `tokenizer/tokenizer.go:468`, `tokenizer/tokenizer.go:442`
+
+- [ ] **Attribute map pooling**
+  - Use `sync.Pool` for `currentTagAttrIndex` map allocations
+  - Reset and reuse maps instead of creating new ones per tag
+  - Expected: 15-20% reduction in allocations
+  - Location: `tokenizer/tokenizer.go:32`, `tokenizer/tokenizer.go:109`
+
+- [ ] **Selector sibling iteration optimization**
+  - Avoid allocating sibling slices in `getElementSiblings()` and `getSiblingsOfSameType()`
+  - Use direct iteration for first/last child checks
+  - Cache sibling lists when needed multiple times
+  - Expected: 15-20% speedup for selector matching
+  - Location: `selector/matcher.go:278-291`, `selector/matcher.go:322-338`
+
+### 3.2 Medium Effort (3-5 days each)
+
+- [ ] **Token pooling**
+  - Implement `sync.Pool` for token objects
+  - Pool tokens during parsing and return to pool after tree builder consumes them
+  - Expected: 20-30% allocation reduction
+  - Location: `tokenizer/tokenizer.go:391`
+
+- [ ] **ASCII fast path for tokenization**
+  - Detect ASCII-only input upfront
+  - Use byte-based operations for ASCII content (avoids rune conversion overhead)
+  - Fall back to rune-based for non-ASCII
+  - Expected: 20-30% speedup for ASCII-heavy HTML
+  - Location: `tokenizer/tokenizer.go:88-97`
+
+- [ ] **State machine dispatch table**
+  - Replace large switch statement with function pointer array
+  - Use direct indexing for state handler dispatch
+  - Expected: 5-10% speedup in tokenizer hot loop
+  - Location: `tokenizer/tokenizer.go:200-331`
+
+### 3.3 Major Refactors (1-2 weeks each)
+
+- [ ] **Byte-based tokenization (string indexing instead of []rune)**
+  - Replace `buf []rune` with direct string indexing
+  - Use `utf8.DecodeRuneInString()` for character-by-character parsing
+  - Eliminates 3x memory overhead of rune slice conversion
+  - Expected: 30-40% speedup, 50% memory reduction
+  - Location: `tokenizer/tokenizer.go:16`, `tokenizer/tokenizer.go:96`
+  - **Note:** This is the single biggest optimization opportunity
+
+- [ ] **DOM element pooling**
+  - Implement `sync.Pool` for DOM element allocations
+  - Careful lifecycle management to avoid pool contamination
+  - Pool `Element`, `Text`, `Comment` node types
+  - Expected: 10-15% allocation reduction
+  - Location: `dom/element.go:34-42`
+
+### 3.4 Performance Validation
+
+- [ ] Run full benchmark suite after each optimization
+- [ ] Compare against baseline (current performance)
+- [ ] Validate no regression in html5lib test compliance
+- [ ] Profile with `pprof` to identify new bottlenecks
+- [ ] Document performance improvements in BENCHMARK_RESULTS.md
+
+**Expected Overall Impact (all optimizations):**
+
+- Speed: 2-3x faster (competitive with x/net/html while maintaining 100% compliance)
+- Memory: 50-60% less memory
+- Allocations: 50-60% fewer allocations
+
+## 4. Documentation & Release
+
+### 4.1 Documentation
 
 - [ ] README.md with quickstart
 - [ ] GoDoc comments on all public types and functions
 - [ ] Detailed guides: \`docs/quickstart.md\`, \`api.md\`, \`cli.md\`, \`selectors.md\`, \`streaming.md\`, \`encoding.md\`, \`errors.md\`, \`fragments.md\`
 
-### 3.2 Release Preparation
+### 4.2 Release Preparation
 
 - [ ] Semantic versioning (v0.1.0)
 - [ ] CHANGELOG.md
@@ -74,7 +151,7 @@ Target: 100% for all packages.
 - [ ] GitHub release automation
 - [ ] Binary builds for Linux, macOS, Windows
 
-### 3.3 CI/CD
+### 4.3 CI/CD
 
 - [ ] GitHub Actions workflow for tests, linting, and releases
 - [ ] Dependabot configuration

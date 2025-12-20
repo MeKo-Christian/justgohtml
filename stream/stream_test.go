@@ -503,3 +503,141 @@ func BenchmarkStreamBytes(b *testing.B) {
 		}
 	}
 }
+
+func BenchmarkStream_Medium(b *testing.B) {
+	html := `<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Blog Post</title>
+</head>
+<body>
+    <header>
+        <nav>
+            <ul>
+                <li><a href="/">Home</a></li>
+                <li><a href="/about">About</a></li>
+            </ul>
+        </nav>
+    </header>
+    <main>
+        <article>
+            <h1>Title</h1>
+            <p>Content paragraph 1</p>
+            <p>Content paragraph 2</p>
+        </article>
+    </main>
+</body>
+</html>`
+
+	b.ReportAllocs()
+	b.ResetTimer()
+	for range b.N {
+		for range Stream(html) {
+			// Consume all events
+		}
+	}
+}
+
+func BenchmarkStream_Complex(b *testing.B) {
+	html := `<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta property="og:title" content="Complex Page">
+    <title>Complex HTML Page</title>
+    <style>
+        body { font-family: Arial; }
+    </style>
+    <script>
+        console.log('loaded');
+    </script>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <nav aria-label="Main">
+                <ul class="nav-list">
+                    <li><a href="/">Home</a></li>
+                    <li><a href="/products">Products</a></li>
+                </ul>
+            </nav>
+        </header>
+        <main>
+            <section id="hero">
+                <h1>Welcome</h1>
+                <p class="lead">Services</p>
+            </section>
+            <section id="features">
+                <div class="feature" data-id="1">
+                    <h3>Fast</h3>
+                    <p>Optimized</p>
+                </div>
+                <div class="feature" data-id="2">
+                    <h3>Reliable</h3>
+                    <p>Uptime</p>
+                </div>
+            </section>
+        </main>
+        <footer>
+            <p>&copy; 2025</p>
+        </footer>
+    </div>
+</body>
+</html>`
+
+	b.ReportAllocs()
+	b.ResetTimer()
+	for range b.N {
+		for range Stream(html) {
+			// Consume all events
+		}
+	}
+}
+
+func BenchmarkStream_Parallel(b *testing.B) {
+	html := `<!DOCTYPE html>
+<html>
+<head><title>Test</title></head>
+<body>
+<div id="main">
+<p class="intro">Hello, World!</p>
+</div>
+</body>
+</html>`
+
+	b.ReportAllocs()
+	b.RunParallel(func(pb *testing.PB) {
+		for pb.Next() {
+			for range Stream(html) {
+				// Consume all events
+			}
+		}
+	})
+}
+
+func BenchmarkStream_FilterEvents(b *testing.B) {
+	html := `<!DOCTYPE html>
+<html>
+<head><title>Test</title></head>
+<body>
+<div id="main">
+<p class="intro">Text 1</p>
+<p class="content">Text 2</p>
+<p class="footer">Text 3</p>
+</div>
+</body>
+</html>`
+
+	b.ReportAllocs()
+	b.ResetTimer()
+	for range b.N {
+		count := 0
+		for event := range Stream(html) {
+			if event.Type == StartTagEvent && event.Name == "p" {
+				count++
+			}
+		}
+		_ = count
+	}
+}

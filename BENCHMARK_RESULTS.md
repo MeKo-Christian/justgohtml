@@ -125,6 +125,59 @@ JustGoHTML's performance characteristics are intentional trade-offs for **100% H
 - You want jQuery-like syntax
 - Performance is critical and spec compliance is not
 
+## Additional Benchmarks
+
+### Serialization Performance
+
+Serialization benchmarks measure how fast JustGoHTML can convert DOM trees back to HTML strings:
+
+| Benchmark         | Time/op       | Mem/op   | Allocs/op |
+| ----------------- | ------------- | -------- | --------- |
+| Simple HTML       | 1,401 ns/op   | 744 B    | 25        |
+| Medium HTML       | 12,233 ns/op  | 5,880 B  | 138       |
+| Complex HTML      | 19,004 ns/op  | 13,656 B | 249       |
+| Pretty Printing   | 15,503 ns/op  | 10,992 B | 179       |
+| Large Text (10KB) | 104,574 ns/op | 56,832 B | 18        |
+
+**Key Findings:**
+
+- Serialization is very fast: ~1.4 µs for simple HTML, ~19 µs for complex pages
+- Pretty printing adds minimal overhead (~3-4 µs)
+- Scales linearly with content size
+- Excellent performance for round-trip parsing + serialization
+
+Run serialization benchmarks:
+
+```bash
+go test -bench=BenchmarkToHTML -benchmem ./serialize
+```
+
+### Streaming Performance
+
+Streaming API benchmarks measure event-based parsing throughput:
+
+| Benchmark       | Time/op       | Mem/op   | Allocs/op |
+| --------------- | ------------- | -------- | --------- |
+| Simple (String) | 29,280 ns/op  | 10,864 B | 159       |
+| Simple (Bytes)  | 33,990 ns/op  | 11,168 B | 171       |
+| Medium HTML     | 44,059 ns/op  | 18,352 B | 267       |
+| Complex HTML    | 104,046 ns/op | 36,720 B | 502       |
+| Parallel        | 7,180 ns/op   | 7,408 B  | 107       |
+| Event Filtering | 20,668 ns/op  | 10,272 B | 142       |
+
+**Key Findings:**
+
+- Streaming is ideal for processing large documents with low memory footprint
+- Excellent parallel performance (4x improvement)
+- Event filtering adds minimal overhead
+- Good for incremental processing and memory-constrained environments
+
+Run streaming benchmarks:
+
+```bash
+go test -bench=BenchmarkStream -benchmem ./stream
+```
+
 ## Future Optimizations
 
 Potential areas for performance improvement in JustGoHTML:
