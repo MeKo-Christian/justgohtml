@@ -36,11 +36,6 @@ includes = ["*.toml"]
 
 ### Go
 
-[formatter.gofumpt]
-command = "gofumpt"
-options = ["-w"]
-includes = ["*.go"]
-
 [formatter.gci]
 command = "gci"
 options = [
@@ -56,7 +51,9 @@ options = [
   "blank",
 ]
 includes = ["*.go"]
-priority = 1 # run after gofumpt
+
+# Note: gofumpt removed to avoid conflicts with gci import formatting
+# gci handles import organization, gofmt (via golangci-lint) handles code formatting
 
 ### Shell
 

@@ -137,7 +137,9 @@ linters = ['exhaustive', 'exhaustruct', 'godox']
 severity = 'info'
 
 [formatters]
-enable = ['gofumpt', 'goimports']
+# Note: goimports disabled because gci (in treefmt.toml) handles all import formatting
+# This prevents conflicts between gofumpt and gci
+enable = ['gofumpt']
 exclusions.generated = 'lax'
 exclusions.paths = ['third_party$', 'builtin$', 'examples$']
 
