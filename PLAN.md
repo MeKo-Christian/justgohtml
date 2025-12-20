@@ -84,11 +84,23 @@ Target: 100% for all packages.
 
 ### 3.2 Medium Effort (3-5 days each)
 
-- [ ] **3.2.1 Token pooling**
-  - Implement `sync.Pool` for token objects
-  - Pool tokens during parsing and return to pool after tree builder consumes them
-  - Expected: 20-30% allocation reduction
-  - Location: `tokenizer/tokenizer.go:391`
+- [ ] **3.2.1 Token pooling** ❌ REJECTED - Performance Regression
+  - Attempted implementation with `sync.Pool` for token objects
+  - Changed Token API to use pointers (`*Token`) throughout
+  - Pool tokens during parsing with automatic lifecycle management
+  - **Actual results: SIGNIFICANT PERFORMANCE REGRESSION**
+    - **20-30% slower** execution time (13,817 ns → 17,646 ns for simple HTML)
+    - **60-75% MORE memory** usage (10,710 B → 18,621 B for simple HTML)
+    - **40-50% MORE allocations** (172 → 252 for simple HTML)
+  - **Root causes:**
+    - Pointer indirection overhead on every token access
+    - Degraded cache locality (pointers scattered vs contiguous value structs)
+    - `sync.Pool` Get/Put overhead outweighs allocation savings for small structs
+    - Pre-allocated `Attrs` slices increased base memory per token
+  - **Conclusion:** Token pooling is counterproductive for this use case
+  - Reference: PR #1 (closed), branch `feature/token-pooling` kept for reference
+  - Implementation: `tokenizer/tokenizer.go:35-66` (pool setup), `tokenizer/tokenizer.go:246` (Next returns *Token), all emit functions updated
+  - Tests: `tokenizer/pool_test.go` (TestTokenPoolReuse, TestTokenPoolReset)
 
 - [ ] **3.2.2 ASCII fast path for tokenization**
   - Detect ASCII-only input upfront
