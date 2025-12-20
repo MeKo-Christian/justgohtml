@@ -1,4 +1,3 @@
-//nolint:goconst // UTF-8 strings in test JSON and assertions
 package serialize
 
 import (

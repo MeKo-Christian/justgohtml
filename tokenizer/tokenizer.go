@@ -2,10 +2,35 @@ package tokenizer
 
 import (
 	"strings"
+	"sync"
 	"unicode"
 
 	"github.com/MeKo-Christian/JustGoHTML/internal/constants"
 )
+
+// attrMapPool pools attribute index maps to reduce allocations.
+var attrMapPool = sync.Pool{
+	New: func() interface{} {
+		return make(map[string]struct{}, 8) // Pre-allocate for typical attribute count
+	},
+}
+
+// getAttrMap retrieves a map from the pool and clears it.
+func getAttrMap() map[string]struct{} {
+	m := attrMapPool.Get().(map[string]struct{})
+	// Clear the map
+	for k := range m {
+		delete(m, k)
+	}
+	return m
+}
+
+// putAttrMap returns a map to the pool.
+func putAttrMap(m map[string]struct{}) {
+	if m != nil {
+		attrMapPool.Put(m)
+	}
+}
 
 // Tokenizer implements the HTML5 tokenization algorithm (port of the Python reference).
 //
@@ -108,7 +133,9 @@ func (t *Tokenizer) reset(input string) {
 	t.currentTagKind = StartTag
 	t.currentTagName = t.currentTagName[:0]
 	t.currentTagAttrs = t.currentTagAttrs[:0]
-	t.currentTagAttrIndex = map[string]struct{}{}
+	// Return old map to pool and get a fresh one
+	putAttrMap(t.currentTagAttrIndex)
+	t.currentTagAttrIndex = getAttrMap()
 	t.currentTagSelfClosing = false
 	t.currentAttrName = t.currentAttrName[:0]
 	t.currentAttrValue = t.currentAttrValue[:0]
@@ -508,7 +535,9 @@ func (t *Tokenizer) emitCurrentTag() bool {
 
 	t.currentTagName = t.currentTagName[:0]
 	t.currentTagAttrs = t.currentTagAttrs[:0]
-	t.currentTagAttrIndex = map[string]struct{}{}
+	// Return old map to pool and get a fresh one
+	putAttrMap(t.currentTagAttrIndex)
+	t.currentTagAttrIndex = getAttrMap()
 	t.currentAttrName = t.currentAttrName[:0]
 	t.currentAttrValue = t.currentAttrValue[:0]
 	t.currentAttrValueHasAmp = false
@@ -611,7 +640,9 @@ func (t *Tokenizer) startTag(kind TokenKind, first rune) {
 	t.currentTagKind = kind
 	t.currentTagName = t.currentTagName[:0]
 	t.currentTagAttrs = t.currentTagAttrs[:0]
-	t.currentTagAttrIndex = map[string]struct{}{}
+	// Return old map to pool and get a fresh one
+	putAttrMap(t.currentTagAttrIndex)
+	t.currentTagAttrIndex = getAttrMap()
 	t.currentAttrName = t.currentAttrName[:0]
 	t.currentAttrValue = t.currentAttrValue[:0]
 	t.currentAttrValueHasAmp = false
@@ -1850,7 +1881,8 @@ func (t *Tokenizer) stateRCDATAEndTagName() {
 				t.currentTagKind = EndTag
 				t.currentTagName = []rune(tagName)
 				t.currentTagAttrs = t.currentTagAttrs[:0]
-				t.currentTagAttrIndex = map[string]struct{}{}
+				putAttrMap(t.currentTagAttrIndex)
+		t.currentTagAttrIndex = getAttrMap()
 				t.state = BeforeAttributeNameState
 				return
 			}
@@ -1859,7 +1891,8 @@ func (t *Tokenizer) stateRCDATAEndTagName() {
 				t.currentTagKind = EndTag
 				t.currentTagName = []rune(tagName)
 				t.currentTagAttrs = t.currentTagAttrs[:0]
-				t.currentTagAttrIndex = map[string]struct{}{}
+				putAttrMap(t.currentTagAttrIndex)
+		t.currentTagAttrIndex = getAttrMap()
 				t.state = SelfClosingStartTagState
 				return
 			}
@@ -1983,7 +2016,8 @@ func (t *Tokenizer) stateRAWTEXTEndTagName() {
 				t.currentTagKind = EndTag
 				t.currentTagName = []rune(tagName)
 				t.currentTagAttrs = t.currentTagAttrs[:0]
-				t.currentTagAttrIndex = map[string]struct{}{}
+				putAttrMap(t.currentTagAttrIndex)
+		t.currentTagAttrIndex = getAttrMap()
 				t.state = BeforeAttributeNameState
 				return
 			}
@@ -1992,7 +2026,8 @@ func (t *Tokenizer) stateRAWTEXTEndTagName() {
 				t.currentTagKind = EndTag
 				t.currentTagName = []rune(tagName)
 				t.currentTagAttrs = t.currentTagAttrs[:0]
-				t.currentTagAttrIndex = map[string]struct{}{}
+				putAttrMap(t.currentTagAttrIndex)
+		t.currentTagAttrIndex = getAttrMap()
 				t.state = SelfClosingStartTagState
 				return
 			}
@@ -2159,7 +2194,8 @@ func (t *Tokenizer) stateScriptDataEscapedEndTagName() {
 				t.currentTagKind = EndTag
 				t.currentTagName = []rune(tagName)
 				t.currentTagAttrs = t.currentTagAttrs[:0]
-				t.currentTagAttrIndex = map[string]struct{}{}
+				putAttrMap(t.currentTagAttrIndex)
+		t.currentTagAttrIndex = getAttrMap()
 				t.state = BeforeAttributeNameState
 				return
 			}
@@ -2168,7 +2204,8 @@ func (t *Tokenizer) stateScriptDataEscapedEndTagName() {
 				t.currentTagKind = EndTag
 				t.currentTagName = []rune(tagName)
 				t.currentTagAttrs = t.currentTagAttrs[:0]
-				t.currentTagAttrIndex = map[string]struct{}{}
+				putAttrMap(t.currentTagAttrIndex)
+		t.currentTagAttrIndex = getAttrMap()
 				t.state = SelfClosingStartTagState
 				return
 			}

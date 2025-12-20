@@ -69,11 +69,11 @@ Target: 100% for all packages.
   - **Actual results: 17-40% speedup, zero allocation overhead for interning lookups**
   - Implementation: `internal/constants/intern.go`, `tokenizer/tokenizer.go:470`, `tokenizer/tokenizer.go:444`
 
-- [ ] **3.1.2 Attribute map pooling**
+- [x] **3.1.2 Attribute map pooling** ✅
   - Use `sync.Pool` for `currentTagAttrIndex` map allocations
   - Reset and reuse maps instead of creating new ones per tag
-  - Expected: 15-20% reduction in allocations
-  - Location: `tokenizer/tokenizer.go:32`, `tokenizer/tokenizer.go:109`
+  - **Actual results: Reduced allocations, improved memory efficiency**
+  - Implementation: `tokenizer/tokenizer.go:11-33` (pool setup), multiple allocation sites replaced with pooled maps
 
 - [ ] **3.1.3 Selector sibling iteration optimization**
   - Avoid allocating sibling slices in `getElementSiblings()` and `getSiblingsOfSameType()`
