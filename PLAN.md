@@ -84,7 +84,7 @@ Target: 100% for all packages.
 
 ### 3.2 Medium Effort (3-5 days each)
 
-- [ ] **3.2.1 Token pooling** ❌ REJECTED - Performance Regression
+- [x] **3.2.1 Token pooling** ❌ REJECTED - Performance Regression
   - Attempted implementation with `sync.Pool` for token objects
   - Changed Token API to use pointers (`*Token`) throughout
   - Pool tokens during parsing with automatic lifecycle management
