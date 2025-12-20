@@ -143,7 +143,8 @@ func NewFragment(tok *tokenizer.Tokenizer, ctx *FragmentContext) *TreeBuilder {
 				tb.tokenizer.SetState(tokenizer.RAWTEXTState)
 			case "script":
 				tb.tokenizer.SetLastStartTag(tag)
-				tb.tokenizer.SetState(tokenizer.ScriptDataState)
+				// Fragment parsing treats script as plaintext (matches html5lib behavior).
+				tb.tokenizer.SetState(tokenizer.PLAINTEXTState)
 			case "plaintext":
 				tb.tokenizer.SetLastStartTag(tag)
 				tb.tokenizer.SetState(tokenizer.PLAINTEXTState)

@@ -1352,7 +1352,7 @@ func (tb *TreeBuilder) processInCell(tok tokenizer.Token) bool {
 			tb.mode = InRow
 			return false
 		}
-		if tok.Name == "tr" || tok.Name == "table" {
+		if tok.Name == "tr" || tok.Name == "table" || tok.Name == "tbody" || tok.Name == "thead" || tok.Name == "tfoot" {
 			if !tb.hasElementInTableScope(tok.Name) {
 				return false
 			}
@@ -1394,6 +1394,7 @@ func (tb *TreeBuilder) processInSelect(tok tokenizer.Token) bool {
 			data = strings.ReplaceAll(data, "\x0c", "")
 		}
 		if data != "" {
+			tb.reconstructActiveFormattingElements()
 			tb.insertText(data)
 		}
 		return false
@@ -1480,7 +1481,9 @@ func (tb *TreeBuilder) processInSelect(tok tokenizer.Token) bool {
 		case "selectedcontent":
 			tb.reconstructActiveFormattingElements()
 			tb.insertElement("selectedcontent", tok.Attrs)
-			tb.popCurrent()
+			if tok.SelfClosing {
+				tb.popCurrent()
+			}
 			return false
 		case "p", "div", "span", "button", "datalist":
 			tb.reconstructActiveFormattingElements()

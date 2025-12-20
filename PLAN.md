@@ -711,8 +711,8 @@ Implementation:
 - [x] Create test harness for tokenizer tests
 - [x] Create test harness for serializer tests
 - [x] Create test harness for encoding tests
-- [ ] All 9,000+ tests passing (tree construction: 409 failing cases in latest run)
-- Latest full test run (`go test ./... -coverprofile=coverage.out`) fails in `internal/constants` (TestVoidElements: VoidElements count 15 vs 14) and `treebuilder` (tree-construction cases around foreign content, frameset switching, plaintext/NULL handling, selectedcontent, and table hidden input handling).
+- [x] All 9,000+ tests passing (latest run: `go test ./...`)
+- Latest full test run (`go test ./... -coverprofile=coverage.out`) passes.
 
 **Tree construction failure buckets (latest run):**
 
@@ -745,24 +745,24 @@ Target: 100% coverage (matching Python version)
 
 | Package     | Current | Target | Status                              |
 | ----------- | ------- | ------ | ----------------------------------- |
-| tokenizer   | 92.6%   | 100%   | Near target                         |
-| treebuilder | 92.2%   | 100%   | Near target (409 html5lib failures) |
+| tokenizer   | 92.4%   | 100%   | Near target                         |
+| treebuilder | 92.4%   | 100%   | Near target                         |
 | dom         | 99.1%   | 100%   | Near target                         |
-| selector    | 76.9%   | 100%   | Needs improvement                   |
-| encoding    | 95.9%   | 100%   | Near target                         |
-| serialize   | 57.7%   | 100%   | Needs improvement                   |
+| selector    | 80.8%   | 100%   | Needs improvement                   |
+| encoding    | 96.2%   | 100%   | Near target                         |
+| serialize   | 86.8%   | 100%   | Needs improvement                   |
 | stream      | 89.2%   | 100%   | Near target                         |
 | errors      | 100.0%  | 100%   | ✓ Complete                          |
 
-Overall coverage: 78.7%
+Overall coverage: 83.1%
 
 - [x] errors package: 100%
-- [ ] tokenizer package: 92.6% → 100%
-- [ ] treebuilder package: 92.2% → 100%
+- [ ] tokenizer package: 92.4% → 100%
+- [ ] treebuilder package: 92.4% → 100%
 - [x] dom package: 99.1% (essentially complete)
-- [ ] selector package: 76.9% → 100%
-- [ ] encoding package: 95.9% → 100%
-- [ ] serialize package: 57.7% → 100%
+- [ ] selector package: 80.8% → 100%
+- [ ] encoding package: 96.2% → 100%
+- [ ] serialize package: 86.8% → 100%
 - [ ] stream package: 89.2% → 100%
 
 **6.3 Detailed subtasks (treebuilder + spec gaps):**
