@@ -8,6 +8,8 @@ import (
 	"github.com/MeKo-Christian/JustGoHTML/dom"
 )
 
+const testEncodingUTF8 = "UTF-8"
+
 // TestSerializeTokens tests the wrapper function (currently 0% coverage)
 func TestSerializeTokens(t *testing.T) {
 	tokens := []json.RawMessage{
@@ -293,11 +295,11 @@ func TestSerializeInjectedMetaEmptyEncoding(t *testing.T) {
 func TestSerializeInjectedMetaWithEncoding(t *testing.T) {
 	var sb strings.Builder
 	opts := DefaultSerializeTokenOptions()
-	opts.Encoding = "UTF-8"
+	opts.Encoding = testEncodingUTF8
 
 	serializeInjectedMeta(&sb, opts)
 
-	// Unquoted because "UTF-8" doesn't contain special chars requiring quotes
+	// Unquoted because testEncodingUTF8 doesn't contain special chars requiring quotes
 	expected := `<meta charset=UTF-8>`
 	if sb.String() != expected {
 		t.Fatalf("unexpected meta tag: %q, want %q", sb.String(), expected)
@@ -546,7 +548,7 @@ func TestCharactersTokenInPreformatted(t *testing.T) {
 func TestMetaCharsetInjection(t *testing.T) {
 	opts := DefaultSerializeTokenOptions()
 	opts.InjectMetaCharset = true
-	opts.Encoding = "UTF-8"
+	opts.Encoding = testEncodingUTF8
 	opts.OmitOptionalTags = false // Don't omit tags for this test
 
 	tokens := []json.RawMessage{
@@ -573,7 +575,7 @@ func TestMetaCharsetInjection(t *testing.T) {
 func TestMetaCharsetNormalization(t *testing.T) {
 	opts := DefaultSerializeTokenOptions()
 	opts.InjectMetaCharset = true
-	opts.Encoding = "UTF-8"
+	opts.Encoding = testEncodingUTF8
 	opts.OmitOptionalTags = false // Don't omit tags for this test
 
 	attrs := []map[string]any{
@@ -604,7 +606,7 @@ func TestMetaCharsetHTTPEquiv(t *testing.T) {
 		{Name: "http-equiv", Value: "content-type"},
 	}
 
-	result := normalizeMetaCharsetAttrs(attrs, "UTF-8")
+	result := normalizeMetaCharsetAttrs(attrs, testEncodingUTF8)
 
 	// Should add content attribute
 	if len(result) != 2 {
@@ -629,7 +631,7 @@ func TestMetaCharsetHTTPEquivUpdateExisting(t *testing.T) {
 		{Name: "content", Value: "text/html; charset=ISO-8859-1"},
 	}
 
-	result := normalizeMetaCharsetAttrs(attrs, "UTF-8")
+	result := normalizeMetaCharsetAttrs(attrs, testEncodingUTF8)
 
 	// Should update existing content attribute
 	if len(result) != 2 {
