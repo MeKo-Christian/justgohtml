@@ -8,7 +8,7 @@ import (
 	"github.com/MeKo-Christian/JustGoHTML/tokenizer"
 )
 
-func (tb *TreeBuilder) shouldUseForeignContent(tok tokenizer.Token) bool {
+func (tb *TreeBuilder) shouldUseForeignContent(tok *tokenizer.Token) bool {
 	current := tb.currentElement()
 	if current == nil {
 		return false
@@ -52,7 +52,7 @@ func (tb *TreeBuilder) shouldUseForeignContent(tok tokenizer.Token) bool {
 	return true
 }
 
-func (tb *TreeBuilder) processForeignContent(tok tokenizer.Token) bool {
+func (tb *TreeBuilder) processForeignContent(tok *tokenizer.Token) bool {
 	current := tb.currentElement()
 	if current == nil {
 		return false

@@ -139,7 +139,7 @@ func mapInitialState(name string) tokenizer.State {
 }
 
 // tokenToTestFormat converts a Token to the html5lib test format.
-func tokenToTestFormat(token tokenizer.Token) interface{} {
+func tokenToTestFormat(token *tokenizer.Token) interface{} {
 	switch token.Type {
 	case tokenizer.DOCTYPE:
 		var name interface{} = token.Name

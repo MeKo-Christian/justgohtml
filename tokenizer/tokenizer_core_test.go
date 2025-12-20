@@ -2,10 +2,10 @@ package tokenizer
 
 import "testing"
 
-func collectTokens(html string, initial State) []Token {
+func collectTokens(html string, initial State) []*Token {
 	tok := New(html)
 	tok.SetState(initial)
-	var out []Token
+	var out []*Token
 	for {
 		t := tok.Next()
 		if t.Type == EOF {
@@ -19,7 +19,7 @@ func collectTokens(html string, initial State) []Token {
 func TestTokenizer_BOMDiscard(t *testing.T) {
 	tok := New("\ufeff<div>")
 	tok.SetDiscardBOM(true)
-	var tokens []Token
+	var tokens []*Token
 	for {
 		tt := tok.Next()
 		if tt.Type == EOF {
@@ -45,7 +45,7 @@ func TestTokenizer_CRLFNormalization(t *testing.T) {
 func TestTokenizer_XMLCoercion(t *testing.T) {
 	tok := New("\f\uFDD0")
 	tok.SetXMLCoercion(true)
-	var tokens []Token
+	var tokens []*Token
 	for {
 		tt := tok.Next()
 		if tt.Type == EOF {

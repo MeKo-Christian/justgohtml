@@ -158,7 +158,7 @@ func TestTableScopeAndCellPopIgnoreForeignTagNameCollisions(t *testing.T) {
 
 func TestQuirksMode_NoDoctypeSetsQuirks(t *testing.T) {
 	tb := New(tokenizer.New(""))
-	tb.ProcessToken(tokenizer.Token{Type: tokenizer.StartTag, Name: "html"})
+	tb.ProcessToken(&tokenizer.Token{Type: tokenizer.StartTag, Name: "html"})
 	if tb.document.QuirksMode != dom.Quirks {
 		t.Fatalf("QuirksMode = %v, want %v", tb.document.QuirksMode, dom.Quirks)
 	}
@@ -166,34 +166,34 @@ func TestQuirksMode_NoDoctypeSetsQuirks(t *testing.T) {
 
 func TestQuirksMode_DoctypeRules(t *testing.T) {
 	tb := New(tokenizer.New(""))
-	tb.ProcessToken(tokenizer.Token{Type: tokenizer.DOCTYPE, Name: "html"})
+	tb.ProcessToken(&tokenizer.Token{Type: tokenizer.DOCTYPE, Name: "html"})
 	if tb.document.QuirksMode != dom.NoQuirks {
 		t.Fatalf("QuirksMode = %v, want %v", tb.document.QuirksMode, dom.NoQuirks)
 	}
 
 	publicID := "-//W3C//DTD XHTML 1.0 Transitional//"
 	tb = New(tokenizer.New(""))
-	tb.ProcessToken(tokenizer.Token{Type: tokenizer.DOCTYPE, Name: "html", PublicID: &publicID})
+	tb.ProcessToken(&tokenizer.Token{Type: tokenizer.DOCTYPE, Name: "html", PublicID: &publicID})
 	if tb.document.QuirksMode != dom.LimitedQuirks {
 		t.Fatalf("QuirksMode = %v, want %v", tb.document.QuirksMode, dom.LimitedQuirks)
 	}
 
 	publicID = "-//W3C//DTD HTML 4.01 Transitional//"
 	tb = New(tokenizer.New(""))
-	tb.ProcessToken(tokenizer.Token{Type: tokenizer.DOCTYPE, Name: "html", PublicID: &publicID})
+	tb.ProcessToken(&tokenizer.Token{Type: tokenizer.DOCTYPE, Name: "html", PublicID: &publicID})
 	if tb.document.QuirksMode != dom.Quirks {
 		t.Fatalf("QuirksMode = %v, want %v", tb.document.QuirksMode, dom.Quirks)
 	}
 
 	systemID := "http://example.com/strict.dtd"
 	tb = New(tokenizer.New(""))
-	tb.ProcessToken(tokenizer.Token{Type: tokenizer.DOCTYPE, Name: "html", PublicID: &publicID, SystemID: &systemID})
+	tb.ProcessToken(&tokenizer.Token{Type: tokenizer.DOCTYPE, Name: "html", PublicID: &publicID, SystemID: &systemID})
 	if tb.document.QuirksMode != dom.LimitedQuirks {
 		t.Fatalf("QuirksMode = %v, want %v", tb.document.QuirksMode, dom.LimitedQuirks)
 	}
 
 	tb = New(tokenizer.New(""))
-	tb.ProcessToken(tokenizer.Token{Type: tokenizer.DOCTYPE, Name: "nothtml"})
+	tb.ProcessToken(&tokenizer.Token{Type: tokenizer.DOCTYPE, Name: "nothtml"})
 	if tb.document.QuirksMode != dom.Quirks {
 		t.Fatalf("QuirksMode = %v, want %v", tb.document.QuirksMode, dom.Quirks)
 	}

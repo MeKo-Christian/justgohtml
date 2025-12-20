@@ -27,7 +27,7 @@ func TestInBody_TableSwitchesMode(t *testing.T) {
 	tb := newTBWithStack(t, "html", "body")
 	tb.mode = InBody
 
-	tb.processInBody(tokenizer.Token{Type: tokenizer.StartTag, Name: "table"})
+	tb.processInBody(&tokenizer.Token{Type: tokenizer.StartTag, Name: "table"})
 
 	if tb.mode != InTable {
 		t.Fatalf("mode = %v, want %v", tb.mode, InTable)
@@ -41,7 +41,7 @@ func TestInTable_CharacterSwitchesToTableText(t *testing.T) {
 	tb := newTBWithStack(t, "html", "body", "table")
 	tb.mode = InTable
 
-	reprocess := tb.processInTable(tokenizer.Token{Type: tokenizer.Character, Data: "X"})
+	reprocess := tb.processInTable(&tokenizer.Token{Type: tokenizer.Character, Data: "X"})
 
 	if !reprocess {
 		t.Fatalf("reprocess = false, want true")
@@ -61,7 +61,7 @@ func TestInTableText_FosterParentingInsertsBeforeTable(t *testing.T) {
 	tb.tableTextOriginalMode = &orig
 	tb.pendingTableText = []string{"X"}
 
-	reprocess := tb.processInTableText(tokenizer.Token{Type: tokenizer.EndTag, Name: "table"})
+	reprocess := tb.processInTableText(&tokenizer.Token{Type: tokenizer.EndTag, Name: "table"})
 	if !reprocess {
 		t.Fatalf("reprocess = false, want true")
 	}
@@ -99,7 +99,7 @@ func TestAfterBody_CommentAttachesToHTML(t *testing.T) {
 	tb := newTBWithStack(t, "html")
 	tb.mode = AfterBody
 
-	tb.processAfterBody(tokenizer.Token{Type: tokenizer.Comment, Data: "hi"})
+	tb.processAfterBody(&tokenizer.Token{Type: tokenizer.Comment, Data: "hi"})
 
 	html := tb.document.DocumentElement()
 	if html == nil {
@@ -118,7 +118,7 @@ func TestInHead_TemplatePushesMode(t *testing.T) {
 	tb := newTBWithStack(t, "html", "head")
 	tb.mode = InHead
 
-	tb.processInHead(tokenizer.Token{Type: tokenizer.StartTag, Name: "template"})
+	tb.processInHead(&tokenizer.Token{Type: tokenizer.StartTag, Name: "template"})
 
 	if tb.mode != InTemplate {
 		t.Fatalf("mode = %v, want %v", tb.mode, InTemplate)
@@ -141,7 +141,7 @@ func TestInHead_TemplateEndResetsMode(t *testing.T) {
 		{name: "b"},
 	}
 
-	tb.processInHead(tokenizer.Token{Type: tokenizer.EndTag, Name: "template"})
+	tb.processInHead(&tokenizer.Token{Type: tokenizer.EndTag, Name: "template"})
 
 	if tb.mode != InHead {
 		t.Fatalf("mode = %v, want %v", tb.mode, InHead)
@@ -162,7 +162,7 @@ func TestInTemplate_TableStartSwitchesMode(t *testing.T) {
 	tb.mode = InTemplate
 	tb.templateModes = []InsertionMode{InTemplate}
 
-	reprocess := tb.processInTemplate(tokenizer.Token{Type: tokenizer.StartTag, Name: "tr"})
+	reprocess := tb.processInTemplate(&tokenizer.Token{Type: tokenizer.StartTag, Name: "tr"})
 
 	if !reprocess {
 		t.Fatalf("reprocess = false, want true")
@@ -180,7 +180,7 @@ func TestInTemplate_EOFResetsMode(t *testing.T) {
 	tb.mode = InTemplate
 	tb.templateModes = []InsertionMode{InTemplate}
 
-	reprocess := tb.processInTemplate(tokenizer.Token{Type: tokenizer.EOF})
+	reprocess := tb.processInTemplate(&tokenizer.Token{Type: tokenizer.EOF})
 
 	if !reprocess {
 		t.Fatalf("reprocess = false, want true")
@@ -197,7 +197,7 @@ func TestInSelect_HRClosesOption(t *testing.T) {
 	tb := newTBWithStack(t, "html", "body", "select", "option")
 	tb.mode = InSelect
 
-	tb.processInSelect(tokenizer.Token{Type: tokenizer.StartTag, Name: "hr"})
+	tb.processInSelect(&tokenizer.Token{Type: tokenizer.StartTag, Name: "hr"})
 
 	if got := tb.currentElement(); got == nil || got.TagName != "select" {
 		t.Fatalf("currentElement = %v, want select", got)

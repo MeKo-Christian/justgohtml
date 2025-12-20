@@ -32,6 +32,39 @@ func putAttrMap(m map[string]struct{}) {
 	}
 }
 
+// tokenPool pools Token structs to reduce allocations.
+var tokenPool = sync.Pool{
+	New: func() interface{} {
+		return &Token{
+			Attrs: make([]Attr, 0, 4), // Pre-allocate for typical attribute count
+		}
+	},
+}
+
+// getToken retrieves a token from the pool.
+func getToken() *Token {
+	return tokenPool.Get().(*Token)
+}
+
+// putToken resets and returns a token to the pool.
+func putToken(tok *Token) {
+	if tok == nil || tok.Type == EOF {
+		return // Don't pool EOF tokens
+	}
+	// Reset all fields to zero values
+	tok.Type = 0
+	tok.Name = ""
+	tok.Data = ""
+	tok.Attrs = tok.Attrs[:0] // Keep capacity
+	tok.SelfClosing = false
+	tok.PublicID = nil
+	tok.SystemID = nil
+	tok.ForceQuirks = false
+	tok.ErrorCode = ""
+	tok.CommentEOF = false
+	tokenPool.Put(tok)
+}
+
 // Tokenizer implements the HTML5 tokenization algorithm (port of the Python reference).
 //
 // It produces a stream of tokens and collects parse errors.
@@ -79,7 +112,7 @@ type Tokenizer struct {
 	textBuffer strings.Builder
 	textHasAmp bool
 
-	pendingTokens []Token
+	pendingTokens []*Token
 	errors        []ParseError
 
 	allowCDATA bool
@@ -210,7 +243,7 @@ func (t *Tokenizer) Errors() []ParseError {
 
 // Next returns the next token.
 // Returns a token with Type == EOF when input is exhausted.
-func (t *Tokenizer) Next() Token {
+func (t *Tokenizer) Next() *Token {
 	if len(t.pendingTokens) > 0 {
 		token := t.pendingTokens[0]
 		t.pendingTokens = t.pendingTokens[1:]
@@ -416,13 +449,15 @@ func (t *Tokenizer) advance(c rune) {
 	t.column++
 }
 
-func (t *Tokenizer) emit(tok Token) {
+func (t *Tokenizer) emit(tok *Token) {
 	t.pendingTokens = append(t.pendingTokens, tok)
 }
 
 func (t *Tokenizer) emitEOF() {
 	t.flushText()
-	t.emit(Token{Type: EOF})
+	tok := getToken()
+	tok.Type = EOF
+	t.emit(tok)
 }
 
 func (t *Tokenizer) emitError(code string) {
@@ -461,7 +496,10 @@ func (t *Tokenizer) flushText() {
 		data = coerceTextForXML(data)
 	}
 
-	t.emit(Token{Type: Character, Data: data})
+	tok := getToken()
+	tok.Type = Character
+	tok.Data = data
+	t.emit(tok)
 }
 
 func (t *Tokenizer) finishAttribute() {
@@ -496,12 +534,12 @@ func (t *Tokenizer) emitCurrentTag() bool {
 	var switchedTextMode bool
 	name := constants.InternTagName(string(t.currentTagName))
 	attrs := append([]Attr(nil), t.currentTagAttrs...)
-	tok := Token{
-		Type:        t.currentTagKind,
-		Name:        name,
-		Attrs:       attrs,
-		SelfClosing: t.currentTagSelfClosing,
-	}
+
+	tok := getToken()
+	tok.Type = t.currentTagKind
+	tok.Name = name
+	tok.Attrs = append(tok.Attrs[:0], attrs...)
+	tok.SelfClosing = t.currentTagSelfClosing
 
 	// Tokenizer-side state switching for rawtext/rcdata elements.
 	// In the full HTML parsing pipeline, the tree builder controls these switches.
@@ -554,7 +592,11 @@ func (t *Tokenizer) emitComment() {
 	if t.opts.XMLCoercion {
 		data = coerceCommentForXML(data)
 	}
-	t.emit(Token{Type: Comment, Data: data, CommentEOF: t.commentEOF})
+	tok := getToken()
+	tok.Type = Comment
+	tok.Data = data
+	tok.CommentEOF = t.commentEOF
+	t.emit(tok)
 	t.commentEOF = false
 }
 
@@ -571,13 +613,13 @@ func (t *Tokenizer) emitDoctype() {
 		systemID = &s
 	}
 
-	t.emit(Token{
-		Type:        DOCTYPE,
-		Name:        name,
-		PublicID:    publicID,
-		SystemID:    systemID,
-		ForceQuirks: t.currentDoctypeForceQuirks,
-	})
+	tok := getToken()
+	tok.Type = DOCTYPE
+	tok.Name = name
+	tok.PublicID = publicID
+	tok.SystemID = systemID
+	tok.ForceQuirks = t.currentDoctypeForceQuirks
+	t.emit(tok)
 }
 
 func (t *Tokenizer) consumeIf(lit string) bool {
@@ -954,7 +996,9 @@ func (t *Tokenizer) stateAttributeValueUnquoted() {
 		c, ok := t.getChar()
 		if !ok {
 			t.emitError("eof-in-tag")
-			t.emit(Token{Type: EOF})
+			tok := getToken()
+			tok.Type = EOF
+			t.emit(tok)
 			return
 		}
 		switch c {
@@ -1064,7 +1108,9 @@ func (t *Tokenizer) stateCommentStart() {
 	if !ok {
 		t.emitError("eof-in-comment")
 		t.emitComment()
-		t.emit(Token{Type: EOF})
+		tok := getToken()
+		tok.Type = EOF
+		t.emit(tok)
 		return
 	}
 	switch c {
@@ -1089,7 +1135,9 @@ func (t *Tokenizer) stateCommentStartDash() {
 	if !ok {
 		t.emitError("eof-in-comment")
 		t.emitComment()
-		t.emit(Token{Type: EOF})
+		tok := getToken()
+		tok.Type = EOF
+		t.emit(tok)
 		return
 	}
 	switch c {
@@ -1115,7 +1163,9 @@ func (t *Tokenizer) stateComment() {
 		if !ok {
 			t.emitError("eof-in-comment")
 			t.emitComment()
-			t.emit(Token{Type: EOF})
+			tok := getToken()
+			tok.Type = EOF
+			t.emit(tok)
 			return
 		}
 		if c == '-' {
@@ -1136,7 +1186,9 @@ func (t *Tokenizer) stateCommentEndDash() {
 	if !ok {
 		t.emitError("eof-in-comment")
 		t.emitComment()
-		t.emit(Token{Type: EOF})
+		tok := getToken()
+		tok.Type = EOF
+		t.emit(tok)
 		return
 	}
 	switch c {
@@ -1157,7 +1209,9 @@ func (t *Tokenizer) stateCommentEnd() {
 	if !ok {
 		t.emitError("eof-in-comment")
 		t.emitComment()
-		t.emit(Token{Type: EOF})
+		tok := getToken()
+		tok.Type = EOF
+		t.emit(tok)
 		return
 	}
 	switch c {
@@ -1185,7 +1239,9 @@ func (t *Tokenizer) stateCommentEndBang() {
 	if !ok {
 		t.emitError("eof-in-comment")
 		t.emitComment()
-		t.emit(Token{Type: EOF})
+		tok := getToken()
+		tok.Type = EOF
+		t.emit(tok)
 		return
 	}
 	switch c {
@@ -1212,7 +1268,9 @@ func (t *Tokenizer) stateBogusComment() {
 		if !ok {
 			t.commentEOF = true
 			t.emitComment()
-			t.emit(Token{Type: EOF})
+			tok := getToken()
+			tok.Type = EOF
+			t.emit(tok)
 			return
 		}
 		if c == '>' {
@@ -1235,7 +1293,9 @@ func (t *Tokenizer) stateDoctype() {
 		t.emitError("eof-in-doctype")
 		t.currentDoctypeForceQuirks = true
 		t.emitDoctype()
-		t.emit(Token{Type: EOF})
+		tok := getToken()
+		tok.Type = EOF
+		t.emit(tok)
 		return
 	}
 	switch c {
@@ -1260,7 +1320,9 @@ func (t *Tokenizer) stateBeforeDoctypeName() {
 			t.emitError("eof-in-doctype-name")
 			t.currentDoctypeForceQuirks = true
 			t.emitDoctype()
-			t.emit(Token{Type: EOF})
+			tok := getToken()
+			tok.Type = EOF
+			t.emit(tok)
 			return
 		}
 		if c == '\t' || c == '\n' || c == '\f' || c == ' ' {
@@ -1292,7 +1354,9 @@ func (t *Tokenizer) stateDoctypeName() {
 			t.emitError("eof-in-doctype-name")
 			t.currentDoctypeForceQuirks = true
 			t.emitDoctype()
-			t.emit(Token{Type: EOF})
+			tok := getToken()
+			tok.Type = EOF
+			t.emit(tok)
 			return
 		}
 		switch c {
@@ -1331,7 +1395,9 @@ func (t *Tokenizer) stateAfterDoctypeName() {
 			t.emitError("eof-in-doctype")
 			t.currentDoctypeForceQuirks = true
 			t.emitDoctype()
-			t.emit(Token{Type: EOF})
+			tok := getToken()
+			tok.Type = EOF
+			t.emit(tok)
 			return
 		}
 		if c == '\t' || c == '\n' || c == '\f' || c == ' ' {
@@ -1358,7 +1424,9 @@ func (t *Tokenizer) stateAfterDoctypePublicKeyword() {
 			t.emitError("missing-quote-before-doctype-public-identifier")
 			t.currentDoctypeForceQuirks = true
 			t.emitDoctype()
-			t.emit(Token{Type: EOF})
+			tok := getToken()
+			tok.Type = EOF
+			t.emit(tok)
 			return
 		}
 		switch c {
@@ -1401,7 +1469,9 @@ func (t *Tokenizer) stateAfterDoctypeSystemKeyword() {
 			t.emitError("missing-quote-before-doctype-system-identifier")
 			t.currentDoctypeForceQuirks = true
 			t.emitDoctype()
-			t.emit(Token{Type: EOF})
+			tok := getToken()
+			tok.Type = EOF
+			t.emit(tok)
 			return
 		}
 		switch c {
@@ -1443,7 +1513,9 @@ func (t *Tokenizer) stateBeforeDoctypePublicIdentifier() {
 			t.emitError("eof-in-doctype")
 			t.currentDoctypeForceQuirks = true
 			t.emitDoctype()
-			t.emit(Token{Type: EOF})
+			tok := getToken()
+			tok.Type = EOF
+			t.emit(tok)
 			return
 		}
 		switch c {
@@ -1482,7 +1554,9 @@ func (t *Tokenizer) stateDoctypePublicIdentifierDoubleQuoted() {
 			t.emitError("eof-in-doctype")
 			t.currentDoctypeForceQuirks = true
 			t.emitDoctype()
-			t.emit(Token{Type: EOF})
+			tok := getToken()
+			tok.Type = EOF
+			t.emit(tok)
 			return
 		}
 		if c == '"' {
@@ -1511,7 +1585,9 @@ func (t *Tokenizer) stateDoctypePublicIdentifierSingleQuoted() {
 			t.emitError("eof-in-doctype")
 			t.currentDoctypeForceQuirks = true
 			t.emitDoctype()
-			t.emit(Token{Type: EOF})
+			tok := getToken()
+			tok.Type = EOF
+			t.emit(tok)
 			return
 		}
 		if c == '\'' {
@@ -1540,7 +1616,9 @@ func (t *Tokenizer) stateAfterDoctypePublicIdentifier() {
 			t.emitError("eof-in-doctype")
 			t.currentDoctypeForceQuirks = true
 			t.emitDoctype()
-			t.emit(Token{Type: EOF})
+			tok := getToken()
+			tok.Type = EOF
+			t.emit(tok)
 			return
 		}
 		switch c {
@@ -1580,7 +1658,9 @@ func (t *Tokenizer) stateBetweenDoctypePublicAndSystemIdentifiers() {
 			t.emitError("eof-in-doctype")
 			t.currentDoctypeForceQuirks = true
 			t.emitDoctype()
-			t.emit(Token{Type: EOF})
+			tok := getToken()
+			tok.Type = EOF
+			t.emit(tok)
 			return
 		}
 		switch c {
@@ -1617,7 +1697,9 @@ func (t *Tokenizer) stateBeforeDoctypeSystemIdentifier() {
 			t.emitError("eof-in-doctype")
 			t.currentDoctypeForceQuirks = true
 			t.emitDoctype()
-			t.emit(Token{Type: EOF})
+			tok := getToken()
+			tok.Type = EOF
+			t.emit(tok)
 			return
 		}
 		switch c {
@@ -1656,7 +1738,9 @@ func (t *Tokenizer) stateDoctypeSystemIdentifierDoubleQuoted() {
 			t.emitError("eof-in-doctype")
 			t.currentDoctypeForceQuirks = true
 			t.emitDoctype()
-			t.emit(Token{Type: EOF})
+			tok := getToken()
+			tok.Type = EOF
+			t.emit(tok)
 			return
 		}
 		if c == '"' {
@@ -1685,7 +1769,9 @@ func (t *Tokenizer) stateDoctypeSystemIdentifierSingleQuoted() {
 			t.emitError("eof-in-doctype")
 			t.currentDoctypeForceQuirks = true
 			t.emitDoctype()
-			t.emit(Token{Type: EOF})
+			tok := getToken()
+			tok.Type = EOF
+			t.emit(tok)
 			return
 		}
 		if c == '\'' {
@@ -1714,7 +1800,9 @@ func (t *Tokenizer) stateAfterDoctypeSystemIdentifier() {
 			t.emitError("eof-in-doctype")
 			t.currentDoctypeForceQuirks = true
 			t.emitDoctype()
-			t.emit(Token{Type: EOF})
+			tok := getToken()
+			tok.Type = EOF
+			t.emit(tok)
 			return
 		}
 		switch c {
@@ -1738,7 +1826,9 @@ func (t *Tokenizer) stateBogusDoctype() {
 		c, ok := t.getChar()
 		if !ok {
 			t.emitDoctype()
-			t.emit(Token{Type: EOF})
+			tok := getToken()
+			tok.Type = EOF
+			t.emit(tok)
 			return
 		}
 		if c == '>' {
@@ -1869,7 +1959,10 @@ func (t *Tokenizer) stateRCDATAEndTagName() {
 		if tagName == t.rawtextTagName {
 			if ok && c == '>' {
 				t.flushText()
-				t.emit(Token{Type: EndTag, Name: tagName})
+				tok := getToken()
+				tok.Type = EndTag
+				tok.Name = tagName
+				t.emit(tok)
 				t.state = DataState
 				t.rawtextTagName = ""
 				t.currentTagName = t.currentTagName[:0]
@@ -2004,7 +2097,10 @@ func (t *Tokenizer) stateRAWTEXTEndTagName() {
 		if tagName == t.rawtextTagName {
 			if ok && c == '>' {
 				t.flushText()
-				t.emit(Token{Type: EndTag, Name: tagName})
+				tok := getToken()
+				tok.Type = EndTag
+				tok.Name = tagName
+				t.emit(tok)
 				t.state = DataState
 				t.rawtextTagName = ""
 				t.currentTagName = t.currentTagName[:0]
@@ -2211,7 +2307,10 @@ func (t *Tokenizer) stateScriptDataEscapedEndTagName() {
 			}
 			if ok && c == '>' {
 				t.flushText()
-				t.emit(Token{Type: EndTag, Name: tagName})
+				tok := getToken()
+				tok.Type = EndTag
+				tok.Name = tagName
+				t.emit(tok)
 				t.state = DataState
 				return
 			}

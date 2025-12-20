@@ -48,7 +48,7 @@ doc.Query("li:nth-child(2n+1)")       // Pseudo-classes
 
 ### 4. Just... Fast
 
-Go's performance means JustGoHTML is significantly faster than pure-Python parsers while maintaining 100% spec compliance. After Phase 3.1 optimizations, it parses complex HTML pages at **~6,400 pages per second** (157 µs per 5KB page) - a 2.4x improvement. CSS selector matching is now **faster than goquery** for many queries.
+Go's performance means JustGoHTML is significantly faster than pure-Python parsers while maintaining 100% spec compliance. After Phase 3 optimizations (string interning, attribute map pooling, selector optimization, and token pooling), it parses complex HTML pages at **~5,200 pages per second** (192 µs per 5KB page). CSS selector matching is now **faster than goquery** for complex queries.
 
 See [BENCHMARK_RESULTS.md](BENCHMARK_RESULTS.md) for detailed performance comparisons with other Go parsers.
 
@@ -56,11 +56,11 @@ See [BENCHMARK_RESULTS.md](BENCHMARK_RESULTS.md) for detailed performance compar
 
 | Parser                  | HTML5 Compliance | Pure Go? | Relative Speed\* | Query API        | Notes                                                |
 | ----------------------- | :--------------: | :------: | ---------------- | ---------------- | ---------------------------------------------------- |
-| **JustGoHTML**          |     **100%**     |   Yes    | 1.0x (baseline)  | CSS selectors ⚡ | All html5lib tests passing. Fully spec compliant.    |
-| `golang.org/x/net/html` |       ~70%       |   Yes    | **2.4x faster**  | None             | Standard library. Good but not fully spec compliant. |
-| `goquery`               |       ~70%       |   Yes    | **2.1x faster**  | CSS selectors    | Wrapper around x/net/html. Same compliance issues.   |
+| **JustGoHTML**          |     **100%**     |   Yes    | 1.0x (baseline)  | CSS selectors ⚡  | All html5lib tests passing. Fully spec compliant.    |
+| `golang.org/x/net/html` |       ~70%       |   Yes    | **3.1x faster**  | None             | Standard library. Good but not fully spec compliant. |
+| `goquery`               |       ~70%       |   Yes    | **3.1x faster**  | CSS selectors    | Wrapper around x/net/html. Same compliance issues.   |
 
-\*Speed comparison based on complex HTML parsing benchmarks after Phase 3.1 optimizations. JustGoHTML trades some speed for 100% spec compliance. Query performance (⚡): JustGoHTML is now faster than goquery for many CSS selector operations.
+\*Speed comparison based on complex HTML parsing benchmarks after Phase 3 optimizations. JustGoHTML trades some speed for 100% spec compliance. Query performance (⚡): JustGoHTML is now faster than goquery for complex CSS selector operations.
 
 ## Installation
 

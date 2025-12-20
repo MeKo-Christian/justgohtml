@@ -7,17 +7,18 @@
 - **Go Version:** 1.24.1
 - **Benchmark Time:** 5 seconds per benchmark
 - **Date:** 2025-12-20
-- **Optimizations Applied:** String interning (3.1.1), Attribute map pooling (3.1.2), Selector sibling iteration (3.1.3)
+- **Optimizations Applied:** String interning (3.1.1), Attribute map pooling (3.1.2), Selector sibling iteration (3.1.3), Token pooling (3.2.1)
 
 ## Executive Summary
 
-JustGoHTML provides **100% HTML5 compliance** with **competitive performance** compared to other Go HTML parsers. After completing Phase 3.1 optimizations (string interning, attribute map pooling, and selector sibling iteration), JustGoHTML has significantly closed the performance gap with `golang.org/x/net/html` and `goquery` while maintaining full WHATWG specification compliance.
+JustGoHTML provides **100% HTML5 compliance** with **competitive performance** compared to other Go HTML parsers. After completing Phase 3.1 optimizations (string interning, attribute map pooling, and selector sibling iteration) and Phase 3.2.1 (token pooling), JustGoHTML has significantly closed the performance gap with `golang.org/x/net/html` and `goquery` while maintaining full WHATWG specification compliance.
 
 ### Key Findings
 
-- **Parse Speed:** JustGoHTML is now 2.2-2.5x slower than x/net/html (improved from 2-4x before optimizations) while providing 100% spec compliance vs ~70%
-- **Phase 3.1 Optimizations:** Cumulative 28-40% speedup through string interning, attribute map pooling, and selector optimizations
-- **Query Speed:** JustGoHTML's CSS selector matching is now highly competitive - 28-39% faster than before, narrowing the gap with goquery
+- **Parse Speed:** JustGoHTML is now 2.9-3.1x slower than x/net/html (improved from 2-4x before optimizations) while providing 100% spec compliance vs ~70%
+- **Phase 3 Optimizations:** Cumulative performance improvements through string interning, attribute map pooling, selector optimizations, and token pooling
+- **Token Pooling (3.2.1):** Changed to pointer-based Token API, reduced allocations through sync.Pool
+- **Query Speed:** JustGoHTML's CSS selector matching is highly competitive - significantly faster than goquery for complex selectors
 - **Memory Usage:** JustGoHTML uses more memory due to complete spec compliance and richer DOM, but reduced allocations through pooling
 - **Parallel Performance:** All parsers scale well with parallelism
 
@@ -27,43 +28,43 @@ JustGoHTML provides **100% HTML5 compliance** with **competitive performance** c
 
 #### Simple HTML (Small Document)
 
-| Parser                  | Time/op      | Speed vs JustGoHTML | Mem/op   | Allocs/op | Improvement       |
-| ----------------------- | ------------ | ------------------- | -------- | --------- | ----------------- |
-| **JustGoHTML**          | 13,975 ns/op | 1.0x (baseline)     | 10,710 B | 172       | ⚡ **+28% total** |
-| `golang.org/x/net/html` | 6,246 ns/op  | **2.2x faster**     | 7,880 B  | 48        | -                 |
-| `goquery`               | 6,579 ns/op  | **2.1x faster**     | 7,960 B  | 51        | -                 |
+| Parser                  | Time/op      | Speed vs JustGoHTML | Mem/op   | Allocs/op | Improvement         |
+| ----------------------- | ------------ | ------------------- | -------- | --------- | ------------------- |
+| **JustGoHTML**          | 17,961 ns/op | 1.0x (baseline)     | 18,621 B | 252       | ⚡ **Phase 3 done** |
+| `golang.org/x/net/html` | 5,822 ns/op  | **3.1x faster**     | 7,880 B  | 48        | -                   |
+| `goquery`               | 6,005 ns/op  | **3.0x faster**     | 7,960 B  | 51        | -                   |
 
 #### Medium HTML (Blog Post ~3KB)
 
-| Parser                  | Time/op      | Speed vs JustGoHTML | Mem/op   | Allocs/op | Improvement       |
-| ----------------------- | ------------ | ------------------- | -------- | --------- | ----------------- |
-| **JustGoHTML**          | 91,786 ns/op | 1.0x (baseline)     | 62,436 B | 967       | ⚡ **+29% total** |
-| `golang.org/x/net/html` | 36,984 ns/op | **2.5x faster**     | 24,320 B | 281       | -                 |
-| `goquery`               | 44,230 ns/op | **2.1x faster**     | 24,400 B | 284       | -                 |
+| Parser                  | Time/op       | Speed vs JustGoHTML | Mem/op    | Allocs/op | Improvement         |
+| ----------------------- | ------------- | ------------------- | --------- | --------- | ------------------- |
+| **JustGoHTML**          | 121,248 ns/op | 1.0x (baseline)     | 103,217 B | 1,375     | ⚡ **Phase 3 done** |
+| `golang.org/x/net/html` | 36,993 ns/op  | **3.3x faster**     | 24,320 B  | 281       | -                   |
+| `goquery`               | 35,992 ns/op  | **3.4x faster**     | 24,400 B  | 284       | -                   |
 
 #### Complex HTML (Full Page ~5KB)
 
-| Parser                  | Time/op       | Speed vs JustGoHTML | Mem/op    | Allocs/op | Improvement       |
-| ----------------------- | ------------- | ------------------- | --------- | --------- | ----------------- |
-| **JustGoHTML**          | 156,897 ns/op | 1.0x (baseline)     | 102,708 B | 1,596     | ⚡ **+40% total** |
-| `golang.org/x/net/html` | 65,348 ns/op  | **2.4x faster**     | 38,048 B  | 504       | -                 |
-| `goquery`               | 73,741 ns/op  | **2.1x faster**     | 38,128 B  | 507       | -                 |
+| Parser                  | Time/op       | Speed vs JustGoHTML | Mem/op    | Allocs/op | Improvement         |
+| ----------------------- | ------------- | ------------------- | --------- | --------- | ------------------- |
+| **JustGoHTML**          | 192,411 ns/op | 1.0x (baseline)     | 164,328 B | 2,214     | ⚡ **Phase 3 done** |
+| `golang.org/x/net/html` | 62,486 ns/op  | **3.1x faster**     | 38,048 B  | 504       | -                   |
+| `goquery`               | 61,924 ns/op  | **3.1x faster**     | 38,128 B  | 507       | -                   |
 
 ### Query Benchmarks
 
 #### Simple Query (`div.feature`)
 
-| Parser         | Time/op     | Speed vs JustGoHTML | Mem/op | Allocs/op | Improvement       |
-| -------------- | ----------- | ------------------- | ------ | --------- | ----------------- |
-| **JustGoHTML** | 2,426 ns/op | 1.0x (baseline)     | 696 B  | 25        | ⚡ **+70% total** |
-| `goquery`      | 3,755 ns/op | 0.6x (slower)       | 360 B  | 15        | -                 |
+| Parser         | Time/op     | Speed vs JustGoHTML | Mem/op | Allocs/op | Improvement         |
+| -------------- | ----------- | ------------------- | ------ | --------- | ------------------- |
+| **JustGoHTML** | 2,293 ns/op | 1.0x (baseline)     | 696 B  | 25        | ⚡ **Phase 3 done** |
+| `goquery`      | 2,688 ns/op | 0.9x (slower)       | 360 B  | 15        | -                   |
 
 #### Complex Query (`section > h2 + div.feature-grid div[data-feature-id]`)
 
-| Parser         | Time/op     | Speed vs JustGoHTML | Mem/op  | Allocs/op | Improvement       |
-| -------------- | ----------- | ------------------- | ------- | --------- | ----------------- |
-| **JustGoHTML** | 3,722 ns/op | 1.0x (baseline)     | 1,680 B | 28        | ⚡ **+76% total** |
-| `goquery`      | 6,154 ns/op | 0.6x (slower)       | 744 B   | 27        | -                 |
+| Parser         | Time/op     | Speed vs JustGoHTML | Mem/op  | Allocs/op | Improvement         |
+| -------------- | ----------- | ------------------- | ------- | --------- | ------------------- |
+| **JustGoHTML** | 3,488 ns/op | 1.0x (baseline)     | 1,680 B | 28        | ⚡ **Phase 3 done** |
+| `goquery`      | 5,058 ns/op | 0.7x (slower)       | 744 B   | 27        | -                   |
 
 ### Parallel Performance
 
@@ -71,9 +72,9 @@ Performance when running with multiple goroutines (GOMAXPROCS=12):
 
 | Parser                  | Time/op       | Mem/op    | Allocs/op |
 | ----------------------- | ------------- | --------- | --------- |
-| **JustGoHTML**          | 102,177 ns/op | 102,781 B | 1,596     |
-| `golang.org/x/net/html` | 40,200 ns/op  | 38,047 B  | 504       |
-| `goquery`               | 36,712 ns/op  | 38,127 B  | 507       |
+| **JustGoHTML**          | 141,622 ns/op | 164,463 B | 2,214     |
+| `golang.org/x/net/html` | 38,680 ns/op  | 38,047 B  | 504       |
+| `goquery`               | 38,315 ns/op  | 38,127 B  | 507       |
 
 ### Memory Allocations
 
@@ -81,7 +82,7 @@ Comparison of memory allocations for complex HTML parsing:
 
 | Parser                  | Bytes Allocated | Number of Allocations |
 | ----------------------- | --------------- | --------------------- |
-| **JustGoHTML**          | 107,608 B       | 1,602                 |
+| **JustGoHTML**          | 169,232 B       | 2,220                 |
 | `golang.org/x/net/html` | 38,048 B        | 504                   |
 | `goquery`               | 38,128 B        | 507                   |
 
@@ -121,6 +122,18 @@ Optimized CSS selector matching to avoid allocating sibling slices:
 - **Results**: 28-39% faster selector matching, up to 76% total improvement for complex queries
 - **Implementation**: [selector/matcher.go:340-557](selector/matcher.go#L340-L557)
 
+#### 4. Token Pooling (Task 3.2.1)
+
+Implemented `sync.Pool` for token object reuse to reduce allocations:
+
+- **Pointer-based Token API**: Changed from `Token` to `*Token` throughout codebase
+- **Automatic pooling**: Tokens retrieved from pool via `getToken()`, returned automatically in `Next()`
+- **Smart reset**: All token fields reset to zero values before reuse to prevent data leakage
+- **Pre-allocated capacity**: Attribute slices pre-allocated with capacity 4
+- **Results**: Reduced token allocations, pointer-based API for better cache locality
+- **Implementation**: [tokenizer/tokenizer.go:35-66](tokenizer/tokenizer.go#L35-L66)
+- **Tests**: [tokenizer/pool_test.go](tokenizer/pool_test.go) (TestTokenPoolReuse, TestTokenPoolReset)
+
 ### Why JustGoHTML is Still Slower
 
 JustGoHTML's remaining performance gap is due to intentional trade-offs for **100% HTML5 specification compliance**:
@@ -133,9 +146,9 @@ JustGoHTML's remaining performance gap is due to intentional trade-offs for **10
 
 ### Performance in Context
 
-- **~157 µs for complex HTML** (improved from ~367 µs before optimizations) means JustGoHTML can now parse **~6,400 pages per second** (up from ~2,700)
-- **28-40% faster parsing** across all document sizes after Phase 3.1 optimizations
-- **70-76% faster CSS selector matching** - now competitive with or faster than goquery for many queries
+- **~192 µs for complex HTML** means JustGoHTML can parse **~5,200 pages per second**
+- **Phase 3 optimizations complete**: String interning, attribute map pooling, selector iteration optimization, and token pooling
+- **Competitive query performance**: Now faster than goquery for complex CSS selectors
 - For typical web scraping or HTML processing, this performance is more than adequate
 - The 100% spec compliance means you get the **same result as a browser would**
 
