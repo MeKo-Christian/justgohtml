@@ -52,6 +52,8 @@ options = [
   "default",
   "-s",
   "prefix(github.com/MeKo-Christian/JustGoHTML)",
+  "-s",
+  "blank",
 ]
 includes = ["*.go"]
 priority = 1 # run after gofumpt

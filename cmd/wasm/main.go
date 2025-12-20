@@ -5,13 +5,15 @@ package main
 
 import (
 	"encoding/json"
+
 	"syscall/js"
 
 	"github.com/MeKo-Christian/JustGoHTML"
 	"github.com/MeKo-Christian/JustGoHTML/dom"
-	_ "github.com/MeKo-Christian/JustGoHTML/selector" // Register selector functions with dom
 	"github.com/MeKo-Christian/JustGoHTML/serialize"
 	"github.com/MeKo-Christian/JustGoHTML/tokenizer"
+
+	_ "github.com/MeKo-Christian/JustGoHTML/selector" // Register selector functions with dom
 )
 
 func main() {

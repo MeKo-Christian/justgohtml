@@ -492,6 +492,483 @@ func buildTestBinary(t *testing.T) string {
 	return binary
 }
 
+// TestSelectorShorthand tests both -s and --selector flags.
+func TestSelectorShorthand(t *testing.T) {
+	tmpDir := t.TempDir()
+	htmlFile := filepath.Join(tmpDir, "test.html")
+	htmlContent := `<!DOCTYPE html><html><body><p class="target">Found</p><p>Other</p></body></html>`
+	if err := os.WriteFile(htmlFile, []byte(htmlContent), 0o600); err != nil {
+		t.Fatalf("failed to write test file: %v", err)
+	}
+
+	tests := []struct {
+		name string
+		args []string
+	}{
+		{"long flag", []string{"--selector", ".target", htmlFile}},
+		{"short flag", []string{"-s", ".target", htmlFile}},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var stdout, stderr bytes.Buffer
+			err := run(tt.args, nil, &stdout, &stderr)
+			if err != nil {
+				t.Fatalf("run failed: %v", err)
+			}
+
+			got := stdout.String()
+			if !strings.Contains(got, "Found") {
+				t.Errorf("expected output to contain 'Found', got: %q", got)
+			}
+			if strings.Contains(got, "Other") {
+				t.Errorf("expected output NOT to contain 'Other', got: %q", got)
+			}
+		})
+	}
+}
+
+// TestFormatShorthand tests both -f and --format flags.
+func TestFormatShorthand(t *testing.T) {
+	tmpDir := t.TempDir()
+	htmlFile := filepath.Join(tmpDir, "test.html")
+	htmlContent := `<!DOCTYPE html><html><body><p>Test</p></body></html>`
+	if err := os.WriteFile(htmlFile, []byte(htmlContent), 0o600); err != nil {
+		t.Fatalf("failed to write test file: %v", err)
+	}
+
+	tests := []struct {
+		name   string
+		args   []string
+		noTags bool
+	}{
+		{"long flag text", []string{"--format", "text", htmlFile}, true},
+		{"short flag text", []string{"-f", "text", htmlFile}, true},
+		{"long flag html", []string{"--format", "html", htmlFile}, false},
+		{"short flag html", []string{"-f", "html", htmlFile}, false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var stdout, stderr bytes.Buffer
+			err := run(tt.args, nil, &stdout, &stderr)
+			if err != nil {
+				t.Fatalf("run failed: %v", err)
+			}
+
+			got := stdout.String()
+			hasTags := strings.Contains(got, "<p>")
+			if tt.noTags && hasTags {
+				t.Errorf("text format should not contain tags, got: %q", got)
+			}
+			if !tt.noTags && !hasTags {
+				t.Errorf("html format should contain tags, got: %q", got)
+			}
+		})
+	}
+}
+
+// TestInvalidSelector tests error handling for invalid CSS selectors.
+func TestInvalidSelector(t *testing.T) {
+	tmpDir := t.TempDir()
+	htmlFile := filepath.Join(tmpDir, "test.html")
+	htmlContent := `<!DOCTYPE html><html><body><p>Test</p></body></html>`
+	if err := os.WriteFile(htmlFile, []byte(htmlContent), 0o600); err != nil {
+		t.Fatalf("failed to write test file: %v", err)
+	}
+
+	var stdout, stderr bytes.Buffer
+	err := run([]string{"-s", "[[invalid", htmlFile}, nil, &stdout, &stderr)
+	if err == nil {
+		t.Fatal("expected error for invalid selector, got success")
+	}
+
+	if !strings.Contains(err.Error(), "invalid selector") {
+		t.Errorf("expected 'invalid selector' in error, got: %v", err)
+	}
+}
+
+// TestEmptySelector tests that empty selector returns full document.
+func TestEmptySelector(t *testing.T) {
+	tmpDir := t.TempDir()
+	htmlFile := filepath.Join(tmpDir, "test.html")
+	htmlContent := `<!DOCTYPE html><html><body><p>Test</p></body></html>`
+	if err := os.WriteFile(htmlFile, []byte(htmlContent), 0o600); err != nil {
+		t.Fatalf("failed to write test file: %v", err)
+	}
+
+	var stdout, stderr bytes.Buffer
+	err := run([]string{htmlFile}, nil, &stdout, &stderr)
+	if err != nil {
+		t.Fatalf("run failed: %v", err)
+	}
+
+	got := stdout.String()
+	if !strings.Contains(got, "<html>") {
+		t.Errorf("expected full document, got: %q", got)
+	}
+}
+
+// TestIndentOption tests the --indent flag.
+func TestIndentOption(t *testing.T) {
+	tmpDir := t.TempDir()
+	htmlFile := filepath.Join(tmpDir, "test.html")
+	htmlContent := `<!DOCTYPE html><html><body><div><p>Test</p></div></body></html>`
+	if err := os.WriteFile(htmlFile, []byte(htmlContent), 0o600); err != nil {
+		t.Fatalf("failed to write test file: %v", err)
+	}
+
+	tests := []struct {
+		name   string
+		indent string
+	}{
+		{"indent 2", "2"},
+		{"indent 4", "4"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var stdout, stderr bytes.Buffer
+			err := run([]string{"--indent", tt.indent, htmlFile}, nil, &stdout, &stderr)
+			if err != nil {
+				t.Fatalf("run failed: %v", err)
+			}
+
+			// Just verify it doesn't error - indentation testing is complex
+			if stdout.Len() == 0 {
+				t.Error("expected output, got empty")
+			}
+		})
+	}
+}
+
+// TestStripOption tests the --strip flag for text output.
+func TestStripOption(t *testing.T) {
+	tmpDir := t.TempDir()
+	htmlFile := filepath.Join(tmpDir, "test.html")
+	htmlContent := `<!DOCTYPE html><html><body><p>   Text   with   spaces   </p></body></html>`
+	if err := os.WriteFile(htmlFile, []byte(htmlContent), 0o600); err != nil {
+		t.Fatalf("failed to write test file: %v", err)
+	}
+
+	tests := []struct {
+		name            string
+		stripFlag       string
+		expectCollapsed bool
+	}{
+		{"strip enabled", "true", true},
+		{"strip disabled", "false", false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var stdout, stderr bytes.Buffer
+			err := run([]string{"-f", "text", "--strip=" + tt.stripFlag, htmlFile}, nil, &stdout, &stderr)
+			if err != nil {
+				t.Fatalf("run failed: %v", err)
+			}
+
+			got := stdout.String()
+			hasMultipleSpaces := strings.Contains(got, "  ")
+			if tt.expectCollapsed && hasMultipleSpaces {
+				t.Errorf("expected collapsed whitespace, got: %q", got)
+			}
+		})
+	}
+}
+
+// TestSeparatorOption tests the --separator flag for text output.
+func TestSeparatorOption(t *testing.T) {
+	tmpDir := t.TempDir()
+	htmlFile := filepath.Join(tmpDir, "test.html")
+	htmlContent := `<!DOCTYPE html><html><body><p>First</p><p>Second</p></body></html>`
+	if err := os.WriteFile(htmlFile, []byte(htmlContent), 0o600); err != nil {
+		t.Fatalf("failed to write test file: %v", err)
+	}
+
+	var stdout, stderr bytes.Buffer
+	err := run([]string{"-f", "text", "-s", "p", "--separator", " | ", htmlFile}, nil, &stdout, &stderr)
+	if err != nil {
+		t.Fatalf("run failed: %v", err)
+	}
+
+	// Separator option exists but its effect depends on implementation
+	if stdout.Len() == 0 {
+		t.Error("expected output, got empty")
+	}
+}
+
+// TestMultipleMatches tests handling of multiple selector matches.
+func TestMultipleMatches(t *testing.T) {
+	tmpDir := t.TempDir()
+	htmlFile := filepath.Join(tmpDir, "test.html")
+	htmlContent := `<!DOCTYPE html><html><body>
+		<div class="item">First</div>
+		<div class="item">Second</div>
+		<div class="item">Third</div>
+	</body></html>`
+	if err := os.WriteFile(htmlFile, []byte(htmlContent), 0o600); err != nil {
+		t.Fatalf("failed to write test file: %v", err)
+	}
+
+	var stdout, stderr bytes.Buffer
+	err := run([]string{"-s", ".item", htmlFile}, nil, &stdout, &stderr)
+	if err != nil {
+		t.Fatalf("run failed: %v", err)
+	}
+
+	got := stdout.String()
+	if !strings.Contains(got, "First") {
+		t.Errorf("expected 'First' in output, got: %q", got)
+	}
+	if !strings.Contains(got, "Second") {
+		t.Errorf("expected 'Second' in output, got: %q", got)
+	}
+	if !strings.Contains(got, "Third") {
+		t.Errorf("expected 'Third' in output, got: %q", got)
+	}
+}
+
+// TestNoMatches tests handling when selector matches nothing.
+func TestNoMatches(t *testing.T) {
+	tmpDir := t.TempDir()
+	htmlFile := filepath.Join(tmpDir, "test.html")
+	htmlContent := `<!DOCTYPE html><html><body><p>Test</p></body></html>`
+	if err := os.WriteFile(htmlFile, []byte(htmlContent), 0o600); err != nil {
+		t.Fatalf("failed to write test file: %v", err)
+	}
+
+	var stdout, stderr bytes.Buffer
+	err := run([]string{"-s", ".nonexistent", htmlFile}, nil, &stdout, &stderr)
+	if err != nil {
+		t.Fatalf("run failed: %v", err)
+	}
+
+	got := stdout.String()
+	// When no matches, output should be empty or minimal
+	if strings.Contains(got, "<p>") {
+		t.Errorf("expected no <p> in output when selector matches nothing, got: %q", got)
+	}
+}
+
+// TestComplexMarkdown tests complex markdown conversion.
+func TestComplexMarkdown(t *testing.T) {
+	tmpDir := t.TempDir()
+	htmlFile := filepath.Join(tmpDir, "test.html")
+	htmlContent := `<!DOCTYPE html><html><body>
+		<h1>Main Title</h1>
+		<p>Paragraph with <strong>bold</strong> and <em>italic</em> text.</p>
+		<ul>
+			<li>Item 1</li>
+			<li>Item 2</li>
+		</ul>
+		<blockquote>A quote</blockquote>
+		<pre>Code block</pre>
+	</body></html>`
+	if err := os.WriteFile(htmlFile, []byte(htmlContent), 0o600); err != nil {
+		t.Fatalf("failed to write test file: %v", err)
+	}
+
+	var stdout, stderr bytes.Buffer
+	err := run([]string{"-f", "markdown", htmlFile}, nil, &stdout, &stderr)
+	if err != nil {
+		t.Fatalf("run failed: %v", err)
+	}
+
+	got := stdout.String()
+	expectations := []string{
+		"# Main Title",
+		"**bold**",
+		"*italic*",
+		"- Item 1",
+		"- Item 2",
+		"> A quote",
+		"```",
+	}
+
+	for _, want := range expectations {
+		if !strings.Contains(got, want) {
+			t.Errorf("expected markdown output to contain %q, got: %q", want, got)
+		}
+	}
+}
+
+// TestStdinWithSelector tests combining stdin input with selector.
+func TestStdinWithSelector(t *testing.T) {
+	stdin := strings.NewReader(`<html><body><h1>Title</h1><p>Content</p></body></html>`)
+	var stdout, stderr bytes.Buffer
+
+	err := run([]string{"-s", "h1", "-"}, stdin, &stdout, &stderr)
+	if err != nil {
+		t.Fatalf("run failed: %v", err)
+	}
+
+	got := stdout.String()
+	if !strings.Contains(got, "Title") {
+		t.Errorf("expected 'Title' in output, got: %q", got)
+	}
+	if strings.Contains(got, "Content") {
+		t.Errorf("expected NOT to find 'Content' (filtered by selector), got: %q", got)
+	}
+}
+
+// TestStdinWithTextFormat tests stdin with text format output.
+func TestStdinWithTextFormat(t *testing.T) {
+	stdin := strings.NewReader(`<html><body><p>Hello <strong>World</strong></p></body></html>`)
+	var stdout, stderr bytes.Buffer
+
+	err := run([]string{"-f", "text", "-"}, stdin, &stdout, &stderr)
+	if err != nil {
+		t.Fatalf("run failed: %v", err)
+	}
+
+	got := stdout.String()
+	if strings.Contains(got, "<") {
+		t.Errorf("text format should not contain HTML tags, got: %q", got)
+	}
+	if !strings.Contains(got, "Hello") || !strings.Contains(got, "World") {
+		t.Errorf("expected text content, got: %q", got)
+	}
+}
+
+// TestEmptyFile tests handling of empty HTML files.
+func TestEmptyFile(t *testing.T) {
+	tmpDir := t.TempDir()
+	htmlFile := filepath.Join(tmpDir, "empty.html")
+	if err := os.WriteFile(htmlFile, []byte(""), 0o600); err != nil {
+		t.Fatalf("failed to write test file: %v", err)
+	}
+
+	var stdout, stderr bytes.Buffer
+	err := run([]string{htmlFile}, nil, &stdout, &stderr)
+	if err != nil {
+		t.Fatalf("run failed: %v", err)
+	}
+
+	// Empty file should still produce valid HTML structure
+	got := stdout.String()
+	if !strings.Contains(got, "<html>") {
+		t.Errorf("expected HTML structure even for empty file, got: %q", got)
+	}
+}
+
+// TestLargeFile tests handling of larger HTML files.
+func TestLargeFile(t *testing.T) {
+	tmpDir := t.TempDir()
+	htmlFile := filepath.Join(tmpDir, "large.html")
+
+	// Generate a large HTML file
+	var sb strings.Builder
+	sb.WriteString("<!DOCTYPE html><html><body>")
+	for range 1000 {
+		sb.WriteString("<p>Paragraph ")
+		sb.WriteString(strings.Repeat("x", 100))
+		sb.WriteString("</p>")
+	}
+	sb.WriteString("</body></html>")
+
+	if err := os.WriteFile(htmlFile, []byte(sb.String()), 0o600); err != nil {
+		t.Fatalf("failed to write test file: %v", err)
+	}
+
+	var stdout, stderr bytes.Buffer
+	err := run([]string{htmlFile}, nil, &stdout, &stderr)
+	if err != nil {
+		t.Fatalf("run failed: %v", err)
+	}
+
+	if stdout.Len() == 0 {
+		t.Error("expected output for large file, got empty")
+	}
+}
+
+// TestSpecialCharactersInPath tests file paths with special characters.
+func TestSpecialCharactersInPath(t *testing.T) {
+	tmpDir := t.TempDir()
+	htmlFile := filepath.Join(tmpDir, "test file with spaces.html")
+	htmlContent := `<!DOCTYPE html><html><body><p>Test</p></body></html>`
+	if err := os.WriteFile(htmlFile, []byte(htmlContent), 0o600); err != nil {
+		t.Fatalf("failed to write test file: %v", err)
+	}
+
+	var stdout, stderr bytes.Buffer
+	err := run([]string{htmlFile}, nil, &stdout, &stderr)
+	if err != nil {
+		t.Fatalf("run failed: %v", err)
+	}
+
+	got := stdout.String()
+	if !strings.Contains(got, "<p>") {
+		t.Errorf("expected HTML output, got: %q", got)
+	}
+}
+
+// TestMarkdownImage tests markdown image conversion.
+func TestMarkdownImage(t *testing.T) {
+	tmpDir := t.TempDir()
+	htmlFile := filepath.Join(tmpDir, "test.html")
+	htmlContent := `<!DOCTYPE html><html><body><img src="test.jpg" alt="Test Image"></body></html>`
+	if err := os.WriteFile(htmlFile, []byte(htmlContent), 0o600); err != nil {
+		t.Fatalf("failed to write test file: %v", err)
+	}
+
+	var stdout, stderr bytes.Buffer
+	err := run([]string{"-f", "markdown", htmlFile}, nil, &stdout, &stderr)
+	if err != nil {
+		t.Fatalf("run failed: %v", err)
+	}
+
+	got := stdout.String()
+	if !strings.Contains(got, "![Test Image](test.jpg)") {
+		t.Errorf("expected markdown image syntax, got: %q", got)
+	}
+}
+
+// TestMarkdownBlockquote tests markdown blockquote conversion.
+func TestMarkdownBlockquote(t *testing.T) {
+	tmpDir := t.TempDir()
+	htmlFile := filepath.Join(tmpDir, "test.html")
+	htmlContent := `<!DOCTYPE html><html><body><blockquote>Quote text</blockquote></body></html>`
+	if err := os.WriteFile(htmlFile, []byte(htmlContent), 0o600); err != nil {
+		t.Fatalf("failed to write test file: %v", err)
+	}
+
+	var stdout, stderr bytes.Buffer
+	err := run([]string{"-f", "markdown", htmlFile}, nil, &stdout, &stderr)
+	if err != nil {
+		t.Fatalf("run failed: %v", err)
+	}
+
+	got := stdout.String()
+	if !strings.Contains(got, "> Quote text") {
+		t.Errorf("expected markdown blockquote syntax, got: %q", got)
+	}
+}
+
+// TestMarkdownCodeBlock tests markdown code block conversion.
+func TestMarkdownCodeBlock(t *testing.T) {
+	tmpDir := t.TempDir()
+	htmlFile := filepath.Join(tmpDir, "test.html")
+	htmlContent := `<!DOCTYPE html><html><body><pre>code here</pre></body></html>`
+	if err := os.WriteFile(htmlFile, []byte(htmlContent), 0o600); err != nil {
+		t.Fatalf("failed to write test file: %v", err)
+	}
+
+	var stdout, stderr bytes.Buffer
+	err := run([]string{"-f", "markdown", htmlFile}, nil, &stdout, &stderr)
+	if err != nil {
+		t.Fatalf("run failed: %v", err)
+	}
+
+	got := stdout.String()
+	if !strings.Contains(got, "```") {
+		t.Errorf("expected markdown code block syntax, got: %q", got)
+	}
+	if !strings.Contains(got, "code here") {
+		t.Errorf("expected code content, got: %q", got)
+	}
+}
+
 // mustFindGoMod finds the go.mod file by walking up from cwd.
 func mustFindGoMod(t *testing.T) string {
 	t.Helper()

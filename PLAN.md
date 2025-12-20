@@ -24,15 +24,15 @@ Resolve remaining html5lib tree-construction gaps:
 
 Target: 100% for all packages.
 
-| Package     | Current | Target | Status            |
-| ----------- | ------- | ------ | ----------------- |
-| tokenizer   | 92.4%   | 100%   | Near target       |
-| treebuilder | 92.4%   | 100%   | Near target       |
-| dom         | 99.1%   | 100%   | Near target       |
-| selector    | 96.3%   | 100%   | Near target       |
-| encoding    | 96.2%   | 100%   | Near target       |
-| serialize   | 86.8%   | 100%   | Needs improvement |
-| stream      | 89.2%   | 100%   | Near target       |
+| Package     | Current | Target | Status      |
+| ----------- | ------- | ------ | ----------- |
+| tokenizer   | 92.4%   | 100%   | Near target |
+| treebuilder | 92.4%   | 100%   | Near target |
+| dom         | 99.1%   | 100%   | Near target |
+| selector    | 96.3%   | 100%   | Near target |
+| encoding    | 96.2%   | 100%   | Near target |
+| serialize   | 97.2%   | 100%   | Near target |
+| stream      | 89.2%   | 100%   | Near target |
 
 ### 2.2 Integration & CLI Testing
 
