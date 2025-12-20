@@ -3,6 +3,8 @@ package tokenizer
 import (
 	"strings"
 	"unicode"
+
+	"github.com/MeKo-Christian/JustGoHTML/internal/constants"
 )
 
 // Tokenizer implements the HTML5 tokenization algorithm (port of the Python reference).
@@ -439,7 +441,7 @@ func (t *Tokenizer) finishAttribute() {
 	if len(t.currentAttrName) == 0 {
 		return
 	}
-	name := string(t.currentAttrName)
+	name := constants.InternAttributeName(string(t.currentAttrName))
 	t.currentAttrName = t.currentAttrName[:0]
 
 	if _, exists := t.currentTagAttrIndex[name]; exists {
@@ -465,7 +467,7 @@ func (t *Tokenizer) finishAttribute() {
 
 func (t *Tokenizer) emitCurrentTag() bool {
 	var switchedTextMode bool
-	name := string(t.currentTagName)
+	name := constants.InternTagName(string(t.currentTagName))
 	attrs := append([]Attr(nil), t.currentTagAttrs...)
 	tok := Token{
 		Type:        t.currentTagKind,

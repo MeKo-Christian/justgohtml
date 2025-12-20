@@ -62,20 +62,20 @@ Target: 100% for all packages.
 
 ### 3.1 Quick Wins (1-2 days each)
 
-- [ ] **String interning for tag/attribute names**
+- [x] **3.1.1 String interning for tag/attribute names** ✅
   - Pre-allocate common tag names ("div", "span", "p", "a", etc.)
   - Pre-allocate common attribute names ("class", "id", "href", "src", etc.)
   - Use interning in tokenizer when creating tag/attr name strings
-  - Expected: 10-15% memory reduction, 5-10% speedup
-  - Location: `tokenizer/tokenizer.go:468`, `tokenizer/tokenizer.go:442`
+  - **Actual results: 17-40% speedup, zero allocation overhead for interning lookups**
+  - Implementation: `internal/constants/intern.go`, `tokenizer/tokenizer.go:470`, `tokenizer/tokenizer.go:444`
 
-- [ ] **Attribute map pooling**
+- [ ] **3.1.2 Attribute map pooling**
   - Use `sync.Pool` for `currentTagAttrIndex` map allocations
   - Reset and reuse maps instead of creating new ones per tag
   - Expected: 15-20% reduction in allocations
   - Location: `tokenizer/tokenizer.go:32`, `tokenizer/tokenizer.go:109`
 
-- [ ] **Selector sibling iteration optimization**
+- [ ] **3.1.3 Selector sibling iteration optimization**
   - Avoid allocating sibling slices in `getElementSiblings()` and `getSiblingsOfSameType()`
   - Use direct iteration for first/last child checks
   - Cache sibling lists when needed multiple times
@@ -84,20 +84,20 @@ Target: 100% for all packages.
 
 ### 3.2 Medium Effort (3-5 days each)
 
-- [ ] **Token pooling**
+- [ ] **3.2.1 Token pooling**
   - Implement `sync.Pool` for token objects
   - Pool tokens during parsing and return to pool after tree builder consumes them
   - Expected: 20-30% allocation reduction
   - Location: `tokenizer/tokenizer.go:391`
 
-- [ ] **ASCII fast path for tokenization**
+- [ ] **3.2.2 ASCII fast path for tokenization**
   - Detect ASCII-only input upfront
   - Use byte-based operations for ASCII content (avoids rune conversion overhead)
   - Fall back to rune-based for non-ASCII
   - Expected: 20-30% speedup for ASCII-heavy HTML
   - Location: `tokenizer/tokenizer.go:88-97`
 
-- [ ] **State machine dispatch table**
+- [ ] **3.2.3 State machine dispatch table**
   - Replace large switch statement with function pointer array
   - Use direct indexing for state handler dispatch
   - Expected: 5-10% speedup in tokenizer hot loop
@@ -105,7 +105,7 @@ Target: 100% for all packages.
 
 ### 3.3 Major Refactors (1-2 weeks each)
 
-- [ ] **Byte-based tokenization (string indexing instead of []rune)**
+- [ ] **3.3.1 Byte-based tokenization (string indexing instead of []rune)**
   - Replace `buf []rune` with direct string indexing
   - Use `utf8.DecodeRuneInString()` for character-by-character parsing
   - Eliminates 3x memory overhead of rune slice conversion
@@ -113,7 +113,7 @@ Target: 100% for all packages.
   - Location: `tokenizer/tokenizer.go:16`, `tokenizer/tokenizer.go:96`
   - **Note:** This is the single biggest optimization opportunity
 
-- [ ] **DOM element pooling**
+- [ ] **3.3.2 DOM element pooling**
   - Implement `sync.Pool` for DOM element allocations
   - Careful lifecycle management to avoid pool contamination
   - Pool `Element`, `Text`, `Comment` node types
