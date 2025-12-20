@@ -36,10 +36,10 @@ Target: 100% for all packages.
 
 ### 2.2 Integration & CLI Testing
 
-- [ ] API usage tests
-- [ ] CLI argument parsing tests
-- [ ] CLI output format tests
-- [ ] Stdin handling tests
+- [x] API usage tests
+- [x] CLI argument parsing tests
+- [x] CLI output format tests
+- [x] Stdin handling tests
 
 ### 2.3 Fuzz Testing
 

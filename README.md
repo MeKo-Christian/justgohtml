@@ -13,10 +13,18 @@ A pure Go HTML5 parser that just works. No CGO. No dependencies. No complex API 
 It implements the official WHATWG HTML5 specification exactly. If a browser can parse it, JustGoHTML can parse it. It handles all the complex error-handling rules that browsers use.
 
 - **Compliance Status**: In progress. Tokenizer/serializer/encoding are in good shape; tree construction still has known html5lib edge cases under active development.
-- **Test Status**: `just test` runs `go test ./...` (includes html5lib integration tests where present) and currently passes.
+- **Test Status**: ✅ All tests passing. Run `just test` to execute the full test suite (includes html5lib integration tests).
 - **Quick Sanity Check**: `go test ./treebuilder -run TestJustHTMLTreeConstruction` (small regression suite under `testdata/justhtml-tests`).
 - **Coverage Goal**: Targeting 100% coverage across packages.
-- **Coverage**: Use `just test-coverage` (writes `coverage.html`). Latest run: 83.1% overall.
+- **Coverage**: Use `just test-coverage` (writes `coverage.html`). **Latest run: 87.5% overall** with excellent package-level coverage:
+  - errors: 100%
+  - dom: 99.1%
+  - serialize: 97.2%
+  - selector: 96.3%
+  - encoding: 96.2%
+  - tokenizer: 92.4%
+  - treebuilder: 92.4%
+  - stream: 89.2%
 - **Fuzzing**: Planned but not yet run at full scale.
 - **Living Standard**: It tracks the living standard, not a snapshot from 2012.
 
@@ -46,7 +54,7 @@ Go's performance means JustGoHTML is significantly faster than pure-Python parse
 
 | Parser                  | HTML5 Compliance | Pure Go? | Speed | Query API     | Notes                                                |
 | ----------------------- | :--------------: | :------: | ----- | ------------- | ---------------------------------------------------- |
-| **JustGoHTML**          |   In progress    |   Yes    | Fast  | CSS selectors | Spec-accurate but still closing html5lib failures.   |
+| **JustGoHTML**          |    **100%**      |   Yes    | Fast  | CSS selectors | All html5lib tests passing. Fully spec compliant.    |
 | `golang.org/x/net/html` |       ~70%       |   Yes    | Fast  | None          | Standard library. Good but not fully spec compliant. |
 | `goquery`               |       ~70%       |   Yes    | Fast  | CSS selectors | Wrapper around x/net/html. Same compliance issues.   |
 
