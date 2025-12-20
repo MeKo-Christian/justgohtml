@@ -33,6 +33,8 @@ import (
 	htmlerrors "github.com/MeKo-Christian/JustGoHTML/errors"
 	"github.com/MeKo-Christian/JustGoHTML/tokenizer"
 	"github.com/MeKo-Christian/JustGoHTML/treebuilder"
+
+	_ "github.com/MeKo-Christian/JustGoHTML/selector" // Register selector functions
 )
 
 // Version is the current version of JustGoHTML.
