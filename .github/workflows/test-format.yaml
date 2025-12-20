@@ -44,13 +44,14 @@ jobs:
         with:
           tool: taplo-cli@0.9.3
 
-      # treefmt (Go-based v2)
-      - name: Install treefmt
-        run: go install github.com/numtide/treefmt/v2@latest
-
       # Shell formatters
       - name: Install shfmt
         uses: mfinelli/setup-shfmt@v3
 
-      - name: Check formatting
-        run: just check-formatted
+      # treefmt (Use binary installation to avoid Go path issues with emojis)
+      - name: Run treefmt
+        uses: isbecker/treefmt-action@v2
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          version: latest
+          ci: true

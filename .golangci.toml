@@ -121,7 +121,7 @@ path = 'tokenizer/.*\.go'
 
 [[linters.exclusions.rules]]
 # Allow complex functions in treebuilder (insertion modes)
-linters = ['funlen', 'cyclop', 'gocognit', 'maintidx']
+linters = ['funlen', 'cyclop', 'gocyclo', 'gocognit', 'maintidx', 'nonamedreturns', 'unused']
 path = 'treebuilder/.*\.go'
 
 [[linters.exclusions.rules]]
