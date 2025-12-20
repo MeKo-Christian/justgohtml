@@ -691,14 +691,17 @@ Implementation:
 ## Phase 6: Testing & Validation
 
 ### 6.1 Test Infrastructure
+
 - [x] Test helpers + fixtures + html5lib-tests
 
 ### 6.2 html5lib-tests Integration
+
 - [x] Harnesses for tree/tokenizer/serializer/encoding
 - [x] All 9,000+ tests passing (`go test ./...`)
 - Latest full test run (`go test ./... -coverprofile=coverage.out`) passes.
 
 ### 6.3 Unit Test Coverage
+
 Target: 100% (matching Python version). Current overall: 83.1%.
 
 | Package     | Current | Target | Status            |
