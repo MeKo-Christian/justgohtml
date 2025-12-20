@@ -49,12 +49,13 @@ Target: 100% for all packages.
 
 ### 2.4 Benchmark Suite
 
-- [ ] Parse speed benchmark (Wikipedia homepage)
-- [ ] Memory allocation benchmark
-- [ ] Selector matching benchmark
+- [x] Parse speed benchmark (simple, medium, complex HTML)
+- [x] Memory allocation benchmark
+- [x] Selector matching benchmark
 - [ ] Serialization benchmark
 - [ ] Streaming benchmark
-- [ ] Comparison with other Go HTML parsers (\`golang.org/x/net/html\`)
+- [x] Comparison with other Go HTML parsers (`golang.org/x/net/html`, `goquery`)
+  - See [BENCHMARK_RESULTS.md](BENCHMARK_RESULTS.md) for detailed results
 
 ## 3. Documentation & Release
 

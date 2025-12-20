@@ -48,15 +48,19 @@ doc.Query("li:nth-child(2n+1)")       // Pseudo-classes
 
 ### 4. Just... Fast
 
-Go's performance means JustGoHTML is significantly faster than pure-Python parsers while maintaining 100% spec compliance. It parses the Wikipedia homepage in milliseconds.
+Go's performance means JustGoHTML is significantly faster than pure-Python parsers while maintaining 100% spec compliance. It parses complex HTML pages at **~2,700 pages per second** (367 µs per 5KB page).
+
+See [BENCHMARK_RESULTS.md](BENCHMARK_RESULTS.md) for detailed performance comparisons with other Go parsers.
 
 ## Comparison to other parsers
 
-| Parser                  | HTML5 Compliance | Pure Go? | Speed | Query API     | Notes                                                |
-| ----------------------- | :--------------: | :------: | ----- | ------------- | ---------------------------------------------------- |
-| **JustGoHTML**          |    **100%**      |   Yes    | Fast  | CSS selectors | All html5lib tests passing. Fully spec compliant.    |
-| `golang.org/x/net/html` |       ~70%       |   Yes    | Fast  | None          | Standard library. Good but not fully spec compliant. |
-| `goquery`               |       ~70%       |   Yes    | Fast  | CSS selectors | Wrapper around x/net/html. Same compliance issues.   |
+| Parser                  | HTML5 Compliance | Pure Go? | Relative Speed\* | Query API     | Notes                                                |
+| ----------------------- | :--------------: | :------: | ---------------- | ------------- | ---------------------------------------------------- |
+| **JustGoHTML**          |     **100%**     |   Yes    | 1.0x (baseline)  | CSS selectors | All html5lib tests passing. Fully spec compliant.    |
+| `golang.org/x/net/html` |       ~70%       |   Yes    | **3-4x faster**  | None          | Standard library. Good but not fully spec compliant. |
+| `goquery`               |       ~70%       |   Yes    | **3x faster**    | CSS selectors | Wrapper around x/net/html. Same compliance issues.   |
+
+\*Speed comparison based on complex HTML parsing benchmarks. JustGoHTML trades some speed for 100% spec compliance.
 
 ## Installation
 
