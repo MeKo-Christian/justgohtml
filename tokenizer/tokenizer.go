@@ -1882,7 +1882,7 @@ func (t *Tokenizer) stateRCDATAEndTagName() {
 				t.currentTagName = []rune(tagName)
 				t.currentTagAttrs = t.currentTagAttrs[:0]
 				putAttrMap(t.currentTagAttrIndex)
-		t.currentTagAttrIndex = getAttrMap()
+				t.currentTagAttrIndex = getAttrMap()
 				t.state = BeforeAttributeNameState
 				return
 			}
@@ -1892,7 +1892,7 @@ func (t *Tokenizer) stateRCDATAEndTagName() {
 				t.currentTagName = []rune(tagName)
 				t.currentTagAttrs = t.currentTagAttrs[:0]
 				putAttrMap(t.currentTagAttrIndex)
-		t.currentTagAttrIndex = getAttrMap()
+				t.currentTagAttrIndex = getAttrMap()
 				t.state = SelfClosingStartTagState
 				return
 			}
@@ -2017,7 +2017,7 @@ func (t *Tokenizer) stateRAWTEXTEndTagName() {
 				t.currentTagName = []rune(tagName)
 				t.currentTagAttrs = t.currentTagAttrs[:0]
 				putAttrMap(t.currentTagAttrIndex)
-		t.currentTagAttrIndex = getAttrMap()
+				t.currentTagAttrIndex = getAttrMap()
 				t.state = BeforeAttributeNameState
 				return
 			}
@@ -2027,7 +2027,7 @@ func (t *Tokenizer) stateRAWTEXTEndTagName() {
 				t.currentTagName = []rune(tagName)
 				t.currentTagAttrs = t.currentTagAttrs[:0]
 				putAttrMap(t.currentTagAttrIndex)
-		t.currentTagAttrIndex = getAttrMap()
+				t.currentTagAttrIndex = getAttrMap()
 				t.state = SelfClosingStartTagState
 				return
 			}
@@ -2195,7 +2195,7 @@ func (t *Tokenizer) stateScriptDataEscapedEndTagName() {
 				t.currentTagName = []rune(tagName)
 				t.currentTagAttrs = t.currentTagAttrs[:0]
 				putAttrMap(t.currentTagAttrIndex)
-		t.currentTagAttrIndex = getAttrMap()
+				t.currentTagAttrIndex = getAttrMap()
 				t.state = BeforeAttributeNameState
 				return
 			}
@@ -2205,7 +2205,7 @@ func (t *Tokenizer) stateScriptDataEscapedEndTagName() {
 				t.currentTagName = []rune(tagName)
 				t.currentTagAttrs = t.currentTagAttrs[:0]
 				putAttrMap(t.currentTagAttrIndex)
-		t.currentTagAttrIndex = getAttrMap()
+				t.currentTagAttrIndex = getAttrMap()
 				t.state = SelfClosingStartTagState
 				return
 			}

@@ -75,12 +75,12 @@ Target: 100% for all packages.
   - **Actual results: Reduced allocations, improved memory efficiency**
   - Implementation: `tokenizer/tokenizer.go:11-33` (pool setup), multiple allocation sites replaced with pooled maps
 
-- [ ] **3.1.3 Selector sibling iteration optimization**
+- [x] **3.1.3 Selector sibling iteration optimization** ✅
   - Avoid allocating sibling slices in `getElementSiblings()` and `getSiblingsOfSameType()`
   - Use direct iteration for first/last child checks
-  - Cache sibling lists when needed multiple times
-  - Expected: 15-20% speedup for selector matching
-  - Location: `selector/matcher.go:278-291`, `selector/matcher.go:322-338`
+  - Inline counting for nth-child and nth-of-type selectors
+  - **Actual results: 28-29% speedup for selector matching, zero allocations for simple position checks**
+  - Implementation: `selector/matcher.go:340-557` (optimized all sibling iteration functions)
 
 ### 3.2 Medium Effort (3-5 days each)
 

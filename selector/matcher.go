@@ -338,93 +338,221 @@ func getSiblingsOfSameType(elem *dom.Element) []*dom.Element {
 }
 
 // isFirstChild checks if element is the first child among siblings.
+// Optimized to avoid allocating sibling slice.
 func isFirstChild(elem *dom.Element) bool {
-	siblings := getElementSiblings(elem)
-	return len(siblings) > 0 && siblings[0] == elem
+	parent := elem.Parent()
+	if parent == nil {
+		return true
+	}
+
+	// Check if this is the first element child
+	for _, child := range parent.Children() {
+		if e, ok := child.(*dom.Element); ok {
+			return e == elem
+		}
+	}
+	return false
 }
 
 // isLastChild checks if element is the last child among siblings.
+// Optimized to avoid allocating sibling slice.
 func isLastChild(elem *dom.Element) bool {
-	siblings := getElementSiblings(elem)
-	return len(siblings) > 0 && siblings[len(siblings)-1] == elem
+	parent := elem.Parent()
+	if parent == nil {
+		return true
+	}
+
+	// Find the last element child
+	var lastElem *dom.Element
+	for _, child := range parent.Children() {
+		if e, ok := child.(*dom.Element); ok {
+			lastElem = e
+		}
+	}
+	return lastElem == elem
 }
 
 // isOnlyChild checks if element is the only child.
+// Optimized to avoid allocating sibling slice.
 func isOnlyChild(elem *dom.Element) bool {
-	siblings := getElementSiblings(elem)
-	return len(siblings) == 1 && siblings[0] == elem
+	parent := elem.Parent()
+	if parent == nil {
+		return true
+	}
+
+	// Count element children
+	count := 0
+	for _, child := range parent.Children() {
+		if _, ok := child.(*dom.Element); ok {
+			count++
+			if count > 1 {
+				return false
+			}
+		}
+	}
+	return count == 1
 }
 
 // isNthChild checks if element matches :nth-child(An+B).
+// Optimized to count siblings inline without allocating slice.
 func isNthChild(elem *dom.Element, a, b int) bool {
-	siblings := getElementSiblings(elem)
-	index := getElementIndex(elem, siblings)
-	if index == 0 {
-		return false
+	parent := elem.Parent()
+	if parent == nil {
+		return matchesNth(1, a, b)
 	}
-	return matchesNth(index, a, b)
+
+	// Count element children up to elem to get its index
+	index := 0
+	for _, child := range parent.Children() {
+		if e, ok := child.(*dom.Element); ok {
+			index++
+			if e == elem {
+				return matchesNth(index, a, b)
+			}
+		}
+	}
+	return false
 }
 
 // isNthLastChild checks if element matches :nth-last-child(An+B).
+// Optimized to count siblings inline without allocating slice.
 func isNthLastChild(elem *dom.Element, a, b int) bool {
-	siblings := getElementSiblings(elem)
-	index := getElementIndex(elem, siblings)
-	if index == 0 {
+	parent := elem.Parent()
+	if parent == nil {
+		return matchesNth(1, a, b)
+	}
+
+	// First pass: count total elements and find elem's position
+	var totalCount, elemIndex int
+	for _, child := range parent.Children() {
+		if e, ok := child.(*dom.Element); ok {
+			totalCount++
+			if e == elem {
+				elemIndex = totalCount
+			}
+		}
+	}
+
+	if elemIndex == 0 {
 		return false
 	}
+
 	// Convert to index from end
-	indexFromEnd := len(siblings) - index + 1
+	indexFromEnd := totalCount - elemIndex + 1
 	return matchesNth(indexFromEnd, a, b)
 }
 
 // isFirstOfType checks if element is the first of its type among siblings.
+// Optimized to avoid allocating sibling slice.
 func isFirstOfType(elem *dom.Element) bool {
-	siblings := getSiblingsOfSameType(elem)
-	return len(siblings) > 0 && siblings[0] == elem
+	parent := elem.Parent()
+	if parent == nil {
+		return true
+	}
+
+	// Check if this is the first element with this tag name
+	for _, child := range parent.Children() {
+		if e, ok := child.(*dom.Element); ok {
+			if strings.EqualFold(e.TagName, elem.TagName) {
+				return e == elem
+			}
+		}
+	}
+	return false
 }
 
 // isLastOfType checks if element is the last of its type among siblings.
+// Optimized to avoid allocating sibling slice.
 func isLastOfType(elem *dom.Element) bool {
-	siblings := getSiblingsOfSameType(elem)
-	return len(siblings) > 0 && siblings[len(siblings)-1] == elem
+	parent := elem.Parent()
+	if parent == nil {
+		return true
+	}
+
+	// Find the last element with this tag name
+	var lastElem *dom.Element
+	for _, child := range parent.Children() {
+		if e, ok := child.(*dom.Element); ok {
+			if strings.EqualFold(e.TagName, elem.TagName) {
+				lastElem = e
+			}
+		}
+	}
+	return lastElem == elem
 }
 
 // isOnlyOfType checks if element is the only one of its type.
+// Optimized to avoid allocating sibling slice.
 func isOnlyOfType(elem *dom.Element) bool {
-	siblings := getSiblingsOfSameType(elem)
-	return len(siblings) == 1 && siblings[0] == elem
+	parent := elem.Parent()
+	if parent == nil {
+		return true
+	}
+
+	// Count elements with this tag name
+	count := 0
+	for _, child := range parent.Children() {
+		if e, ok := child.(*dom.Element); ok {
+			if strings.EqualFold(e.TagName, elem.TagName) {
+				count++
+				if count > 1 {
+					return false
+				}
+			}
+		}
+	}
+	return count == 1
 }
 
 // isNthOfType checks if element matches :nth-of-type(An+B).
+// Optimized to count inline without allocating sibling slice.
 func isNthOfType(elem *dom.Element, a, b int) bool {
-	siblings := getSiblingsOfSameType(elem)
-	var index int
-	for i, sib := range siblings {
-		if sib == elem {
-			index = i + 1
-			break
+	parent := elem.Parent()
+	if parent == nil {
+		return matchesNth(1, a, b)
+	}
+
+	// Count elements with same tag name up to elem
+	index := 0
+	for _, child := range parent.Children() {
+		if e, ok := child.(*dom.Element); ok {
+			if strings.EqualFold(e.TagName, elem.TagName) {
+				index++
+				if e == elem {
+					return matchesNth(index, a, b)
+				}
+			}
 		}
 	}
-	if index == 0 {
-		return false
-	}
-	return matchesNth(index, a, b)
+	return false
 }
 
 // isNthLastOfType checks if element matches :nth-last-of-type(An+B).
+// Optimized to count inline without allocating sibling slice.
 func isNthLastOfType(elem *dom.Element, a, b int) bool {
-	siblings := getSiblingsOfSameType(elem)
-	var index int
-	for i, sib := range siblings {
-		if sib == elem {
-			index = i + 1
-			break
+	parent := elem.Parent()
+	if parent == nil {
+		return matchesNth(1, a, b)
+	}
+
+	// Count total elements with same tag name and find elem's position
+	var totalCount, elemIndex int
+	for _, child := range parent.Children() {
+		if e, ok := child.(*dom.Element); ok {
+			if strings.EqualFold(e.TagName, elem.TagName) {
+				totalCount++
+				if e == elem {
+					elemIndex = totalCount
+				}
+			}
 		}
 	}
-	if index == 0 {
+
+	if elemIndex == 0 {
 		return false
 	}
-	indexFromEnd := len(siblings) - index + 1
+
+	indexFromEnd := totalCount - elemIndex + 1
 	return matchesNth(indexFromEnd, a, b)
 }
 
