@@ -289,7 +289,7 @@ func TestReadUnquotedAttrValueEdgeCases(t *testing.T) {
 	div2.SetAttr("data-value", "test")
 	body.AppendChild(div2)
 
-	results, err = Match(body, `[data-value=test\-value]`)
+	_, err = Match(body, `[data-value=test\-value]`)
 	if err != nil {
 		t.Fatalf("Match error: %v", err)
 	}

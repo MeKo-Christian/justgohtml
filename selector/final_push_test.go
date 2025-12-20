@@ -9,29 +9,19 @@ import (
 // TestSelectorASTInterface tests that ComplexSelector and SelectorList implement selectorAST
 func TestSelectorASTInterface(t *testing.T) {
 	// These types implement the private selectorAST interface
-	// We can verify they can be assigned to the interface type
-	var ast selectorAST
+	// We can verify they can be assigned to the interface type and used
+	elem := dom.NewElement("div")
 
 	// ComplexSelector implements selectorAST
 	cs := ComplexSelector{}
-	ast = cs
-	if ast == nil {
-		t.Error("ComplexSelector should implement selectorAST")
-	}
-
-	// SelectorList implements selectorAST
-	sl := SelectorList{}
-	ast = sl
-	if ast == nil {
-		t.Error("SelectorList should implement selectorAST")
-	}
-
-	// Verify the marker methods are called by matchAST
-	// This indirectly tests the isSelectorAST methods
-	elem := dom.NewElement("div")
+	var _ selectorAST = cs // Compile-time check
 
 	// matchAST with ComplexSelector calls cs.isSelectorAST()
 	_ = matchAST(elem, cs)
+
+	// SelectorList implements selectorAST
+	sl := SelectorList{}
+	var _ selectorAST = sl // Compile-time check
 
 	// matchAST with SelectorList calls sl.isSelectorAST()
 	_ = matchAST(elem, sl)

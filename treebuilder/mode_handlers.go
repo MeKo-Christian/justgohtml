@@ -441,7 +441,6 @@ func (tb *TreeBuilder) processText(tok tokenizer.Token) bool {
 	return false
 }
 
-//nolint:gocyclo // Implements WHATWG HTML §13.2.6.4.7 (In body insertion mode) - largest mode in spec
 func (tb *TreeBuilder) processInBody(tok tokenizer.Token) bool {
 	//nolint:exhaustive // HTML5 spec: unhandled token types use default error recovery
 	switch tok.Type {
@@ -1101,7 +1100,6 @@ func (tb *TreeBuilder) processInCaption(tok tokenizer.Token) bool {
 	return tb.processInBody(tok)
 }
 
-//nolint:gocyclo // Implements WHATWG HTML §13.2.6.4.13 (In column group insertion mode)
 func (tb *TreeBuilder) processInColumnGroup(tok tokenizer.Token) bool {
 	current := tb.currentElement()
 
@@ -1384,7 +1382,6 @@ func (tb *TreeBuilder) popUntilAnyCell() {
 	}
 }
 
-//nolint:gocyclo // Implements WHATWG HTML §13.2.6.4.16 (In select insertion mode)
 func (tb *TreeBuilder) processInSelect(tok tokenizer.Token) bool {
 	switch tok.Type {
 	case tokenizer.Character:

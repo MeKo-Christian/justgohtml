@@ -5,6 +5,7 @@ package main
 
 import (
 	"encoding/json"
+
 	"syscall/js"
 
 	"github.com/MeKo-Christian/JustGoHTML"
