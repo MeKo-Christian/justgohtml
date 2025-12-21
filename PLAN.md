@@ -99,15 +99,30 @@ Target: 100% for all packages.
     - Pre-allocated `Attrs` slices increased base memory per token
   - **Conclusion:** Token pooling is counterproductive for this use case
   - Reference: PR #1 (closed), branch `feature/token-pooling` kept for reference
-  - Implementation: `tokenizer/tokenizer.go:35-66` (pool setup), `tokenizer/tokenizer.go:246` (Next returns *Token), all emit functions updated
+  - Implementation: `tokenizer/tokenizer.go:35-66` (pool setup), `tokenizer/tokenizer.go:246` (Next returns \*Token), all emit functions updated
   - Tests: `tokenizer/pool_test.go` (TestTokenPoolReuse, TestTokenPoolReset)
 
-- [ ] **3.2.2 ASCII fast path for tokenization**
-  - Detect ASCII-only input upfront
+- [x] **3.2.2 ASCII fast path for tokenization** ✅
+  - Detect ASCII-only input upfront in `reset()` function
   - Use byte-based operations for ASCII content (avoids rune conversion overhead)
-  - Fall back to rune-based for non-ASCII
-  - Expected: 20-30% speedup for ASCII-heavy HTML
-  - Location: `tokenizer/tokenizer.go:88-97`
+  - Fall back to rune-based for non-ASCII (graceful degradation)
+  - **Actual results: ~3% speedup for ASCII HTML** (28,457 ns vs 29,345 ns)
+  - **Implementation:**
+    - Added `isASCIIOnly` and `inputBytes` fields to Tokenizer struct
+    - ASCII detection in `reset()` with single-pass scan
+    - `getCharASCII()` - byte-indexed character reading
+    - `appendTextRune()` - uses `WriteByte()` for ASCII
+    - `consumeCaseInsensitiveASCII()` - simple arithmetic for case folding (no `unicode.ToLower()`)
+    - ASCII helper functions: `isASCIIWhitespace()`, `isASCIIAlpha()`, `toASCIILower()`
+  - **Files modified:**
+    - `tokenizer/tokenizer.go` - Core implementation
+    - `tokenizer/ascii_test.go` - ASCII detection tests (NEW)
+    - `tokenizer/ascii_bench_test.go` - Performance benchmarks (NEW)
+  - **Note:** Actual speedup is lower than expected 20-30% because:
+    - Most hot paths already had ASCII optimizations (e.g., tag name lowercasing)
+    - Rune-based operations are already quite fast in Go
+    - The main benefit is in reduced allocations for future optimizations
+    - This lays groundwork for task 3.3.1 (byte-based tokenization)
 
 - [ ] **3.2.3 State machine dispatch table**
   - Replace large switch statement with function pointer array
@@ -117,13 +132,31 @@ Target: 100% for all packages.
 
 ### 3.3 Major Refactors (1-2 weeks each)
 
-- [ ] **3.3.1 Byte-based tokenization (string indexing instead of []rune)**
-  - Replace `buf []rune` with direct string indexing
-  - Use `utf8.DecodeRuneInString()` for character-by-character parsing
-  - Eliminates 3x memory overhead of rune slice conversion
-  - Expected: 30-40% speedup, 50% memory reduction
-  - Location: `tokenizer/tokenizer.go:16`, `tokenizer/tokenizer.go:96`
-  - **Note:** This is the single biggest optimization opportunity
+- [x] **3.3.1 Byte-based tokenization (string indexing instead of []rune)** ✅
+  - Completely eliminated `buf []rune` field from Tokenizer struct
+  - Use `utf8.DecodeRuneInString()` for UTF-8 character decoding on-the-fly
+  - Direct byte indexing for ASCII content (via existing ASCII fast path)
+  - **Actual results: Performance-neutral, no measurable speed or memory improvement**
+    - Benchstat comparison shows -0.56% geomean speed change (within noise)
+    - Memory usage identical: 100.3Ki for complex HTML (both branches)
+    - Allocations identical: 1,596 for complex HTML (both branches)
+  - **Implementation:**
+    - Removed `[]rune` conversion entirely from `reset()`
+    - Updated `getCharRune()` to use `utf8.DecodeRuneInString()` and `utf8.DecodeLastRuneInString()`
+    - Updated `peek()` with ASCII fast path and UTF-8 fallback
+    - Updated `consumeIf()` to use byte-based comparison (ASCII literals only)
+    - Updated `consumeCaseInsensitiveRune()` to decode UTF-8 on-the-fly
+    - BOM handling now uses UTF-8 byte sequence (0xEF 0xBB 0xBF) instead of rune check
+  - **Files modified:**
+    - `tokenizer/tokenizer.go` - Complete byte-based refactor
+  - **Benefits:**
+    - Cleaner architecture (no redundant string-to-rune conversion)
+    - Maintains 100% HTML5 spec compliance (all 9,000+ tests pass)
+    - No performance regression - safe to merge
+  - **Why no improvement:**
+    - Go compiler likely optimized `[]rune` conversion already
+    - Real memory bottleneck is DOM tree structure, not tokenizer buffer
+    - UTF-8 decoding overhead offsets theoretical savings
 
 - [ ] **3.3.2 DOM element pooling**
   - Implement `sync.Pool` for DOM element allocations

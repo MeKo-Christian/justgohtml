@@ -4,6 +4,7 @@ import (
 	"strings"
 	"sync"
 	"unicode"
+	"unicode/utf8"
 
 	"github.com/MeKo-Christian/JustGoHTML/internal/constants"
 )
@@ -40,8 +41,10 @@ type Tokenizer struct {
 
 	origInput string
 
-	buf []rune
-	pos int
+	// Byte-based tokenization (no []rune conversion overhead)
+	inputBytes  string // Original input for direct byte/UTF-8 access
+	pos         int    // Current byte position in inputBytes
+	isASCIIOnly bool   // True if input is pure ASCII (enables fast path)
 
 	state    State
 	textMode State
@@ -113,15 +116,24 @@ func NewWithOptions(input string, opts Options) *Tokenizer {
 }
 
 func (t *Tokenizer) reset(input string) {
+	// Handle BOM (U+FEFF) if DiscardBOM is enabled
+	// UTF-8 BOM is 0xEF 0xBB 0xBF
 	if input != "" && t.opts.DiscardBOM {
-		r := []rune(input)
-		if len(r) > 0 && r[0] == 0xFEFF {
-			r = r[1:]
+		if len(input) >= 3 && input[0] == 0xEF && input[1] == 0xBB && input[2] == 0xBF {
+			input = input[3:]
 		}
-		t.buf = r
-	} else {
-		t.buf = []rune(input)
 	}
+
+	// Detect ASCII-only input for fast path optimization
+	isASCII := true
+	for i := range input {
+		if input[i] > 0x7f {
+			isASCII = false
+			break
+		}
+	}
+	t.isASCIIOnly = isASCII
+	t.inputBytes = input
 
 	t.pos = 0
 	t.reconsume = false
@@ -360,6 +372,14 @@ func (t *Tokenizer) step() {
 }
 
 func (t *Tokenizer) getChar() (rune, bool) {
+	if t.isASCIIOnly {
+		return t.getCharASCII()
+	}
+	return t.getCharRune()
+}
+
+// getCharASCII is the byte-indexed implementation for ASCII input.
+func (t *Tokenizer) getCharASCII() (rune, bool) {
 	if t.reconsume {
 		t.reconsume = false
 		if t.pos == 0 {
@@ -369,11 +389,11 @@ func (t *Tokenizer) getChar() (rune, bool) {
 	}
 
 	for {
-		if t.pos >= len(t.buf) {
+		if t.pos >= len(t.inputBytes) {
 			return 0, false
 		}
 
-		c := t.buf[t.pos]
+		c := rune(t.inputBytes[t.pos])
 		t.pos++
 
 		if c == '\r' {
@@ -396,15 +416,84 @@ func (t *Tokenizer) getChar() (rune, bool) {
 	}
 }
 
-func (t *Tokenizer) peek(offset int) (rune, bool) {
-	i := t.pos + offset
+// getCharRune is the UTF-8 based implementation for non-ASCII input.
+// Uses utf8.DecodeRuneInString() instead of pre-converted []rune slice.
+func (t *Tokenizer) getCharRune() (rune, bool) {
 	if t.reconsume {
-		i--
+		t.reconsume = false
+		if t.pos == 0 {
+			return 0, false
+		}
+		// Move back one rune (not one byte!)
+		_, size := utf8.DecodeLastRuneInString(t.inputBytes[:t.pos])
+		t.pos -= size
 	}
-	if i < 0 || i >= len(t.buf) {
+
+	for {
+		if t.pos >= len(t.inputBytes) {
+			return 0, false
+		}
+
+		// Decode UTF-8 rune from string at current position
+		c, size := utf8.DecodeRuneInString(t.inputBytes[t.pos:])
+		t.pos += size
+
+		if c == '\r' {
+			t.ignoreLF = true
+			t.advance('\n')
+			return '\n', true
+		}
+		if c == '\n' {
+			if t.ignoreLF {
+				t.ignoreLF = false
+				continue
+			}
+			t.advance('\n')
+			return '\n', true
+		}
+
+		t.ignoreLF = false
+		t.advance(c)
+		return c, true
+	}
+}
+
+func (t *Tokenizer) peek(offset int) (rune, bool) {
+	// For ASCII fast path, peek at bytes directly
+	if t.isASCIIOnly {
+		i := t.pos + offset
+		if t.reconsume {
+			i--
+		}
+		if i < 0 || i >= len(t.inputBytes) {
+			return 0, false
+		}
+		return rune(t.inputBytes[i]), true
+	}
+
+	// For non-ASCII, we need to decode UTF-8 runes
+	// This is slower but peek() is rarely used (only for script tag escaping)
+	pos := t.pos
+	if t.reconsume && pos > 0 {
+		_, size := utf8.DecodeLastRuneInString(t.inputBytes[:pos])
+		pos -= size
+	}
+
+	// Advance 'offset' runes from current position
+	for range offset {
+		if pos >= len(t.inputBytes) {
+			return 0, false
+		}
+		_, size := utf8.DecodeRuneInString(t.inputBytes[pos:])
+		pos += size
+	}
+
+	if pos >= len(t.inputBytes) {
 		return 0, false
 	}
-	return t.buf[i], true
+
+	c, _ := utf8.DecodeRuneInString(t.inputBytes[pos:])
+	return c, true
 }
 
 func (t *Tokenizer) advance(c rune) {
@@ -441,7 +530,29 @@ func (t *Tokenizer) appendTextRune(r rune) {
 	if r == '&' {
 		t.textHasAmp = true
 	}
-	t.textBuffer.WriteRune(r)
+	// ASCII fast path: WriteByte is faster than WriteRune for ASCII
+	if t.isASCIIOnly && r < 0x80 {
+		t.textBuffer.WriteByte(byte(r))
+	} else {
+		t.textBuffer.WriteRune(r)
+	}
+}
+
+// ASCII helper functions for fast path optimizations
+
+func isASCIIWhitespace(b byte) bool {
+	return b == '\t' || b == '\n' || b == '\f' || b == ' '
+}
+
+func isASCIIAlpha(b byte) bool {
+	return (b >= 'a' && b <= 'z') || (b >= 'A' && b <= 'Z')
+}
+
+func toASCIILower(b byte) byte {
+	if b >= 'A' && b <= 'Z' {
+		return b + 32
+	}
+	return b
 }
 
 func (t *Tokenizer) flushText() {
@@ -581,35 +692,82 @@ func (t *Tokenizer) emitDoctype() {
 }
 
 func (t *Tokenizer) consumeIf(lit string) bool {
-	r := []rune(lit)
-	if t.pos+len(r) > len(t.buf) {
+	// This function is only used for ASCII literals (--,  [CDATA[, etc.)
+	// so we can safely use byte-based comparison
+	if t.pos+len(lit) > len(t.inputBytes) {
 		return false
 	}
-	for i := range r {
-		if t.buf[t.pos+i] != r[i] {
+	for i := range lit {
+		if t.inputBytes[t.pos+i] != lit[i] {
 			return false
 		}
 	}
-	t.pos += len(r)
+	t.pos += len(lit)
 	// Update column as if consumed (best-effort; these literals are ASCII).
-	t.column += len(r)
+	t.column += len(lit)
 	return true
 }
 
 func (t *Tokenizer) consumeCaseInsensitive(lit string) bool {
-	r := []rune(lit)
-	if t.pos+len(r) > len(t.buf) {
+	if t.isASCIIOnly {
+		return t.consumeCaseInsensitiveASCII(lit)
+	}
+	return t.consumeCaseInsensitiveRune(lit)
+}
+
+// consumeCaseInsensitiveASCII - fast path for ASCII content
+func (t *Tokenizer) consumeCaseInsensitiveASCII(lit string) bool {
+	if t.pos+len(lit) > len(t.inputBytes) {
 		return false
 	}
-	for i := range r {
-		a := t.buf[t.pos+i]
-		b := r[i]
-		if unicode.ToLower(a) != unicode.ToLower(b) {
+	for i := range lit {
+		a := t.inputBytes[t.pos+i]
+		b := lit[i]
+		// ASCII case folding: A-Z → a-z
+		if a >= 'A' && a <= 'Z' {
+			a += 32
+		}
+		if b >= 'A' && b <= 'Z' {
+			b += 32
+		}
+		if a != b {
 			return false
 		}
 	}
-	t.pos += len(r)
-	t.column += len(r)
+	t.pos += len(lit)
+	t.column += len(lit)
+	return true
+}
+
+// consumeCaseInsensitiveRune is the UTF-8 based implementation for non-ASCII input.
+// Uses utf8.DecodeRuneInString() instead of pre-converted []rune slice.
+func (t *Tokenizer) consumeCaseInsensitiveRune(lit string) bool {
+	// Decode the literal string to runes for comparison
+	litRunes := []rune(lit)
+
+	// Check if we have enough bytes remaining (conservative check)
+	// We'll validate properly during the loop
+	if t.pos >= len(t.inputBytes) {
+		return false
+	}
+
+	// Track position for comparison
+	pos := t.pos
+	for _, expectedRune := range litRunes {
+		if pos >= len(t.inputBytes) {
+			return false
+		}
+
+		actualRune, size := utf8.DecodeRuneInString(t.inputBytes[pos:])
+		if unicode.ToLower(actualRune) != unicode.ToLower(expectedRune) {
+			return false
+		}
+		pos += size
+	}
+
+	// Update position and column
+	t.pos = pos
+	t.column += len(litRunes)
 	return true
 }
 
