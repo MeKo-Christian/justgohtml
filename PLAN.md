@@ -102,12 +102,19 @@ Target: 100% for all packages.
   - Implementation: `tokenizer/tokenizer.go:35-66` (pool setup), `tokenizer/tokenizer.go:246` (Next returns *Token), all emit functions updated
   - Tests: `tokenizer/pool_test.go` (TestTokenPoolReuse, TestTokenPoolReset)
 
-- [ ] **3.2.2 ASCII fast path for tokenization**
-  - Detect ASCII-only input upfront
-  - Use byte-based operations for ASCII content (avoids rune conversion overhead)
-  - Fall back to rune-based for non-ASCII
-  - Expected: 20-30% speedup for ASCII-heavy HTML
-  - Location: `tokenizer/tokenizer.go:88-97`
+- [x] **3.2.2 ASCII fast path for tokenization** ❌ DEFERRED - Part of Failed Byte-Based Refactor
+  - Attempted ASCII detection with byte-based operations for ASCII content
+  - Implemented fallback to UTF-8 decoding for non-ASCII
+  - **Actual results: PERFORMANCE REGRESSION (tested as part of 3.3.1)**
+    - **12% slower** on complex HTML (151µs → 170µs)
+    - Memory improved 18% but speed loss unacceptable
+  - **Root causes:**
+    - UTF-8 decoding overhead (`utf8.DecodeRuneInString`) on every character access
+    - `peek()` function became expensive (walks UTF-8 runes)
+    - ASCII detection loop in `reset()` adds overhead
+    - Go compiler already optimizes `[]rune(string)` conversions well
+  - **Conclusion:** ASCII fast path adds complexity without performance benefit
+  - Reference: branch `feat/byte-based-tokenization` (not merged)
 
 - [ ] **3.2.3 State machine dispatch table**
   - Replace large switch statement with function pointer array
@@ -117,13 +124,22 @@ Target: 100% for all packages.
 
 ### 3.3 Major Refactors (1-2 weeks each)
 
-- [ ] **3.3.1 Byte-based tokenization (string indexing instead of []rune)**
-  - Replace `buf []rune` with direct string indexing
-  - Use `utf8.DecodeRuneInString()` for character-by-character parsing
-  - Eliminates 3x memory overhead of rune slice conversion
-  - Expected: 30-40% speedup, 50% memory reduction
-  - Location: `tokenizer/tokenizer.go:16`, `tokenizer/tokenizer.go:96`
-  - **Note:** This is the single biggest optimization opportunity
+- [x] **3.3.1 Byte-based tokenization (string indexing instead of []rune)** ❌ REJECTED - Performance Regression
+  - Replaced `buf []rune` with direct string indexing and UTF-8 decoding
+  - Implemented `utf8.DecodeRuneInString()` for character-by-character parsing
+  - Added ASCII-only detection for fast path optimization
+  - **Actual results: UNACCEPTABLE SPEED REGRESSION**
+    - **12% slower** on complex HTML (151µs → 170µs) - opposite of expected 30-40% speedup
+    - **18% memory reduction** (100.3Ki → 82.3Ki) - good but doesn't justify speed loss
+    - **Throughput impact:** 6,350 pages/sec → 5,900 pages/sec
+  - **Root causes:**
+    - UTF-8 decoding overhead on every `getChar()` call outweighs memory savings
+    - Go's compiler already optimizes `[]rune(string)` conversion efficiently
+    - `peek()` became expensive (must walk UTF-8 sequences for lookahead)
+    - ASCII detection scan in `reset()` adds overhead for every parse
+  - **Conclusion:** Premature optimization - theory didn't match reality. Keep current `[]rune` approach.
+  - Reference: branch `feat/byte-based-tokenization` (benchmarked, not merged)
+  - **Note:** This was THOUGHT to be the biggest optimization opportunity - benchmarks proved otherwise
 
 - [ ] **3.3.2 DOM element pooling**
   - Implement `sync.Pool` for DOM element allocations
