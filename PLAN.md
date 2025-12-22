@@ -130,6 +130,48 @@ Target: 100% for all packages.
   - **Why it works:** Direct array lookup eliminates switch comparison overhead
   - Implementation: `tokenizer/tokenizer.go:35-36` (type), `tokenizer/tokenizer.go:122-191` (init), `tokenizer/tokenizer.go:307-318` (step)
 
+### 3.2.4 New Optimization Opportunities (avoiding past mistakes)
+
+Based on lessons learned from failed optimizations (3.2.1, 3.2.2, 3.3.1), here are optimization opportunities that work WITH Go's strengths rather than against them:
+
+- [ ] **3.2.4.1 Pre-computed rune literals for consumeIf/consumeCaseInsensitive**
+  - Currently: `consumeIf("--")` calls `[]rune(lit)` on every invocation (lines 541-555)
+  - Fix: Pre-compute rune slices for known literals ("--", "DOCTYPE", "[CDATA[", "PUBLIC", "SYSTEM")
+  - Use package-level `var` with pre-converted rune slices
+  - **Why this won't fail like 3.3.1:** No per-character overhead, just avoids repeated conversions
+  - Expected: 2-5% speedup on documents with many comments/doctypes/CDATA
+
+- [ ] **3.2.4.2 Batch text node emission with strings.Builder capacity hints**
+  - Currently: `textBuffer` grows dynamically per WriteRune (line 82, 398-403)
+  - Fix: Pre-size Builder with `Grow()` based on remaining input estimate
+  - After `flushText()`, reuse capacity hint from previous text length
+  - **Why this won't fail:** Reduces reallocation, not adding overhead
+  - Expected: 3-7% speedup for text-heavy documents
+
+- [ ] **3.2.4.3 Eliminate pendingTokens slice operations in hot path**
+  - Currently: `Next()` does `t.pendingTokens[0]` then `t.pendingTokens[1:]` (lines 293-304)
+  - Fix: Use ring buffer or index-based approach instead of slice reslicing
+  - Most tokens emit one at a time; avoid slice header updates
+  - **Why this won't fail:** Reduces GC pressure, no pointer indirection added
+  - Expected: 5-10% speedup
+
+- [ ] **3.2.4.4 Inline hot path character classification**
+  - Currently: `switch c { case '\t', '\n', '\f', ' ': ... }` in multiple places
+  - Fix: Create lookup table `var isWhitespace [256]bool` for ASCII range
+  - Use `if c < 256 && isWhitespace[c]` for fast classification
+  - Also: `isASCIIAlpha`, `isASCIIUpper` tables
+  - **Why this won't fail:** Tables are read-only, excellent cache behavior
+  - Expected: 3-8% speedup in tag parsing states
+
+- [ ] **3.2.4.5 Reduce attribute map operations**
+  - Currently: Every attribute does `t.currentTagAttrIndex[name] = struct{}{}` (line 447)
+  - Fix: Only track duplicates for tags with >1 attribute (common case: 0-3 attrs)
+  - Use simple slice scan for small attribute counts, map only when >4 attrs
+  - **Why this won't fail:** Reduces map overhead for common case
+  - Expected: 5-10% speedup for attribute-heavy documents
+
+**Priority order (highest impact first):** 3.2.4.3, 3.2.4.4, 3.2.4.5, 3.2.4.2, 3.2.4.1
+
 ### 3.3 Major Refactors (1-2 weeks each)
 
 - [x] **3.3.1 Byte-based tokenization (string indexing instead of []rune)** ❌ REJECTED - Performance Regression
