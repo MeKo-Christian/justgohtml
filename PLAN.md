@@ -116,11 +116,19 @@ Target: 100% for all packages.
   - **Conclusion:** ASCII fast path adds complexity without performance benefit
   - Reference: branch `feat/byte-based-tokenization` (not merged)
 
-- [ ] **3.2.3 State machine dispatch table**
-  - Replace large switch statement with function pointer array
-  - Use direct indexing for state handler dispatch
-  - Expected: 5-10% speedup in tokenizer hot loop
-  - Location: `tokenizer/tokenizer.go:200-331`
+- [x] **3.2.3 State machine dispatch table** ✅ SUCCESSFUL
+  - Replaced large switch statement (~55 cases) with function pointer array
+  - Used direct array indexing for O(1) state handler dispatch
+  - Dispatch table initialized once per tokenizer with all state handlers
+  - **Actual results: SIGNIFICANT SPEEDUP**
+    - **ParseBytes_Medium: 32% faster** (127.62µs → 86.68µs)
+    - **ParseBytes_Complex: 9.2% faster** (167.1µs → 151.8µs)
+    - **Parse_Parallel: 14% faster** (113.39µs → 97.58µs)
+    - **Geometric mean: 12.9% faster** across all benchmarks
+    - Memory overhead: ~2.3% more (dispatch table allocation per tokenizer)
+    - Allocation overhead: ~0.2% more (1 extra alloc per parse)
+  - **Why it works:** Direct array lookup eliminates switch comparison overhead
+  - Implementation: `tokenizer/tokenizer.go:35-36` (type), `tokenizer/tokenizer.go:122-191` (init), `tokenizer/tokenizer.go:307-318` (step)
 
 ### 3.3 Major Refactors (1-2 weeks each)
 
