@@ -99,7 +99,7 @@ Target: 100% for all packages.
     - Pre-allocated `Attrs` slices increased base memory per token
   - **Conclusion:** Token pooling is counterproductive for this use case
   - Reference: PR #1 (closed), branch `feature/token-pooling` kept for reference
-  - Implementation: `tokenizer/tokenizer.go:35-66` (pool setup), `tokenizer/tokenizer.go:246` (Next returns *Token), all emit functions updated
+  - Implementation: `tokenizer/tokenizer.go:35-66` (pool setup), `tokenizer/tokenizer.go:246` (Next returns \*Token), all emit functions updated
   - Tests: `tokenizer/pool_test.go` (TestTokenPoolReuse, TestTokenPoolReset)
 
 - [x] **3.2.2 ASCII fast path for tokenization** ❌ DEFERRED - Part of Failed Byte-Based Refactor

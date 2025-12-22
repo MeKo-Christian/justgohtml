@@ -56,7 +56,7 @@ See [BENCHMARK_RESULTS.md](BENCHMARK_RESULTS.md) for detailed performance compar
 
 | Parser                  | HTML5 Compliance | Pure Go? | Parse Speed | Query Speed | Query API     | Notes                                     |
 | ----------------------- | :--------------: | :------: | ----------- | ----------- | ------------- | ----------------------------------------- |
-| **JustGoHTML**          |    **100.0%**    |   Yes    | 1.0x        | **1.0x** ⚡  | CSS selectors | All html5lib tests pass. Fully compliant. |
+| **JustGoHTML**          |    **100.0%**    |   Yes    | 1.0x        | **1.0x** ⚡ | CSS selectors | All html5lib tests pass. Fully compliant. |
 | `golang.org/x/net/html` |      96.2%       |   Yes    | **2.5x**    | —           | None          | Good but fails 60 of 1,578 tree tests.    |
 | `goquery`               |      96.2%       |   Yes    | **2.5x**    | 1.2x        | CSS selectors | Wrapper around x/net/html.                |
 | `htmlquery`             |      96.2%       |   Yes    | ~2.5x       | —           | XPath         | Uses x/net/html parser + XPath queries.   |

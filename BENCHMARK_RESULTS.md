@@ -27,11 +27,11 @@ JustGoHTML provides **100% HTML5 compliance** with **competitive performance** c
 
 #### Simple HTML (Small Document)
 
-| Parser                  | Time/op      | Speed vs JustGoHTML | Mem/op   | Allocs/op | Improvement            |
-| ----------------------- | ------------ | ------------------- | -------- | --------- | ---------------------- |
-| **JustGoHTML**          | 14,020 ns/op | 1.0x (baseline)     | 11,446 B | 173       | ⚡ **+6% from 3.2.3**  |
-| `golang.org/x/net/html` | 7,088 ns/op  | **2.0x faster**     | 7,880 B  | 48        | -                      |
-| `goquery`               | 6,414 ns/op  | **2.2x faster**     | 7,960 B  | 51        | -                      |
+| Parser                  | Time/op      | Speed vs JustGoHTML | Mem/op   | Allocs/op | Improvement           |
+| ----------------------- | ------------ | ------------------- | -------- | --------- | --------------------- |
+| **JustGoHTML**          | 14,020 ns/op | 1.0x (baseline)     | 11,446 B | 173       | ⚡ **+6% from 3.2.3** |
+| `golang.org/x/net/html` | 7,088 ns/op  | **2.0x faster**     | 7,880 B  | 48        | -                     |
+| `goquery`               | 6,414 ns/op  | **2.2x faster**     | 7,960 B  | 51        | -                     |
 
 #### Medium HTML (Blog Post ~3KB)
 
@@ -43,11 +43,11 @@ JustGoHTML provides **100% HTML5 compliance** with **competitive performance** c
 
 #### Complex HTML (Full Page ~5KB)
 
-| Parser                  | Time/op       | Speed vs JustGoHTML | Mem/op    | Allocs/op | Improvement            |
-| ----------------------- | ------------- | ------------------- | --------- | --------- | ---------------------- |
-| **JustGoHTML**          | 151,800 ns/op | 1.0x (baseline)     | 103,444 B | 1,597     | ⚡ **+5% from 3.2.3**  |
-| `golang.org/x/net/html` | 64,710 ns/op  | **2.3x faster**     | 38,048 B  | 504       | -                      |
-| `goquery`               | 61,680 ns/op  | **2.5x faster**     | 38,128 B  | 507       | -                      |
+| Parser                  | Time/op       | Speed vs JustGoHTML | Mem/op    | Allocs/op | Improvement           |
+| ----------------------- | ------------- | ------------------- | --------- | --------- | --------------------- |
+| **JustGoHTML**          | 151,800 ns/op | 1.0x (baseline)     | 103,444 B | 1,597     | ⚡ **+5% from 3.2.3** |
+| `golang.org/x/net/html` | 64,710 ns/op  | **2.3x faster**     | 38,048 B  | 504       | -                     |
+| `goquery`               | 61,680 ns/op  | **2.5x faster**     | 38,128 B  | 507       | -                     |
 
 ### Query Benchmarks
 

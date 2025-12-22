@@ -11,8 +11,9 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/MeKo-Christian/JustGoHTML/internal/testutil"
 	"golang.org/x/net/html"
+
+	"github.com/MeKo-Christian/JustGoHTML/internal/testutil"
 )
 
 const (
