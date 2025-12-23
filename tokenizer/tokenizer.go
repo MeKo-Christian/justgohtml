@@ -35,6 +35,82 @@ func putAttrMap(m map[string]struct{}) {
 // stateHandler is a function that handles a tokenizer state.
 type stateHandler func(*Tokenizer)
 
+// dispatchTable maps states to their handler functions for fast dispatch.
+// Initialized once at package load time since the mapping is static.
+//
+//nolint:gochecknoglobals // Static dispatch table for O(1) state handler lookup.
+var dispatchTable = func() []stateHandler {
+	// Allocate dispatch table to cover all defined states.
+	// NumericCharacterReferenceEndState is the last state in the enum.
+	table := make([]stateHandler, NumericCharacterReferenceEndState+1)
+
+	// Map each state to its handler function.
+	table[DataState] = (*Tokenizer).stateData
+	table[RCDATAState] = (*Tokenizer).stateRCDATA
+	table[RAWTEXTState] = (*Tokenizer).stateRAWTEXT
+	table[ScriptDataState] = (*Tokenizer).stateRAWTEXT // Script data behaves like rawtext
+	table[PLAINTEXTState] = (*Tokenizer).statePLAINTEXT
+	table[TagOpenState] = (*Tokenizer).stateTagOpen
+	table[EndTagOpenState] = (*Tokenizer).stateEndTagOpen
+	table[TagNameState] = (*Tokenizer).stateTagName
+	table[RCDATALessThanSignState] = (*Tokenizer).stateRCDATALessThanSign
+	table[RCDATAEndTagOpenState] = (*Tokenizer).stateRCDATAEndTagOpen
+	table[RCDATAEndTagNameState] = (*Tokenizer).stateRCDATAEndTagName
+	table[RAWTEXTLessThanSignState] = (*Tokenizer).stateRAWTEXTLessThanSign
+	table[RAWTEXTEndTagOpenState] = (*Tokenizer).stateRAWTEXTEndTagOpen
+	table[RAWTEXTEndTagNameState] = (*Tokenizer).stateRAWTEXTEndTagName
+	table[ScriptDataEscapedState] = (*Tokenizer).stateScriptDataEscaped
+	table[ScriptDataEscapedDashState] = (*Tokenizer).stateScriptDataEscapedDash
+	table[ScriptDataEscapedDashDashState] = (*Tokenizer).stateScriptDataEscapedDashDash
+	table[ScriptDataEscapedLessThanSignState] = (*Tokenizer).stateScriptDataEscapedLessThanSign
+	table[ScriptDataEscapedEndTagOpenState] = (*Tokenizer).stateScriptDataEscapedEndTagOpen
+	table[ScriptDataEscapedEndTagNameState] = (*Tokenizer).stateScriptDataEscapedEndTagName
+	table[ScriptDataDoubleEscapeStartState] = (*Tokenizer).stateScriptDataDoubleEscapeStart
+	table[ScriptDataDoubleEscapedState] = (*Tokenizer).stateScriptDataDoubleEscaped
+	table[ScriptDataDoubleEscapedDashState] = (*Tokenizer).stateScriptDataDoubleEscapedDash
+	table[ScriptDataDoubleEscapedDashDashState] = (*Tokenizer).stateScriptDataDoubleEscapedDashDash
+	table[ScriptDataDoubleEscapedLessThanSignState] = (*Tokenizer).stateScriptDataDoubleEscapedLessThanSign
+	table[ScriptDataDoubleEscapeEndState] = (*Tokenizer).stateScriptDataDoubleEscapeEnd
+	table[BeforeAttributeNameState] = (*Tokenizer).stateBeforeAttributeName
+	table[AttributeNameState] = (*Tokenizer).stateAttributeName
+	table[AfterAttributeNameState] = (*Tokenizer).stateAfterAttributeName
+	table[BeforeAttributeValueState] = (*Tokenizer).stateBeforeAttributeValue
+	table[AttributeValueDoubleQuotedState] = (*Tokenizer).stateAttributeValueDoubleQuoted
+	table[AttributeValueSingleQuotedState] = (*Tokenizer).stateAttributeValueSingleQuoted
+	table[AttributeValueUnquotedState] = (*Tokenizer).stateAttributeValueUnquoted
+	table[AfterAttributeValueQuotedState] = (*Tokenizer).stateAfterAttributeValueQuoted
+	table[SelfClosingStartTagState] = (*Tokenizer).stateSelfClosingStartTag
+	table[BogusCommentState] = (*Tokenizer).stateBogusComment
+	table[MarkupDeclarationOpenState] = (*Tokenizer).stateMarkupDeclarationOpen
+	table[CommentStartState] = (*Tokenizer).stateCommentStart
+	table[CommentStartDashState] = (*Tokenizer).stateCommentStartDash
+	table[CommentState] = (*Tokenizer).stateComment
+	table[CommentEndDashState] = (*Tokenizer).stateCommentEndDash
+	table[CommentEndState] = (*Tokenizer).stateCommentEnd
+	table[CommentEndBangState] = (*Tokenizer).stateCommentEndBang
+	table[DOCTYPEState] = (*Tokenizer).stateDoctype
+	table[BeforeDOCTYPENameState] = (*Tokenizer).stateBeforeDoctypeName
+	table[DOCTYPENameState] = (*Tokenizer).stateDoctypeName
+	table[AfterDOCTYPENameState] = (*Tokenizer).stateAfterDoctypeName
+	table[AfterDOCTYPEPublicKeywordState] = (*Tokenizer).stateAfterDoctypePublicKeyword
+	table[BeforeDOCTYPEPublicIdentifierState] = (*Tokenizer).stateBeforeDoctypePublicIdentifier
+	table[DOCTYPEPublicIdentifierDoubleQuotedState] = (*Tokenizer).stateDoctypePublicIdentifierDoubleQuoted
+	table[DOCTYPEPublicIdentifierSingleQuotedState] = (*Tokenizer).stateDoctypePublicIdentifierSingleQuoted
+	table[AfterDOCTYPEPublicIdentifierState] = (*Tokenizer).stateAfterDoctypePublicIdentifier
+	table[BetweenDOCTYPEPublicAndSystemIdentifiersState] = (*Tokenizer).stateBetweenDoctypePublicAndSystemIdentifiers
+	table[AfterDOCTYPESystemKeywordState] = (*Tokenizer).stateAfterDoctypeSystemKeyword
+	table[BeforeDOCTYPESystemIdentifierState] = (*Tokenizer).stateBeforeDoctypeSystemIdentifier
+	table[DOCTYPESystemIdentifierDoubleQuotedState] = (*Tokenizer).stateDoctypeSystemIdentifierDoubleQuoted
+	table[DOCTYPESystemIdentifierSingleQuotedState] = (*Tokenizer).stateDoctypeSystemIdentifierSingleQuoted
+	table[AfterDOCTYPESystemIdentifierState] = (*Tokenizer).stateAfterDoctypeSystemIdentifier
+	table[BogusDOCTYPEState] = (*Tokenizer).stateBogusDoctype
+	table[CDATASectionState] = (*Tokenizer).stateCDATASection
+	table[CDATASectionBracketState] = (*Tokenizer).stateCDATASectionBracket
+	table[CDATASectionEndState] = (*Tokenizer).stateCDATASectionEnd
+
+	return table
+}()
+
 // Tokenizer implements the HTML5 tokenization algorithm (port of the Python reference).
 //
 // It produces a stream of tokens and collects parse errors.
@@ -86,9 +162,6 @@ type Tokenizer struct {
 	errors        []ParseError
 
 	allowCDATA bool
-
-	// dispatchTable maps states to their handler functions for fast dispatch.
-	dispatchTable []stateHandler
 }
 
 // ParseError represents a tokenizer parse error.
@@ -113,82 +186,9 @@ func NewWithOptions(input string, opts Options) *Tokenizer {
 		line:     1,
 		column:   0,
 	}
-	t.initDispatchTable()
 	t.origInput = input
 	t.reset(input)
 	return t
-}
-
-// initDispatchTable initializes the state dispatch table for fast state handler lookup.
-// This replaces the large switch statement with direct array indexing.
-func (t *Tokenizer) initDispatchTable() {
-	// Allocate dispatch table to cover all defined states.
-	// NumericCharacterReferenceEndState is the last state in the enum.
-	t.dispatchTable = make([]stateHandler, NumericCharacterReferenceEndState+1)
-
-	// Map each state to its handler function.
-	t.dispatchTable[DataState] = (*Tokenizer).stateData
-	t.dispatchTable[RCDATAState] = (*Tokenizer).stateRCDATA
-	t.dispatchTable[RAWTEXTState] = (*Tokenizer).stateRAWTEXT
-	t.dispatchTable[ScriptDataState] = (*Tokenizer).stateRAWTEXT // Script data behaves like rawtext
-	t.dispatchTable[PLAINTEXTState] = (*Tokenizer).statePLAINTEXT
-	t.dispatchTable[TagOpenState] = (*Tokenizer).stateTagOpen
-	t.dispatchTable[EndTagOpenState] = (*Tokenizer).stateEndTagOpen
-	t.dispatchTable[TagNameState] = (*Tokenizer).stateTagName
-	t.dispatchTable[RCDATALessThanSignState] = (*Tokenizer).stateRCDATALessThanSign
-	t.dispatchTable[RCDATAEndTagOpenState] = (*Tokenizer).stateRCDATAEndTagOpen
-	t.dispatchTable[RCDATAEndTagNameState] = (*Tokenizer).stateRCDATAEndTagName
-	t.dispatchTable[RAWTEXTLessThanSignState] = (*Tokenizer).stateRAWTEXTLessThanSign
-	t.dispatchTable[RAWTEXTEndTagOpenState] = (*Tokenizer).stateRAWTEXTEndTagOpen
-	t.dispatchTable[RAWTEXTEndTagNameState] = (*Tokenizer).stateRAWTEXTEndTagName
-	t.dispatchTable[ScriptDataEscapedState] = (*Tokenizer).stateScriptDataEscaped
-	t.dispatchTable[ScriptDataEscapedDashState] = (*Tokenizer).stateScriptDataEscapedDash
-	t.dispatchTable[ScriptDataEscapedDashDashState] = (*Tokenizer).stateScriptDataEscapedDashDash
-	t.dispatchTable[ScriptDataEscapedLessThanSignState] = (*Tokenizer).stateScriptDataEscapedLessThanSign
-	t.dispatchTable[ScriptDataEscapedEndTagOpenState] = (*Tokenizer).stateScriptDataEscapedEndTagOpen
-	t.dispatchTable[ScriptDataEscapedEndTagNameState] = (*Tokenizer).stateScriptDataEscapedEndTagName
-	t.dispatchTable[ScriptDataDoubleEscapeStartState] = (*Tokenizer).stateScriptDataDoubleEscapeStart
-	t.dispatchTable[ScriptDataDoubleEscapedState] = (*Tokenizer).stateScriptDataDoubleEscaped
-	t.dispatchTable[ScriptDataDoubleEscapedDashState] = (*Tokenizer).stateScriptDataDoubleEscapedDash
-	t.dispatchTable[ScriptDataDoubleEscapedDashDashState] = (*Tokenizer).stateScriptDataDoubleEscapedDashDash
-	t.dispatchTable[ScriptDataDoubleEscapedLessThanSignState] = (*Tokenizer).stateScriptDataDoubleEscapedLessThanSign
-	t.dispatchTable[ScriptDataDoubleEscapeEndState] = (*Tokenizer).stateScriptDataDoubleEscapeEnd
-	t.dispatchTable[BeforeAttributeNameState] = (*Tokenizer).stateBeforeAttributeName
-	t.dispatchTable[AttributeNameState] = (*Tokenizer).stateAttributeName
-	t.dispatchTable[AfterAttributeNameState] = (*Tokenizer).stateAfterAttributeName
-	t.dispatchTable[BeforeAttributeValueState] = (*Tokenizer).stateBeforeAttributeValue
-	t.dispatchTable[AttributeValueDoubleQuotedState] = (*Tokenizer).stateAttributeValueDoubleQuoted
-	t.dispatchTable[AttributeValueSingleQuotedState] = (*Tokenizer).stateAttributeValueSingleQuoted
-	t.dispatchTable[AttributeValueUnquotedState] = (*Tokenizer).stateAttributeValueUnquoted
-	t.dispatchTable[AfterAttributeValueQuotedState] = (*Tokenizer).stateAfterAttributeValueQuoted
-	t.dispatchTable[SelfClosingStartTagState] = (*Tokenizer).stateSelfClosingStartTag
-	t.dispatchTable[BogusCommentState] = (*Tokenizer).stateBogusComment
-	t.dispatchTable[MarkupDeclarationOpenState] = (*Tokenizer).stateMarkupDeclarationOpen
-	t.dispatchTable[CommentStartState] = (*Tokenizer).stateCommentStart
-	t.dispatchTable[CommentStartDashState] = (*Tokenizer).stateCommentStartDash
-	t.dispatchTable[CommentState] = (*Tokenizer).stateComment
-	t.dispatchTable[CommentEndDashState] = (*Tokenizer).stateCommentEndDash
-	t.dispatchTable[CommentEndState] = (*Tokenizer).stateCommentEnd
-	t.dispatchTable[CommentEndBangState] = (*Tokenizer).stateCommentEndBang
-	t.dispatchTable[DOCTYPEState] = (*Tokenizer).stateDoctype
-	t.dispatchTable[BeforeDOCTYPENameState] = (*Tokenizer).stateBeforeDoctypeName
-	t.dispatchTable[DOCTYPENameState] = (*Tokenizer).stateDoctypeName
-	t.dispatchTable[AfterDOCTYPENameState] = (*Tokenizer).stateAfterDoctypeName
-	t.dispatchTable[AfterDOCTYPEPublicKeywordState] = (*Tokenizer).stateAfterDoctypePublicKeyword
-	t.dispatchTable[BeforeDOCTYPEPublicIdentifierState] = (*Tokenizer).stateBeforeDoctypePublicIdentifier
-	t.dispatchTable[DOCTYPEPublicIdentifierDoubleQuotedState] = (*Tokenizer).stateDoctypePublicIdentifierDoubleQuoted
-	t.dispatchTable[DOCTYPEPublicIdentifierSingleQuotedState] = (*Tokenizer).stateDoctypePublicIdentifierSingleQuoted
-	t.dispatchTable[AfterDOCTYPEPublicIdentifierState] = (*Tokenizer).stateAfterDoctypePublicIdentifier
-	t.dispatchTable[BetweenDOCTYPEPublicAndSystemIdentifiersState] = (*Tokenizer).stateBetweenDoctypePublicAndSystemIdentifiers
-	t.dispatchTable[AfterDOCTYPESystemKeywordState] = (*Tokenizer).stateAfterDoctypeSystemKeyword
-	t.dispatchTable[BeforeDOCTYPESystemIdentifierState] = (*Tokenizer).stateBeforeDoctypeSystemIdentifier
-	t.dispatchTable[DOCTYPESystemIdentifierDoubleQuotedState] = (*Tokenizer).stateDoctypeSystemIdentifierDoubleQuoted
-	t.dispatchTable[DOCTYPESystemIdentifierSingleQuotedState] = (*Tokenizer).stateDoctypeSystemIdentifierSingleQuoted
-	t.dispatchTable[AfterDOCTYPESystemIdentifierState] = (*Tokenizer).stateAfterDoctypeSystemIdentifier
-	t.dispatchTable[BogusDOCTYPEState] = (*Tokenizer).stateBogusDoctype
-	t.dispatchTable[CDATASectionState] = (*Tokenizer).stateCDATASection
-	t.dispatchTable[CDATASectionBracketState] = (*Tokenizer).stateCDATASectionBracket
-	t.dispatchTable[CDATASectionEndState] = (*Tokenizer).stateCDATASectionEnd
 }
 
 func (t *Tokenizer) reset(input string) {
@@ -308,8 +308,8 @@ func (t *Tokenizer) Next() Token {
 func (t *Tokenizer) step() {
 	// Use dispatch table for fast state handler lookup.
 	// Bounds check ensures we don't panic on invalid states.
-	if int(t.state) < len(t.dispatchTable) && t.dispatchTable[t.state] != nil {
-		t.dispatchTable[t.state](t)
+	if int(t.state) < len(dispatchTable) && dispatchTable[t.state] != nil {
+		dispatchTable[t.state](t)
 	} else {
 		// Unimplemented states behave like Data for now.
 		t.state = DataState
