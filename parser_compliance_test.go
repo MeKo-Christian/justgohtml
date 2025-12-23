@@ -76,7 +76,8 @@ func serializeNetHTMLDoctype(sb *strings.Builder, n *html.Node) {
 func serializeNetHTMLNode(sb *strings.Builder, n *html.Node, depth int) {
 	indent := strings.Repeat("  ", depth)
 
-	switch n.Type { //nolint:exhaustive // Only handling node types that appear in tree output
+	//nolint:exhaustive // DoctypeNode handled separately; ErrorNode/RawNode caught by default panic
+	switch n.Type {
 	case html.ElementNode:
 		sb.WriteString("| ")
 		sb.WriteString(indent)
@@ -151,31 +152,29 @@ func serializeNetHTMLNode(sb *strings.Builder, n *html.Node, depth int) {
 		for c := n.FirstChild; c != nil; c = c.NextSibling {
 			serializeNetHTMLNode(sb, c, depth)
 		}
+
+	default:
+		panic(fmt.Sprintf("unhandled node type in html5lib serialization: %v", n.Type))
 	}
 }
 
 func formatNetHTMLAttrName(attr html.Attribute) string {
+	stripPrefix := func(key string) string {
+		if idx := strings.IndexByte(key, ':'); idx >= 0 {
+			return key[idx+1:]
+		}
+		return key
+	}
+
 	switch attr.Namespace {
 	case "":
 		return attr.Key
 	case "http://www.w3.org/1999/xlink":
-		local := attr.Key
-		if idx := strings.IndexByte(local, ':'); idx >= 0 {
-			local = local[idx+1:]
-		}
-		return "xlink " + local
+		return "xlink " + stripPrefix(attr.Key)
 	case "http://www.w3.org/XML/1998/namespace":
-		local := attr.Key
-		if idx := strings.IndexByte(local, ':'); idx >= 0 {
-			local = local[idx+1:]
-		}
-		return "xml " + local
+		return "xml " + stripPrefix(attr.Key)
 	case "http://www.w3.org/2000/xmlns/":
-		local := attr.Key
-		if idx := strings.IndexByte(local, ':'); idx >= 0 {
-			local = local[idx+1:]
-		}
-		return "xmlns " + local
+		return "xmlns " + stripPrefix(attr.Key)
 	default:
 		return attr.Namespace + " " + attr.Key
 	}

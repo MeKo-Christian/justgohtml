@@ -388,6 +388,11 @@ func (t *Tokenizer) advance(c rune) {
 }
 
 func (t *Tokenizer) emit(tok Token) {
+	if t.pendingCount >= 4 {
+		// This should not happen based on the HTML5 spec, which implies a maximum of 3 pending tokens.
+		// Panicking here makes it a fail-fast system if that assumption is ever violated.
+		panic("tokenizer: pending token buffer overflow")
+	}
 	t.pendingTokens[t.pendingTail] = tok
 	t.pendingTail = (t.pendingTail + 1) & 3 // Wrap around (& 3 = % 4)
 	t.pendingCount++

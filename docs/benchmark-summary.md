@@ -150,13 +150,13 @@ go test -bench=Stream -benchmem ./stream          # Streaming benchmarks
 
 ### Latency Examples
 
-| Operation              | Latency  |
-| ---------------------- | -------- |
-| Parse simple HTML      | ~17 µs   |
-| Parse complex HTML     | ~164 µs  |
-| Serialize complex HTML | ~19 µs   |
-| Query complex selector | ~4.2 µs  |
-| Stream complex HTML    | ~104 µs  |
+| Operation              | Latency |
+| ---------------------- | ------- |
+| Parse simple HTML      | ~17 µs  |
+| Parse complex HTML     | ~164 µs |
+| Serialize complex HTML | ~19 µs  |
+| Query complex selector | ~4.2 µs |
+| Stream complex HTML    | ~104 µs |
 
 ## Running Specific Benchmarks
 
