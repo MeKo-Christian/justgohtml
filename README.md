@@ -48,7 +48,7 @@ doc.Query("li:nth-child(2n+1)")       // Pseudo-classes
 
 ### 4. Just... Fast
 
-Go's performance means JustGoHTML is significantly faster than pure-Python parsers while maintaining 100% spec compliance. After Phase 3.2 optimizations (dispatch table), it parses complex HTML pages at **~6,600 pages per second** (152 µs per 5KB page). CSS selector matching is now **faster than goquery** for many queries.
+Go's performance means JustGoHTML is significantly faster than pure-Python parsers while maintaining 100% spec compliance. After Phase 3.2 optimizations (dispatch table + ring buffer), it parses complex HTML pages at **~6,100 pages per second** (164 µs per 5KB page). CSS selector matching is now **faster than goquery** for many queries.
 
 See [BENCHMARK_RESULTS.md](BENCHMARK_RESULTS.md) for detailed performance comparisons with other Go parsers.
 
@@ -57,18 +57,18 @@ See [BENCHMARK_RESULTS.md](BENCHMARK_RESULTS.md) for detailed performance compar
 | Parser                  | HTML5 Compliance | Pure Go? | Parse Speed | Query Speed | Query API     | Notes                                     |
 | ----------------------- | :--------------: | :------: | ----------- | ----------- | ------------- | ----------------------------------------- |
 | **JustGoHTML**          |    **100.0%**    |   Yes    | 1.0x        | **1.0x** ⚡ | CSS selectors | All html5lib tests pass. Fully compliant. |
-| `golang.org/x/net/html` |      96.2%       |   Yes    | **2.5x**    | —           | None          | Good but fails 60 of 1,578 tree tests.    |
-| `goquery`               |      96.2%       |   Yes    | **2.5x**    | 1.2x        | CSS selectors | Wrapper around x/net/html.                |
-| `htmlquery`             |      96.2%       |   Yes    | ~2.5x       | —           | XPath         | Uses x/net/html parser + XPath queries.   |
+| `golang.org/x/net/html` |      96.2%       |   Yes    | **2.2x**    | —           | None          | Good but fails 60 of 1,578 tree tests.    |
+| `goquery`               |      96.2%       |   Yes    | **2.2x**    | 0.8x        | CSS selectors | Wrapper around x/net/html.                |
+| `htmlquery`             |      96.2%       |   Yes    | ~2.2x       | —           | XPath         | Uses x/net/html parser + XPath queries.   |
 
 **Compliance**: Measured against html5lib-tests tree-construction suite (1,578 non-scripted, non-fragment tests).
 
 - JustGoHTML: 1,578/1,578 passed (100.0%)
 - net/html: 1,518/1,578 passed (96.2% — 60 failures including foster parenting, adoption agency, foreign content)
 
-**Parse Speed**: Complex HTML (~5KB). net/html is ~2.5x faster but less compliant.
+**Parse Speed**: Complex HTML (~5KB). net/html is ~2.2x faster but less compliant. JustGoHTML uses 36-44% less memory than before Phase 3.2.4.3.
 
-**Query Speed**: JustGoHTML CSS selectors are ~16-23% faster than goquery for equivalent queries.
+**Query Speed**: JustGoHTML CSS selectors are now **faster than goquery** for equivalent queries (25-32% faster).
 
 ## Installation
 

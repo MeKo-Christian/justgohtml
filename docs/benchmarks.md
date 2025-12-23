@@ -252,7 +252,8 @@ For a 5KB HTML page, this means:
 
 ### JustGoHTML vs golang.org/x/net/html
 
-**Speed:** JustGoHTML is 2-4x slower
+**Speed:** JustGoHTML is ~2.2x slower
+**Memory:** JustGoHTML uses 66KB vs 38KB for complex HTML (optimized with ring buffer)
 **Why:** Full HTML5 spec compliance vs ~70% compliance
 **Trade-off:** You get exact browser behavior
 
@@ -271,8 +272,9 @@ For a 5KB HTML page, this means:
 
 ### JustGoHTML vs goquery
 
-**Speed:** JustGoHTML parsing is 2-4x slower, querying is 2-3x slower
-**Why:** Same as x/net/html (goquery wraps it) + selector overhead
+**Speed:** JustGoHTML parsing is ~2.2x slower, querying is competitive (often faster)
+**Memory:** JustGoHTML uses ~66KB vs ~38KB for complex HTML
+**Why:** Same as x/net/html (goquery wraps it)
 **Trade-off:** Full spec compliance vs speed
 
 **When to use JustGoHTML:**
