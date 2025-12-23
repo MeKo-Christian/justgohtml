@@ -32,6 +32,85 @@ func putAttrMap(m map[string]struct{}) {
 	}
 }
 
+// stateHandler is a function that handles a tokenizer state.
+type stateHandler func(*Tokenizer)
+
+// dispatchTable maps states to their handler functions for fast dispatch.
+// Initialized once at package load time since the mapping is static.
+//
+//nolint:gochecknoglobals // Static dispatch table for O(1) state handler lookup.
+var dispatchTable = func() []stateHandler {
+	// Allocate dispatch table to cover all defined states.
+	// NumericCharacterReferenceEndState is the last state in the enum.
+	table := make([]stateHandler, NumericCharacterReferenceEndState+1)
+
+	// Map each state to its handler function.
+	table[DataState] = (*Tokenizer).stateData
+	table[RCDATAState] = (*Tokenizer).stateRCDATA
+	table[RAWTEXTState] = (*Tokenizer).stateRAWTEXT
+	table[ScriptDataState] = (*Tokenizer).stateRAWTEXT // Script data behaves like rawtext
+	table[PLAINTEXTState] = (*Tokenizer).statePLAINTEXT
+	table[TagOpenState] = (*Tokenizer).stateTagOpen
+	table[EndTagOpenState] = (*Tokenizer).stateEndTagOpen
+	table[TagNameState] = (*Tokenizer).stateTagName
+	table[RCDATALessThanSignState] = (*Tokenizer).stateRCDATALessThanSign
+	table[RCDATAEndTagOpenState] = (*Tokenizer).stateRCDATAEndTagOpen
+	table[RCDATAEndTagNameState] = (*Tokenizer).stateRCDATAEndTagName
+	table[RAWTEXTLessThanSignState] = (*Tokenizer).stateRAWTEXTLessThanSign
+	table[RAWTEXTEndTagOpenState] = (*Tokenizer).stateRAWTEXTEndTagOpen
+	table[RAWTEXTEndTagNameState] = (*Tokenizer).stateRAWTEXTEndTagName
+	table[ScriptDataEscapedState] = (*Tokenizer).stateScriptDataEscaped
+	table[ScriptDataEscapedDashState] = (*Tokenizer).stateScriptDataEscapedDash
+	table[ScriptDataEscapedDashDashState] = (*Tokenizer).stateScriptDataEscapedDashDash
+	table[ScriptDataEscapedLessThanSignState] = (*Tokenizer).stateScriptDataEscapedLessThanSign
+	table[ScriptDataEscapedEndTagOpenState] = (*Tokenizer).stateScriptDataEscapedEndTagOpen
+	table[ScriptDataEscapedEndTagNameState] = (*Tokenizer).stateScriptDataEscapedEndTagName
+	table[ScriptDataDoubleEscapeStartState] = (*Tokenizer).stateScriptDataDoubleEscapeStart
+	table[ScriptDataDoubleEscapedState] = (*Tokenizer).stateScriptDataDoubleEscaped
+	table[ScriptDataDoubleEscapedDashState] = (*Tokenizer).stateScriptDataDoubleEscapedDash
+	table[ScriptDataDoubleEscapedDashDashState] = (*Tokenizer).stateScriptDataDoubleEscapedDashDash
+	table[ScriptDataDoubleEscapedLessThanSignState] = (*Tokenizer).stateScriptDataDoubleEscapedLessThanSign
+	table[ScriptDataDoubleEscapeEndState] = (*Tokenizer).stateScriptDataDoubleEscapeEnd
+	table[BeforeAttributeNameState] = (*Tokenizer).stateBeforeAttributeName
+	table[AttributeNameState] = (*Tokenizer).stateAttributeName
+	table[AfterAttributeNameState] = (*Tokenizer).stateAfterAttributeName
+	table[BeforeAttributeValueState] = (*Tokenizer).stateBeforeAttributeValue
+	table[AttributeValueDoubleQuotedState] = (*Tokenizer).stateAttributeValueDoubleQuoted
+	table[AttributeValueSingleQuotedState] = (*Tokenizer).stateAttributeValueSingleQuoted
+	table[AttributeValueUnquotedState] = (*Tokenizer).stateAttributeValueUnquoted
+	table[AfterAttributeValueQuotedState] = (*Tokenizer).stateAfterAttributeValueQuoted
+	table[SelfClosingStartTagState] = (*Tokenizer).stateSelfClosingStartTag
+	table[BogusCommentState] = (*Tokenizer).stateBogusComment
+	table[MarkupDeclarationOpenState] = (*Tokenizer).stateMarkupDeclarationOpen
+	table[CommentStartState] = (*Tokenizer).stateCommentStart
+	table[CommentStartDashState] = (*Tokenizer).stateCommentStartDash
+	table[CommentState] = (*Tokenizer).stateComment
+	table[CommentEndDashState] = (*Tokenizer).stateCommentEndDash
+	table[CommentEndState] = (*Tokenizer).stateCommentEnd
+	table[CommentEndBangState] = (*Tokenizer).stateCommentEndBang
+	table[DOCTYPEState] = (*Tokenizer).stateDoctype
+	table[BeforeDOCTYPENameState] = (*Tokenizer).stateBeforeDoctypeName
+	table[DOCTYPENameState] = (*Tokenizer).stateDoctypeName
+	table[AfterDOCTYPENameState] = (*Tokenizer).stateAfterDoctypeName
+	table[AfterDOCTYPEPublicKeywordState] = (*Tokenizer).stateAfterDoctypePublicKeyword
+	table[BeforeDOCTYPEPublicIdentifierState] = (*Tokenizer).stateBeforeDoctypePublicIdentifier
+	table[DOCTYPEPublicIdentifierDoubleQuotedState] = (*Tokenizer).stateDoctypePublicIdentifierDoubleQuoted
+	table[DOCTYPEPublicIdentifierSingleQuotedState] = (*Tokenizer).stateDoctypePublicIdentifierSingleQuoted
+	table[AfterDOCTYPEPublicIdentifierState] = (*Tokenizer).stateAfterDoctypePublicIdentifier
+	table[BetweenDOCTYPEPublicAndSystemIdentifiersState] = (*Tokenizer).stateBetweenDoctypePublicAndSystemIdentifiers
+	table[AfterDOCTYPESystemKeywordState] = (*Tokenizer).stateAfterDoctypeSystemKeyword
+	table[BeforeDOCTYPESystemIdentifierState] = (*Tokenizer).stateBeforeDoctypeSystemIdentifier
+	table[DOCTYPESystemIdentifierDoubleQuotedState] = (*Tokenizer).stateDoctypeSystemIdentifierDoubleQuoted
+	table[DOCTYPESystemIdentifierSingleQuotedState] = (*Tokenizer).stateDoctypeSystemIdentifierSingleQuoted
+	table[AfterDOCTYPESystemIdentifierState] = (*Tokenizer).stateAfterDoctypeSystemIdentifier
+	table[BogusDOCTYPEState] = (*Tokenizer).stateBogusDoctype
+	table[CDATASectionState] = (*Tokenizer).stateCDATASection
+	table[CDATASectionBracketState] = (*Tokenizer).stateCDATASectionBracket
+	table[CDATASectionEndState] = (*Tokenizer).stateCDATASectionEnd
+
+	return table
+}()
+
 // Tokenizer implements the HTML5 tokenization algorithm (port of the Python reference).
 //
 // It produces a stream of tokens and collects parse errors.
@@ -79,8 +158,14 @@ type Tokenizer struct {
 	textBuffer strings.Builder
 	textHasAmp bool
 
-	pendingTokens []Token
-	errors        []ParseError
+	// Ring buffer for pending tokens (avoids slice reslicing overhead).
+	// Fixed size of 4 is sufficient since tokens are typically emitted one at a time.
+	pendingTokens [4]Token
+	pendingHead   int // Read index
+	pendingTail   int // Write index
+	pendingCount  int // Number of pending tokens
+
+	errors []ParseError
 
 	allowCDATA bool
 }
@@ -153,7 +238,10 @@ func (t *Tokenizer) reset(input string) {
 	t.textBuffer.Reset()
 	t.textHasAmp = false
 
-	t.pendingTokens = nil
+	// Reset ring buffer indices (no need to zero the array).
+	t.pendingHead = 0
+	t.pendingTail = 0
+	t.pendingCount = 0
 	t.errors = nil
 }
 
@@ -211,151 +299,34 @@ func (t *Tokenizer) Errors() []ParseError {
 // Next returns the next token.
 // Returns a token with Type == EOF when input is exhausted.
 func (t *Tokenizer) Next() Token {
-	if len(t.pendingTokens) > 0 {
-		token := t.pendingTokens[0]
-		t.pendingTokens = t.pendingTokens[1:]
+	// Fast path: return pending token using ring buffer.
+	if t.pendingCount > 0 {
+		token := t.pendingTokens[t.pendingHead]
+		t.pendingHead = (t.pendingHead + 1) & 3 // Wrap around (& 3 = % 4)
+		t.pendingCount--
 		return token
 	}
 
-	for len(t.pendingTokens) == 0 {
+	// Slow path: step until a token is emitted.
+	for t.pendingCount == 0 {
 		t.step()
 	}
-	token := t.pendingTokens[0]
-	t.pendingTokens = t.pendingTokens[1:]
+	token := t.pendingTokens[t.pendingHead]
+	t.pendingHead = (t.pendingHead + 1) & 3
+	t.pendingCount--
 	return token
 }
 
-//nolint:gocyclo,exhaustive // HTML5 tokenizer state machine dispatcher - complexity mandated by spec
+// step executes one step of the tokenizer state machine using the dispatch table.
 func (t *Tokenizer) step() {
-	//nolint:exhaustive // Only active tokenizer states dispatched; others indicate implementation errors
-	switch t.state {
-	case DataState:
-		t.stateData()
-	case TagOpenState:
-		t.stateTagOpen()
-	case EndTagOpenState:
-		t.stateEndTagOpen()
-	case TagNameState:
-		t.stateTagName()
-	case BeforeAttributeNameState:
-		t.stateBeforeAttributeName()
-	case AttributeNameState:
-		t.stateAttributeName()
-	case AfterAttributeNameState:
-		t.stateAfterAttributeName()
-	case BeforeAttributeValueState:
-		t.stateBeforeAttributeValue()
-	case AttributeValueDoubleQuotedState:
-		t.stateAttributeValueDoubleQuoted()
-	case AttributeValueSingleQuotedState:
-		t.stateAttributeValueSingleQuoted()
-	case AttributeValueUnquotedState:
-		t.stateAttributeValueUnquoted()
-	case AfterAttributeValueQuotedState:
-		t.stateAfterAttributeValueQuoted()
-	case SelfClosingStartTagState:
-		t.stateSelfClosingStartTag()
-	case MarkupDeclarationOpenState:
-		t.stateMarkupDeclarationOpen()
-	case CommentStartState:
-		t.stateCommentStart()
-	case CommentStartDashState:
-		t.stateCommentStartDash()
-	case CommentState:
-		t.stateComment()
-	case CommentEndDashState:
-		t.stateCommentEndDash()
-	case CommentEndState:
-		t.stateCommentEnd()
-	case CommentEndBangState:
-		t.stateCommentEndBang()
-	case BogusCommentState:
-		t.stateBogusComment()
-	case DOCTYPEState:
-		t.stateDoctype()
-	case BeforeDOCTYPENameState:
-		t.stateBeforeDoctypeName()
-	case DOCTYPENameState:
-		t.stateDoctypeName()
-	case AfterDOCTYPENameState:
-		t.stateAfterDoctypeName()
-	case BogusDOCTYPEState:
-		t.stateBogusDoctype()
-	case AfterDOCTYPEPublicKeywordState:
-		t.stateAfterDoctypePublicKeyword()
-	case AfterDOCTYPESystemKeywordState:
-		t.stateAfterDoctypeSystemKeyword()
-	case BeforeDOCTYPEPublicIdentifierState:
-		t.stateBeforeDoctypePublicIdentifier()
-	case DOCTYPEPublicIdentifierDoubleQuotedState:
-		t.stateDoctypePublicIdentifierDoubleQuoted()
-	case DOCTYPEPublicIdentifierSingleQuotedState:
-		t.stateDoctypePublicIdentifierSingleQuoted()
-	case AfterDOCTYPEPublicIdentifierState:
-		t.stateAfterDoctypePublicIdentifier()
-	case BetweenDOCTYPEPublicAndSystemIdentifiersState:
-		t.stateBetweenDoctypePublicAndSystemIdentifiers()
-	case BeforeDOCTYPESystemIdentifierState:
-		t.stateBeforeDoctypeSystemIdentifier()
-	case DOCTYPESystemIdentifierDoubleQuotedState:
-		t.stateDoctypeSystemIdentifierDoubleQuoted()
-	case DOCTYPESystemIdentifierSingleQuotedState:
-		t.stateDoctypeSystemIdentifierSingleQuoted()
-	case AfterDOCTYPESystemIdentifierState:
-		t.stateAfterDoctypeSystemIdentifier()
-	case CDATASectionState:
-		t.stateCDATASection()
-	case CDATASectionBracketState:
-		t.stateCDATASectionBracket()
-	case CDATASectionEndState:
-		t.stateCDATASectionEnd()
-	case RCDATAState:
-		t.stateRCDATA()
-	case RCDATALessThanSignState:
-		t.stateRCDATALessThanSign()
-	case RCDATAEndTagOpenState:
-		t.stateRCDATAEndTagOpen()
-	case RCDATAEndTagNameState:
-		t.stateRCDATAEndTagName()
-	case RAWTEXTState:
-		t.stateRAWTEXT()
-	case ScriptDataState:
-		t.stateRAWTEXT() // Script data behaves like rawtext with extra handling.
-	case RAWTEXTLessThanSignState:
-		t.stateRAWTEXTLessThanSign()
-	case RAWTEXTEndTagOpenState:
-		t.stateRAWTEXTEndTagOpen()
-	case RAWTEXTEndTagNameState:
-		t.stateRAWTEXTEndTagName()
-	case PLAINTEXTState:
-		t.statePLAINTEXT()
-	case ScriptDataEscapedState:
-		t.stateScriptDataEscaped()
-	case ScriptDataEscapedDashState:
-		t.stateScriptDataEscapedDash()
-	case ScriptDataEscapedDashDashState:
-		t.stateScriptDataEscapedDashDash()
-	case ScriptDataEscapedLessThanSignState:
-		t.stateScriptDataEscapedLessThanSign()
-	case ScriptDataEscapedEndTagOpenState:
-		t.stateScriptDataEscapedEndTagOpen()
-	case ScriptDataEscapedEndTagNameState:
-		t.stateScriptDataEscapedEndTagName()
-	case ScriptDataDoubleEscapeStartState:
-		t.stateScriptDataDoubleEscapeStart()
-	case ScriptDataDoubleEscapedState:
-		t.stateScriptDataDoubleEscaped()
-	case ScriptDataDoubleEscapedDashState:
-		t.stateScriptDataDoubleEscapedDash()
-	case ScriptDataDoubleEscapedDashDashState:
-		t.stateScriptDataDoubleEscapedDashDash()
-	case ScriptDataDoubleEscapedLessThanSignState:
-		t.stateScriptDataDoubleEscapedLessThanSign()
-	case ScriptDataDoubleEscapeEndState:
-		t.stateScriptDataDoubleEscapeEnd()
-	default:
+	// Use dispatch table for fast state handler lookup.
+	// Bounds check ensures we don't panic on invalid states.
+	if int(t.state) < len(dispatchTable) && dispatchTable[t.state] != nil {
+		dispatchTable[t.state](t)
+	} else {
 		// Unimplemented states behave like Data for now.
 		t.state = DataState
+		t.stateData()
 	}
 }
 
@@ -417,7 +388,14 @@ func (t *Tokenizer) advance(c rune) {
 }
 
 func (t *Tokenizer) emit(tok Token) {
-	t.pendingTokens = append(t.pendingTokens, tok)
+	if t.pendingCount >= 4 {
+		// This should not happen based on the HTML5 spec, which implies a maximum of 3 pending tokens.
+		// Panicking here makes it a fail-fast system if that assumption is ever violated.
+		panic("tokenizer: pending token buffer overflow")
+	}
+	t.pendingTokens[t.pendingTail] = tok
+	t.pendingTail = (t.pendingTail + 1) & 3 // Wrap around (& 3 = % 4)
+	t.pendingCount++
 }
 
 func (t *Tokenizer) emitEOF() {

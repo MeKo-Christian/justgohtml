@@ -99,7 +99,7 @@ Target: 100% for all packages.
     - Pre-allocated `Attrs` slices increased base memory per token
   - **Conclusion:** Token pooling is counterproductive for this use case
   - Reference: PR #1 (closed), branch `feature/token-pooling` kept for reference
-  - Implementation: `tokenizer/tokenizer.go:35-66` (pool setup), `tokenizer/tokenizer.go:246` (Next returns *Token), all emit functions updated
+  - Implementation: `tokenizer/tokenizer.go:35-66` (pool setup), `tokenizer/tokenizer.go:246` (Next returns \*Token), all emit functions updated
   - Tests: `tokenizer/pool_test.go` (TestTokenPoolReuse, TestTokenPoolReset)
 
 - [x] **3.2.2 ASCII fast path for tokenization** ❌ DEFERRED - Part of Failed Byte-Based Refactor
@@ -116,11 +116,65 @@ Target: 100% for all packages.
   - **Conclusion:** ASCII fast path adds complexity without performance benefit
   - Reference: branch `feat/byte-based-tokenization` (not merged)
 
-- [ ] **3.2.3 State machine dispatch table**
-  - Replace large switch statement with function pointer array
-  - Use direct indexing for state handler dispatch
-  - Expected: 5-10% speedup in tokenizer hot loop
-  - Location: `tokenizer/tokenizer.go:200-331`
+- [x] **3.2.3 State machine dispatch table** ✅ SUCCESSFUL
+  - Replaced large switch statement (~55 cases) with function pointer array
+  - Used direct array indexing for O(1) state handler dispatch
+  - Dispatch table initialized once per tokenizer with all state handlers
+  - **Actual results: SIGNIFICANT SPEEDUP**
+    - **ParseBytes_Medium: 32% faster** (127.62µs → 86.68µs)
+    - **ParseBytes_Complex: 9.2% faster** (167.1µs → 151.8µs)
+    - **Parse_Parallel: 14% faster** (113.39µs → 97.58µs)
+    - **Geometric mean: 12.9% faster** across all benchmarks
+    - Memory overhead: ~2.3% more (dispatch table allocation per tokenizer)
+    - Allocation overhead: ~0.2% more (1 extra alloc per parse)
+  - **Why it works:** Direct array lookup eliminates switch comparison overhead
+  - Implementation: `tokenizer/tokenizer.go:35-36` (type), `tokenizer/tokenizer.go:122-191` (init), `tokenizer/tokenizer.go:307-318` (step)
+
+### 3.2.4 New Optimization Opportunities (avoiding past mistakes)
+
+Based on lessons learned from failed optimizations (3.2.1, 3.2.2, 3.3.1), here are optimization opportunities that work WITH Go's strengths rather than against them:
+
+- [ ] **3.2.4.1 Pre-computed rune literals for consumeIf/consumeCaseInsensitive**
+  - Currently: `consumeIf("--")` calls `[]rune(lit)` on every invocation (lines 541-555)
+  - Fix: Pre-compute rune slices for known literals ("--", "DOCTYPE", "[CDATA[", "PUBLIC", "SYSTEM")
+  - Use package-level `var` with pre-converted rune slices
+  - **Why this won't fail like 3.3.1:** No per-character overhead, just avoids repeated conversions
+  - Expected: 2-5% speedup on documents with many comments/doctypes/CDATA
+
+- [ ] **3.2.4.2 Batch text node emission with strings.Builder capacity hints**
+  - Currently: `textBuffer` grows dynamically per WriteRune (line 82, 398-403)
+  - Fix: Pre-size Builder with `Grow()` based on remaining input estimate
+  - After `flushText()`, reuse capacity hint from previous text length
+  - **Why this won't fail:** Reduces reallocation, not adding overhead
+  - Expected: 3-7% speedup for text-heavy documents
+
+- [x] **3.2.4.3 Eliminate pendingTokens slice operations in hot path** ✅ SUCCESSFUL
+  - Replaced `pendingTokens []Token` slice with fixed-size ring buffer `[4]Token`
+  - Added `pendingHead`, `pendingTail`, `pendingCount` indices for O(1) operations
+  - Used bitwise AND (`& 3`) for efficient modulo-4 wraparound
+  - **Actual results: SIGNIFICANT IMPROVEMENT**
+    - **Speed: 11-35% faster** (geomean -11.42%)
+    - **Memory: 36-44% less** (geomean -33.24%)
+    - **Allocations: 19-23% fewer** (geomean -16.83%)
+  - **Why it worked:** Eliminated slice header updates on every token consumption
+  - Implementation: `tokenizer/tokenizer.go:163-166` (struct), `tokenizer/tokenizer.go:298-314` (Next), `tokenizer/tokenizer.go:387-390` (emit)
+
+- [ ] **3.2.4.4 Inline hot path character classification**
+  - Currently: `switch c { case '\t', '\n', '\f', ' ': ... }` in multiple places
+  - Fix: Create lookup table `var isWhitespace [256]bool` for ASCII range
+  - Use `if c < 256 && isWhitespace[c]` for fast classification
+  - Also: `isASCIIAlpha`, `isASCIIUpper` tables
+  - **Why this won't fail:** Tables are read-only, excellent cache behavior
+  - Expected: 3-8% speedup in tag parsing states
+
+- [ ] **3.2.4.5 Reduce attribute map operations**
+  - Currently: Every attribute does `t.currentTagAttrIndex[name] = struct{}{}` (line 447)
+  - Fix: Only track duplicates for tags with >1 attribute (common case: 0-3 attrs)
+  - Use simple slice scan for small attribute counts, map only when >4 attrs
+  - **Why this won't fail:** Reduces map overhead for common case
+  - Expected: 5-10% speedup for attribute-heavy documents
+
+**Priority order (highest impact first):** 3.2.4.3, 3.2.4.4, 3.2.4.5, 3.2.4.2, 3.2.4.1
 
 ### 3.3 Major Refactors (1-2 weeks each)
 

@@ -101,20 +101,22 @@ go test -bench=Stream -benchmem ./stream          # Streaming benchmarks
 
 ### Parsing Speed (Complex HTML)
 
-| Parser                | Time/op       | Relative Speed  |
-| --------------------- | ------------- | --------------- |
-| **JustGoHTML**        | 367,141 ns/op | 1.0x (baseline) |
-| golang.org/x/net/html | 79,211 ns/op  | 4.6x faster     |
-| goquery               | 110,858 ns/op | 3.3x faster     |
+| Parser                | Time/op       | Mem/op   | Allocs/op | Relative Speed  |
+| --------------------- | ------------- | -------- | --------- | --------------- |
+| **JustGoHTML**        | 163,500 ns/op | 63,346 B | 1,287     | 1.0x (baseline) |
+| golang.org/x/net/html | 74,920 ns/op  | 38,048 B | 504       | 2.2x faster     |
+| goquery               | 74,690 ns/op  | 38,128 B | 507       | 2.2x faster     |
 
-**Trade-off:** JustGoHTML is 3-4x slower but provides **100% HTML5 compliance** vs ~70%
+**Trade-off:** JustGoHTML is ~2.2x slower but provides **100% HTML5 compliance** vs ~70%
 
 ### Query Speed
 
-| Parser         | Simple Query | Complex Query | Relative Speed  |
-| -------------- | ------------ | ------------- | --------------- |
-| **JustGoHTML** | 8,034 ns/op  | 15,411 ns/op  | 1.0x (baseline) |
-| goquery        | 4,391 ns/op  | 5,973 ns/op   | 1.8-2.6x faster |
+| Parser         | Simple Query | Complex Query | Relative Speed   |
+| -------------- | ------------ | ------------- | ---------------- |
+| **JustGoHTML** | 2,999 ns/op  | 4,168 ns/op   | 1.0x (baseline)  |
+| goquery        | 3,955 ns/op  | 6,120 ns/op   | 0.8x (slower) ⚡ |
+
+**Note:** JustGoHTML CSS selectors are now **faster than goquery** for many queries!
 
 ### Serialization Speed
 
@@ -138,22 +140,22 @@ go test -bench=Stream -benchmem ./stream          # Streaming benchmarks
 
 **Parsing:**
 
-- ~2,700 complex pages per second (single core)
-- ~32,400 pages per second (12 cores, parallel)
+- ~6,100 complex pages per second (single core)
+- ~13,150 pages per second (12 cores, parallel)
 
 **Round-trip (Parse + Serialize):**
 
 - Simple: ~500,000 round-trips per second
-- Complex: ~2,600 round-trips per second
+- Complex: ~5,500 round-trips per second
 
 ### Latency Examples
 
 | Operation              | Latency |
 | ---------------------- | ------- |
-| Parse simple HTML      | ~18 µs  |
-| Parse complex HTML     | ~367 µs |
+| Parse simple HTML      | ~17 µs  |
+| Parse complex HTML     | ~164 µs |
 | Serialize complex HTML | ~19 µs  |
-| Query complex selector | ~15 µs  |
+| Query complex selector | ~4.2 µs |
 | Stream complex HTML    | ~104 µs |
 
 ## Running Specific Benchmarks

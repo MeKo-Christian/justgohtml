@@ -3,33 +3,33 @@ version = '2'
 [linters]
 disable = [
   'depguard',
-  'dupword',         # False positives with "after after body" etc (spec-defined names)
-  'exhaustruct',     # Too noisy for struct literals with optional fields
-  'forbidigo',       # We need fmt.Print for CLI
-  'forcetypeassert', # Too noisy in cloning code
-  'funcorder',       # Don't enforce method ordering
+  'dupword',          # False positives with "after after body" etc (spec-defined names)
+  'exhaustruct',      # Too noisy for struct literals with optional fields
+  'forbidigo',        # We need fmt.Print for CLI
+  'forcetypeassert',  # Too noisy in cloning code
+  'funcorder',        # Don't enforce method ordering
   'gochecknoglobals', # Allow package-level vars for constants
   'godoclint',
-  'godot',           # Don't require periods in all comments
-  'godox',           # Allow TODO comments during development
+  'godot',            # Don't require periods in all comments
+  'godox',            # Allow TODO comments during development
   'gomoddirectives',
   'ireturn',
-  'lll',             # Line length handled by formatter
-  'mnd',             # Magic numbers are fine in this parser context
+  'lll',              # Line length handled by formatter
+  'mnd',              # Magic numbers are fine in this parser context
   'musttag',
-  'nilnil',          # Returning nil, nil is idiomatic for optional results
+  'nilnil',           # Returning nil, nil is idiomatic for optional results
   'nlreturn',
   'noctx',
-  'noinlineerr',     # Inline error handling is fine
-  'paralleltest',    # Not all tests need to be parallel
-  'perfsprint',      # Performance micro-optimizations not needed
+  'noinlineerr',      # Inline error handling is fine
+  'paralleltest',     # Not all tests need to be parallel
+  'perfsprint',       # Performance micro-optimizations not needed
   'recvcheck',
   'sqlclosecheck',
-  'testpackage',     # Allow testing internal types
-  'varnamelen',      # Short names like 'sb', 'dt' are clear in context
-  'wrapcheck',       # Internal package errors don't need wrapping
+  'testpackage',      # Allow testing internal types
+  'varnamelen',       # Short names like 'sb', 'dt' are clear in context
+  'wrapcheck',        # Internal package errors don't need wrapping
   'wsl',
-  'wsl_v5',          # Whitespace style is handled by formatter
+  'wsl_v5',           # Whitespace style is handled by formatter
 ]
 default = 'all'
 
@@ -121,7 +121,15 @@ path = 'tokenizer/.*\.go'
 
 [[linters.exclusions.rules]]
 # Allow complex functions in treebuilder (insertion modes)
-linters = ['funlen', 'cyclop', 'gocyclo', 'gocognit', 'maintidx', 'nonamedreturns', 'unused']
+linters = [
+  'funlen',
+  'cyclop',
+  'gocyclo',
+  'gocognit',
+  'maintidx',
+  'nonamedreturns',
+  'unused',
+]
 path = 'treebuilder/.*\.go'
 
 [[linters.exclusions.rules]]
@@ -144,4 +152,8 @@ exclusions.generated = 'lax'
 exclusions.paths = ['third_party$', 'builtin$', 'examples$']
 
 [formatters.settings.gci]
-sections = ['standard', 'default', 'prefix(github.com/MeKo-Christian/JustGoHTML)']
+sections = [
+  'standard',
+  'default',
+  'prefix(github.com/MeKo-Christian/JustGoHTML)',
+]

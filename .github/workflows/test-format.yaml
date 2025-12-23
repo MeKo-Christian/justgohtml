@@ -48,10 +48,13 @@ jobs:
       - name: Install shfmt
         uses: mfinelli/setup-shfmt@v3
 
-      # treefmt (Use binary installation to avoid Go path issues with emojis)
-      - name: Run treefmt
-        uses: isbecker/treefmt-action@v2
-        with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-          version: latest
-          ci: true
+      # treefmt
+      - name: Install treefmt
+        run: |
+          curl -sSfL https://github.com/numtide/treefmt/releases/download/v2.4.0/treefmt_2.4.0_linux_amd64.tar.gz -o treefmt.tar.gz
+          tar -xzf treefmt.tar.gz
+          sudo mv treefmt /usr/local/bin/
+          treefmt --version
+
+      - name: Run treefmt check
+        run: treefmt --ci --fail-on-change
