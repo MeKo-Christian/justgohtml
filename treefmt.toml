@@ -8,6 +8,9 @@ excludes = [
   # changelog is generated
   "**/CHANGELOG.md",
   "CHANGELOG.md",
+  # README.md has issues
+  "**/README.md",
+  "README.md",
   # gitignore
   "**/.gitignore",
   # txt files
