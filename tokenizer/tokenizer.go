@@ -158,8 +158,14 @@ type Tokenizer struct {
 	textBuffer strings.Builder
 	textHasAmp bool
 
-	pendingTokens []Token
-	errors        []ParseError
+	// Ring buffer for pending tokens (avoids slice reslicing overhead).
+	// Fixed size of 4 is sufficient since tokens are typically emitted one at a time.
+	pendingTokens [4]Token
+	pendingHead   int // Read index
+	pendingTail   int // Write index
+	pendingCount  int // Number of pending tokens
+
+	errors []ParseError
 
 	allowCDATA bool
 }
@@ -232,7 +238,10 @@ func (t *Tokenizer) reset(input string) {
 	t.textBuffer.Reset()
 	t.textHasAmp = false
 
-	t.pendingTokens = nil
+	// Reset ring buffer indices (no need to zero the array).
+	t.pendingHead = 0
+	t.pendingTail = 0
+	t.pendingCount = 0
 	t.errors = nil
 }
 
@@ -290,17 +299,21 @@ func (t *Tokenizer) Errors() []ParseError {
 // Next returns the next token.
 // Returns a token with Type == EOF when input is exhausted.
 func (t *Tokenizer) Next() Token {
-	if len(t.pendingTokens) > 0 {
-		token := t.pendingTokens[0]
-		t.pendingTokens = t.pendingTokens[1:]
+	// Fast path: return pending token using ring buffer.
+	if t.pendingCount > 0 {
+		token := t.pendingTokens[t.pendingHead]
+		t.pendingHead = (t.pendingHead + 1) & 3 // Wrap around (& 3 = % 4)
+		t.pendingCount--
 		return token
 	}
 
-	for len(t.pendingTokens) == 0 {
+	// Slow path: step until a token is emitted.
+	for t.pendingCount == 0 {
 		t.step()
 	}
-	token := t.pendingTokens[0]
-	t.pendingTokens = t.pendingTokens[1:]
+	token := t.pendingTokens[t.pendingHead]
+	t.pendingHead = (t.pendingHead + 1) & 3
+	t.pendingCount--
 	return token
 }
 
@@ -375,7 +388,9 @@ func (t *Tokenizer) advance(c rune) {
 }
 
 func (t *Tokenizer) emit(tok Token) {
-	t.pendingTokens = append(t.pendingTokens, tok)
+	t.pendingTokens[t.pendingTail] = tok
+	t.pendingTail = (t.pendingTail + 1) & 3 // Wrap around (& 3 = % 4)
+	t.pendingCount++
 }
 
 func (t *Tokenizer) emitEOF() {
