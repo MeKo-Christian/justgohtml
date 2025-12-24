@@ -668,7 +668,7 @@ func (t *Tokenizer) stateTagOpen() {
 		t.reconsumeCurrent()
 		t.state = BogusCommentState
 	default:
-		if (c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z') {
+		if constants.IsASCIIAlpha(c) {
 			t.startTag(StartTag, c)
 			t.state = TagNameState
 			return
@@ -694,7 +694,7 @@ func (t *Tokenizer) stateEndTagOpen() {
 		t.state = DataState
 		return
 	}
-	if (c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z') {
+	if constants.IsASCIIAlpha(c) {
 		t.startTag(EndTag, c)
 		t.state = TagNameState
 		return
@@ -714,10 +714,12 @@ func (t *Tokenizer) stateTagName() {
 			return
 		}
 
-		switch c {
-		case '\t', '\n', '\f', ' ':
+		if constants.IsWhitespace(c) {
 			t.state = BeforeAttributeNameState
 			return
+		}
+
+		switch c {
 		case '/':
 			t.state = SelfClosingStartTagState
 			return
@@ -731,9 +733,7 @@ func (t *Tokenizer) stateTagName() {
 			t.emitError("unexpected-null-character")
 			t.currentTagName = append(t.currentTagName, unicode.ReplacementChar)
 		default:
-			if c >= 'A' && c <= 'Z' {
-				c += 32
-			}
+			c = constants.ToLower(c)
 			t.currentTagName = append(t.currentTagName, c)
 		}
 	}
@@ -814,9 +814,7 @@ func (t *Tokenizer) stateAttributeName() {
 			if c == '"' || c == '\'' || c == '<' {
 				t.emitError("unexpected-character-in-attribute-name")
 			}
-			if c >= 'A' && c <= 'Z' {
-				c += 32
-			}
+			c = constants.ToLower(c)
 			t.currentAttrName = append(t.currentAttrName, c)
 		}
 	}
@@ -1836,8 +1834,8 @@ func (t *Tokenizer) stateRCDATALessThanSign() {
 
 func (t *Tokenizer) stateRCDATAEndTagOpen() {
 	c, ok := t.getChar()
-	if ok && ((c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z')) {
-		t.currentTagName = append(t.currentTagName, unicode.ToLower(c))
+	if ok && (constants.IsASCIIAlpha(c)) {
+		t.currentTagName = append(t.currentTagName, constants.ToLower(c))
 		t.originalTagName = append(t.originalTagName, c)
 		t.state = RCDATAEndTagNameState
 		return
@@ -1854,8 +1852,8 @@ func (t *Tokenizer) stateRCDATAEndTagOpen() {
 func (t *Tokenizer) stateRCDATAEndTagName() {
 	for {
 		c, ok := t.getChar()
-		if ok && ((c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z')) {
-			t.currentTagName = append(t.currentTagName, unicode.ToLower(c))
+		if ok && (constants.IsASCIIAlpha(c)) {
+			t.currentTagName = append(t.currentTagName, constants.ToLower(c))
 			t.originalTagName = append(t.originalTagName, c)
 			continue
 		}
@@ -1968,8 +1966,8 @@ func (t *Tokenizer) stateRAWTEXTLessThanSign() {
 
 func (t *Tokenizer) stateRAWTEXTEndTagOpen() {
 	c, ok := t.getChar()
-	if ok && ((c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z')) {
-		t.currentTagName = append(t.currentTagName, unicode.ToLower(c))
+	if ok && (constants.IsASCIIAlpha(c)) {
+		t.currentTagName = append(t.currentTagName, constants.ToLower(c))
 		t.originalTagName = append(t.originalTagName, c)
 		t.state = RAWTEXTEndTagNameState
 		return
@@ -1990,8 +1988,8 @@ func (t *Tokenizer) stateRAWTEXTEndTagOpen() {
 func (t *Tokenizer) stateRAWTEXTEndTagName() {
 	for {
 		c, ok := t.getChar()
-		if ok && ((c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z')) {
-			t.currentTagName = append(t.currentTagName, unicode.ToLower(c))
+		if ok && (constants.IsASCIIAlpha(c)) {
+			t.currentTagName = append(t.currentTagName, constants.ToLower(c))
 			t.originalTagName = append(t.originalTagName, c)
 			continue
 		}
@@ -2145,7 +2143,7 @@ func (t *Tokenizer) stateScriptDataEscapedLessThanSign() {
 		t.tempBuffer = t.tempBuffer[:0]
 		t.appendTextRune('<')
 		t.appendTextRune(c)
-		t.tempBuffer = append(t.tempBuffer, unicode.ToLower(c))
+		t.tempBuffer = append(t.tempBuffer, constants.ToLower(c))
 		t.state = ScriptDataDoubleEscapeStartState
 		return
 	}
@@ -2161,7 +2159,7 @@ func (t *Tokenizer) stateScriptDataEscapedEndTagOpen() {
 	if ok && unicode.IsLetter(c) {
 		t.currentTagName = t.currentTagName[:0]
 		t.originalTagName = t.originalTagName[:0]
-		t.currentTagName = append(t.currentTagName, unicode.ToLower(c))
+		t.currentTagName = append(t.currentTagName, constants.ToLower(c))
 		t.originalTagName = append(t.originalTagName, c)
 		t.state = ScriptDataEscapedEndTagNameState
 		return
@@ -2178,7 +2176,7 @@ func (t *Tokenizer) stateScriptDataEscapedEndTagName() {
 	for {
 		c, ok := t.getChar()
 		if ok && unicode.IsLetter(c) {
-			t.currentTagName = append(t.currentTagName, unicode.ToLower(c))
+			t.currentTagName = append(t.currentTagName, constants.ToLower(c))
 			t.originalTagName = append(t.originalTagName, c)
 			continue
 		}
@@ -2234,7 +2232,7 @@ func (t *Tokenizer) stateScriptDataDoubleEscapeStart() {
 		return
 	}
 	if unicode.IsLetter(c) {
-		t.tempBuffer = append(t.tempBuffer, unicode.ToLower(c))
+		t.tempBuffer = append(t.tempBuffer, constants.ToLower(c))
 		t.appendTextRune(c)
 		return
 	}
@@ -2344,7 +2342,7 @@ func (t *Tokenizer) stateScriptDataDoubleEscapeEnd() {
 		return
 	}
 	if unicode.IsLetter(c) {
-		t.tempBuffer = append(t.tempBuffer, unicode.ToLower(c))
+		t.tempBuffer = append(t.tempBuffer, constants.ToLower(c))
 		t.appendTextRune(c)
 		return
 	}
