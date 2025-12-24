@@ -193,6 +193,37 @@ Based on lessons learned from failed optimizations (3.2.1, 3.2.2, 3.3.1), here a
   - **Conclusion:** Partial implementation - infrastructure complete but needs full application for target performance gains
   - Implementation: `internal/constants/charclass.go` (tables), `tokenizer/tokenizer.go:717-720` (whitespace check)
 
+  **Subtasks to complete optimization (on branch `feat/complete-charclass-optimization`):**
+
+  - [ ] **3.2.4.4.1 Convert remaining whitespace switch cases to lookup checks**
+    - Target: 15 remaining `case '\t', '\n', '\f', ' ':` instances (see tokenizer.go:751, 793, 834, 876, 956, 988, 1237, 1294, 1360, 1403, 1445, 1542, 1582, 1619, 1716)
+    - Strategy: For each switch statement with whitespace case:
+      1. Extract whitespace case action (continue/return/state change)
+      2. Add `if constants.IsWhitespace(c) { <action> }` before the switch
+      3. Remove whitespace case from switch
+      4. Run tests after each conversion
+    - Risk mitigation: Convert one at a time, test each change
+    - Expected impact: 3-8% speedup when all conversions complete
+
+  - [ ] **3.2.4.4.2 Optimize character classification in attribute parsing states**
+    - Target states: `stateBeforeAttributeName`, `stateAttributeName`, `stateAfterAttributeName`
+    - Convert whitespace switches to lookup checks
+    - Test attribute-heavy HTML documents specifically
+    - Expected impact: 2-3% additional speedup on attribute-heavy content
+
+  - [ ] **3.2.4.4.3 Benchmark and validate complete implementation**
+    - Run full benchmark suite with `-benchtime=10s -count=10`
+    - Compare against baseline (stored in `/tmp/baseline_3.2.4.4.txt`)
+    - Use `benchstat` to verify statistical significance
+    - Target: ≥3% speedup with p<0.05
+    - Document actual results in PLAN.md
+
+  - [ ] **3.2.4.4.4 Consider additional lookup table optimizations**
+    - Investigate `isASCIIDigit` table for numeric character references
+    - Consider `isASCIIHexDigit` for hex character references
+    - Profile to find actual hot spots before implementing
+    - Only proceed if profiling shows >1% time in these checks
+
 - [ ] **3.2.4.5 Reduce attribute map operations**
   - Currently: Every attribute does `t.currentTagAttrIndex[name] = struct{}{}` (line 447)
   - Fix: Only track duplicates for tags with >1 attribute (common case: 0-3 attrs)
