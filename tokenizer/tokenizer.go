@@ -32,6 +32,18 @@ func putAttrMap(m map[string]struct{}) {
 	}
 }
 
+// Pre-computed rune slices for common literals used in consumeIf/consumeCaseInsensitive.
+// These are initialized once to avoid repeated []rune(string) conversions in hot paths.
+//
+//nolint:gochecknoglobals // Static literal conversions for performance optimization.
+var (
+	runesCommentDash = []rune("--")        // Used in comment parsing
+	runesDOCTYPE     = []rune("DOCTYPE")   // Used in DOCTYPE detection
+	runesCDATA       = []rune("[CDATA[")   // Used in CDATA section detection
+	runesPUBLIC      = []rune("PUBLIC")    // Used in DOCTYPE PUBLIC keyword
+	runesSYSTEM      = []rune("SYSTEM")    // Used in DOCTYPE SYSTEM keyword
+)
+
 // stateHandler is a function that handles a tokenizer state.
 type stateHandler func(*Tokenizer)
 
@@ -558,8 +570,7 @@ func (t *Tokenizer) emitDoctype() {
 	})
 }
 
-func (t *Tokenizer) consumeIf(lit string) bool {
-	r := []rune(lit)
+func (t *Tokenizer) consumeIf(r []rune) bool {
 	if t.pos+len(r) > len(t.buf) {
 		return false
 	}
@@ -574,8 +585,7 @@ func (t *Tokenizer) consumeIf(lit string) bool {
 	return true
 }
 
-func (t *Tokenizer) consumeCaseInsensitive(lit string) bool {
-	r := []rune(lit)
+func (t *Tokenizer) consumeCaseInsensitive(r []rune) bool {
 	if t.pos+len(r) > len(t.buf) {
 		return false
 	}
@@ -1007,12 +1017,12 @@ func (t *Tokenizer) stateSelfClosingStartTag() {
 }
 
 func (t *Tokenizer) stateMarkupDeclarationOpen() {
-	if t.consumeIf("--") {
+	if t.consumeIf(runesCommentDash) {
 		t.currentComment = t.currentComment[:0]
 		t.state = CommentStartState
 		return
 	}
-	if t.consumeCaseInsensitive("DOCTYPE") {
+	if t.consumeCaseInsensitive(runesDOCTYPE) {
 		t.currentDoctypeName = t.currentDoctypeName[:0]
 		t.currentDoctypePublic = nil
 		t.currentDoctypeSystem = nil
@@ -1020,7 +1030,7 @@ func (t *Tokenizer) stateMarkupDeclarationOpen() {
 		t.state = DOCTYPEState
 		return
 	}
-	if t.consumeIf("[CDATA[") {
+	if t.consumeIf(runesCDATA) {
 		if t.allowCDATA {
 			t.state = CDATASectionState
 		} else {
@@ -1294,11 +1304,11 @@ func (t *Tokenizer) stateDoctypeName() {
 }
 
 func (t *Tokenizer) stateAfterDoctypeName() {
-	if t.consumeCaseInsensitive("PUBLIC") {
+	if t.consumeCaseInsensitive(runesPUBLIC) {
 		t.state = AfterDOCTYPEPublicKeywordState
 		return
 	}
-	if t.consumeCaseInsensitive("SYSTEM") {
+	if t.consumeCaseInsensitive(runesSYSTEM) {
 		t.state = AfterDOCTYPESystemKeywordState
 		return
 	}
