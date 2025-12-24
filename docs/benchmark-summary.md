@@ -49,8 +49,21 @@ go test -bench=Stream -benchmem ./stream          # Streaming benchmarks
 
 **Key Findings:**
 
-- JustGoHTML query performance is within 2-3x of goquery
+- JustGoHTML query performance is faster than goquery in these cases
 - Selector complexity has moderate impact on performance
+
+### 2.5. Tokenizer Micro-Benchmark (`tokenizer/html5lib_test.go`)
+
+**Purpose:** Isolate tokenizer performance without tree construction
+
+**Benchmark:**
+
+- `BenchmarkTokenizer` - Tokenizes a repeated HTML snippet
+
+**Key Finding (i7-1255U, 2s/10x):**
+
+- main: ~1.059 ms/op
+- feat/reduce-attr-map-ops: ~0.883 ms/op (**~16.6% faster**)
 
 ### 3. Serialization Benchmarks (`serialize/benchmark_test.go`)
 
@@ -103,18 +116,18 @@ go test -bench=Stream -benchmem ./stream          # Streaming benchmarks
 
 | Parser                | Time/op       | Mem/op   | Allocs/op | Relative Speed  |
 | --------------------- | ------------- | -------- | --------- | --------------- |
-| **JustGoHTML**        | 163,500 ns/op | 63,346 B | 1,287     | 1.0x (baseline) |
-| golang.org/x/net/html | 74,920 ns/op  | 38,048 B | 504       | 2.2x faster     |
-| goquery               | 74,690 ns/op  | 38,128 B | 507       | 2.2x faster     |
+| **JustGoHTML**        | 120,718 ns/op | 62,408 B | 1,157     | 1.0x (baseline) |
+| golang.org/x/net/html | 62,296 ns/op  | 38,048 B | 504       | 1.9x faster     |
+| goquery               | 71,549 ns/op  | 38,128 B | 507       | 1.7x faster     |
 
-**Trade-off:** JustGoHTML is ~2.2x slower but provides **100% HTML5 compliance** vs ~70%
+**Trade-off:** JustGoHTML is ~1.9x slower but provides **100% HTML5 compliance** vs ~70%
 
 ### Query Speed
 
 | Parser         | Simple Query | Complex Query | Relative Speed   |
 | -------------- | ------------ | ------------- | ---------------- |
-| **JustGoHTML** | 2,999 ns/op  | 4,168 ns/op   | 1.0x (baseline)  |
-| goquery        | 3,955 ns/op  | 6,120 ns/op   | 0.8x (slower) ⚡ |
+| **JustGoHTML** | 2,269 ns/op  | 3,325 ns/op   | 1.0x (baseline)  |
+| goquery        | 3,160 ns/op  | 5,206 ns/op   | 0.64x (slower) ⚡ |
 
 **Note:** JustGoHTML CSS selectors are now **faster than goquery** for many queries!
 
@@ -140,8 +153,8 @@ go test -bench=Stream -benchmem ./stream          # Streaming benchmarks
 
 **Parsing:**
 
-- ~6,100 complex pages per second (single core)
-- ~13,150 pages per second (12 cores, parallel)
+- ~8,300 complex pages per second (single core)
+- Parallel: see `BenchmarkJustGoHTML_Parse_Parallel` for current numbers
 
 **Round-trip (Parse + Serialize):**
 
@@ -153,9 +166,9 @@ go test -bench=Stream -benchmem ./stream          # Streaming benchmarks
 | Operation              | Latency |
 | ---------------------- | ------- |
 | Parse simple HTML      | ~17 µs  |
-| Parse complex HTML     | ~164 µs |
+| Parse complex HTML     | ~121 µs |
 | Serialize complex HTML | ~19 µs  |
-| Query complex selector | ~4.2 µs |
+| Query complex selector | ~3.3 µs |
 | Stream complex HTML    | ~104 µs |
 
 ## Running Specific Benchmarks
