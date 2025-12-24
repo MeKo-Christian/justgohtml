@@ -134,12 +134,17 @@ Target: 100% for all packages.
 
 Based on lessons learned from failed optimizations (3.2.1, 3.2.2, 3.3.1), here are optimization opportunities that work WITH Go's strengths rather than against them:
 
-- [ ] **3.2.4.1 Pre-computed rune literals for consumeIf/consumeCaseInsensitive**
-  - Currently: `consumeIf("--")` calls `[]rune(lit)` on every invocation (lines 541-555)
-  - Fix: Pre-compute rune slices for known literals ("--", "DOCTYPE", "[CDATA[", "PUBLIC", "SYSTEM")
-  - Use package-level `var` with pre-converted rune slices
-  - **Why this won't fail like 3.3.1:** No per-character overhead, just avoids repeated conversions
-  - Expected: 2-5% speedup on documents with many comments/doctypes/CDATA
+- [x] **3.2.4.1 Pre-computed rune literals for consumeIf/consumeCaseInsensitive** ❌ REJECTED - No Measurable Impact
+  - Pre-computed rune slices for literals: `"--"`, `"DOCTYPE"`, `"[CDATA["`, `"PUBLIC"`, `"SYSTEM"`
+  - Changed function signatures to accept `[]rune` instead of `string`
+  - **Actual results: NO PERFORMANCE IMPROVEMENT**
+    - Parse_Simple: ~16.25µs vs ~16.28µs (p=0.684, not significant)
+    - Parse_Medium: ~96.20µs vs ~78.73µs (p=0.218, not significant)
+    - Parse_Complex: ~147.3µs vs ~162.2µs (p=0.190, not significant)
+    - Geomean: +3.47% (within statistical noise)
+  - **Why it failed:** Functions not in hot path - only called for rare doctypes/comments/CDATA
+  - **Conclusion:** `[]rune()` overhead for 2-7 char strings is negligible; optimization adds complexity for zero gain
+  - Reference: PR #4 (closed), branch `feat/precomputed-rune-literals` kept for reference
 
 - [ ] **3.2.4.2 Batch text node emission with strings.Builder capacity hints**
   - Currently: `textBuffer` grows dynamically per WriteRune (line 82, 398-403)
