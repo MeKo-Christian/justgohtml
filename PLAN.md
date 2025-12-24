@@ -81,6 +81,7 @@ This phase is now documented as a post-mortem: what did not work, why, and the l
 ### 3.3 Next-Step Candidates (profile-driven, not evaluated yet)
 
 Profiler snapshot (BenchmarkJustGoHTML_Parse_Complex, 5s):
+
 - tokenizer: `getChar`, `stateData`, `stateTagName`, `stateAttributeValueDoubleQuoted`
 - string/rune conversion: `stringtoslicerune`, `slicerunetostring`, `encoderune`
 - allocation churn: `mallocgc*`, `growslice`
@@ -88,6 +89,7 @@ Profiler snapshot (BenchmarkJustGoHTML_Parse_Complex, 5s):
 - DOM: `Element.AppendChild`
 
 Candidates (hypotheses only; must benchmark):
+
 - **Bulk text scanning in Data/RCDATA/RAWTEXT**: scan to next `<` or NUL and append spans in one go to reduce `getChar`/`WriteRune` churn and `encoderune`.
 - **Attribute/value fast path**: reduce per-rune work in attribute states with span-based parsing (still honoring spec edge cases).
 - **Tree builder scope checks**: `hasElementInScopeInternal` shows up; cache scope boundaries or track nearest markers to avoid repeated scans.
