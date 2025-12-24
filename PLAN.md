@@ -60,226 +60,39 @@ Target: 100% for all packages.
 
 ## 3. Performance Optimization (Phase 4)
 
-### 3.1 Quick Wins (1-2 days each)
+This phase is now documented as a post-mortem: what did not work, why, and the lessons we keep. The optimizations that worked are assumed and not repeated here.
 
-- [x] **3.1.1 String interning for tag/attribute names** ✅
-  - Pre-allocate common tag names ("div", "span", "p", "a", etc.)
-  - Pre-allocate common attribute names ("class", "id", "href", "src", etc.)
-  - Use interning in tokenizer when creating tag/attr name strings
-  - **Actual results: 17-40% speedup, zero allocation overhead for interning lookups**
-  - Implementation: `internal/constants/intern.go`, `tokenizer/tokenizer.go:470`, `tokenizer/tokenizer.go:444`
+### 3.1 What Did Not Work (and why)
 
-- [x] **3.1.2 Attribute map pooling** ✅
-  - Use `sync.Pool` for `currentTagAttrIndex` map allocations
-  - Reset and reuse maps instead of creating new ones per tag
-  - **Actual results: Reduced allocations, improved memory efficiency**
-  - Implementation: `tokenizer/tokenizer.go:11-33` (pool setup), multiple allocation sites replaced with pooled maps
+- **Token pooling (sync.Pool, pointer tokens)**: 20–30% slower, more memory, more allocs. Pointer indirection and pool overhead outweighed any reuse benefits; cache locality got worse.
+- **ASCII fast path + byte tokenization**: 12% slower on complex HTML. UTF-8 decoding per rune and expensive `peek()` killed performance; Go already optimizes `[]rune(string)` well.
+- **Precomputed rune literals for small matches**: No measurable change. These code paths are not hot; added complexity without measurable win.
+- **Lookup tables vs switch for whitespace**: ~1% slower. Switches already compile to efficient jump tables; lookup adds memory indirection.
+- **DOM node pooling (arena allocator)**: Fewer allocs (-26%) but **slower** (+6.2%) and **more memory** (+21.5%). Chunked arenas increased working set; allocations were not the limiting factor.
 
-- [x] **3.1.3 Selector sibling iteration optimization** ✅
-  - Avoid allocating sibling slices in `getElementSiblings()` and `getSiblingsOfSameType()`
-  - Use direct iteration for first/last child checks
-  - Inline counting for nth-child and nth-of-type selectors
-  - **Actual results: 28-29% speedup for selector matching, zero allocations for simple position checks**
-  - Implementation: `selector/matcher.go:340-557` (optimized all sibling iteration functions)
+### 3.2 Lessons Learned (hard constraints)
 
-### 3.2 Medium Effort (3-5 days each)
+- **Measure before and after**: No change without benchmarks and `benchstat`.
+- **Hot path only**: Optimizing cold code is wasted time and risk.
+- **Avoid pointer churn**: Value structs and contiguous memory win frequently in Go.
+- **Be skeptical of pools**: `sync.Pool` and arenas can reduce allocs but often increase CPU and RSS.
+- **Large refactors need early proof**: If a prototype regresses, stop and document.
 
-- [x] **3.2.1 Token pooling** ❌ REJECTED - Performance Regression
-  - Attempted implementation with `sync.Pool` for token objects
-  - Changed Token API to use pointers (`*Token`) throughout
-  - Pool tokens during parsing with automatic lifecycle management
-  - **Actual results: SIGNIFICANT PERFORMANCE REGRESSION**
-    - **20-30% slower** execution time (13,817 ns → 17,646 ns for simple HTML)
-    - **60-75% MORE memory** usage (10,710 B → 18,621 B for simple HTML)
-    - **40-50% MORE allocations** (172 → 252 for simple HTML)
-  - **Root causes:**
-    - Pointer indirection overhead on every token access
-    - Degraded cache locality (pointers scattered vs contiguous value structs)
-    - `sync.Pool` Get/Put overhead outweighs allocation savings for small structs
-    - Pre-allocated `Attrs` slices increased base memory per token
-  - **Conclusion:** Token pooling is counterproductive for this use case
-  - Reference: PR #1 (closed), branch `feature/token-pooling` kept for reference
-  - Implementation: `tokenizer/tokenizer.go:35-66` (pool setup), `tokenizer/tokenizer.go:246` (Next returns \*Token), all emit functions updated
-  - Tests: `tokenizer/pool_test.go` (TestTokenPoolReuse, TestTokenPoolReset)
+### 3.3 Next-Step Candidates (profile-driven, not evaluated yet)
 
-- [x] **3.2.2 ASCII fast path for tokenization** ❌ DEFERRED - Part of Failed Byte-Based Refactor
-  - Attempted ASCII detection with byte-based operations for ASCII content
-  - Implemented fallback to UTF-8 decoding for non-ASCII
-  - **Actual results: PERFORMANCE REGRESSION (tested as part of 3.3.1)**
-    - **12% slower** on complex HTML (151µs → 170µs)
-    - Memory improved 18% but speed loss unacceptable
-  - **Root causes:**
-    - UTF-8 decoding overhead (`utf8.DecodeRuneInString`) on every character access
-    - `peek()` function became expensive (walks UTF-8 runes)
-    - ASCII detection loop in `reset()` adds overhead
-    - Go compiler already optimizes `[]rune(string)` conversions well
-  - **Conclusion:** ASCII fast path adds complexity without performance benefit
-  - Reference: branch `feat/byte-based-tokenization` (not merged)
+Profiler snapshot (BenchmarkJustGoHTML_Parse_Complex, 5s):
+- tokenizer: `getChar`, `stateData`, `stateTagName`, `stateAttributeValueDoubleQuoted`
+- string/rune conversion: `stringtoslicerune`, `slicerunetostring`, `encoderune`
+- allocation churn: `mallocgc*`, `growslice`
+- tree builder: `processInBody`, `hasElementInScopeInternal`
+- DOM: `Element.AppendChild`
 
-- [x] **3.2.3 State machine dispatch table** ✅ SUCCESSFUL
-  - Replaced large switch statement (~55 cases) with function pointer array
-  - Used direct array indexing for O(1) state handler dispatch
-  - Dispatch table initialized once per tokenizer with all state handlers
-  - **Actual results: SIGNIFICANT SPEEDUP**
-    - **ParseBytes_Medium: 32% faster** (127.62µs → 86.68µs)
-    - **ParseBytes_Complex: 9.2% faster** (167.1µs → 151.8µs)
-    - **Parse_Parallel: 14% faster** (113.39µs → 97.58µs)
-    - **Geometric mean: 12.9% faster** across all benchmarks
-    - Memory overhead: ~2.3% more (dispatch table allocation per tokenizer)
-    - Allocation overhead: ~0.2% more (1 extra alloc per parse)
-  - **Why it works:** Direct array lookup eliminates switch comparison overhead
-  - Implementation: `tokenizer/tokenizer.go:35-36` (type), `tokenizer/tokenizer.go:122-191` (init), `tokenizer/tokenizer.go:307-318` (step)
-
-### 3.2.4 New Optimization Opportunities (avoiding past mistakes)
-
-Based on lessons learned from failed optimizations (3.2.1, 3.2.2, 3.3.1), here are optimization opportunities that work WITH Go's strengths rather than against them:
-
-- [x] **3.2.4.1 Pre-computed rune literals for consumeIf/consumeCaseInsensitive** ❌ REJECTED - No Measurable Impact
-  - Pre-computed rune slices for literals: `"--"`, `"DOCTYPE"`, `"[CDATA["`, `"PUBLIC"`, `"SYSTEM"`
-  - Changed function signatures to accept `[]rune` instead of `string`
-  - **Actual results: NO PERFORMANCE IMPROVEMENT**
-    - Parse_Simple: ~16.25µs vs ~16.28µs (p=0.684, not significant)
-    - Parse_Medium: ~96.20µs vs ~78.73µs (p=0.218, not significant)
-    - Parse_Complex: ~147.3µs vs ~162.2µs (p=0.190, not significant)
-    - Geomean: +3.47% (within statistical noise)
-  - **Why it failed:** Functions not in hot path - only called for rare doctypes/comments/CDATA
-  - **Conclusion:** `[]rune()` overhead for 2-7 char strings is negligible; optimization adds complexity for zero gain
-  - Reference: PR #4 (closed), branch `feat/precomputed-rune-literals` kept for reference
-
-- [x] **3.2.4.2 Batch text node emission with strings.Builder capacity hints** ✅ SUCCESSFUL
-  - Added `textBufferHint` field to track capacity for next text node
-  - Pre-grow buffer on first character with `Grow(textBufferHint)` (line 423)
-  - After `flushText()`, save text length as hint for next node (line 454)
-  - Initialize with default 64-byte hint on reset (line 243)
-  - **Actual results: MODERATE IMPROVEMENT**
-    - **Speed: 1.17% faster** (geomean across all benchmarks)
-    - **Complex documents: 3.21-4.19% faster** (where text processing matters most)
-    - **Memory: 0.36% less** (small reduction in reallocations)
-    - **Allocations: 7.61% fewer** (geomean, up to 10% reduction on complex HTML)
-  - **Why it worked:** Pre-allocating based on previous text size eliminates most Builder reallocations
-  - **Best impact on:** Text-heavy documents (Medium: -3.21%, Complex: -4.19%)
-  - Implementation: `tokenizer/tokenizer.go:160` (field), `tokenizer/tokenizer.go:423` (pre-grow), `tokenizer/tokenizer.go:438-454` (hint update)
-
-- [x] **3.2.4.3 Eliminate pendingTokens slice operations in hot path** ✅ SUCCESSFUL
-  - Replaced `pendingTokens []Token` slice with fixed-size ring buffer `[4]Token`
-  - Added `pendingHead`, `pendingTail`, `pendingCount` indices for O(1) operations
-  - Used bitwise AND (`& 3`) for efficient modulo-4 wraparound
-  - **Actual results: SIGNIFICANT IMPROVEMENT**
-    - **Speed: 11-35% faster** (geomean -11.42%)
-    - **Memory: 36-44% less** (geomean -33.24%)
-    - **Allocations: 19-23% fewer** (geomean -16.83%)
-  - **Why it worked:** Eliminated slice header updates on every token consumption
-  - Implementation: `tokenizer/tokenizer.go:163-166` (struct), `tokenizer/tokenizer.go:298-314` (Next), `tokenizer/tokenizer.go:387-390` (emit)
-
-- [x] **3.2.4.4 Inline hot path character classification** ❌ REJECTED - No Performance Benefit
-  - **Investigation completed**: Tested replacing all 15 whitespace switch cases with lookup table checks
-  - **Benchmark results** (10 samples each, `-benchtime=10s -count=10`):
-    - Baseline: 1.126ms ± 4% | Optimized: 1.139ms ± 2%
-    - Change: +1.1% **slower** (p=0.089, NOT statistically significant)
-  - **Why lookup tables failed**:
-    - Modern CPUs optimize switch statements excellently (branch prediction, jump tables)
-    - Lookup tables introduce memory indirection overhead
-    - Character classification not the bottleneck
-  - **Conclusion**: Switch statements are already optimal for this use case
-  - **Infrastructure retained**: `internal/constants/charclass.go` lookup tables available for other contexts
-  - Reference: PR #5 (closed), branch `feat/complete-charclass-optimization`
-
-- [x] **3.2.4.5 Reduce attribute map operations** ✅ SUCCESSFUL
-  - Only allocate attr index map after 4 attributes; use linear scan below threshold
-  - Map is built lazily when needed, avoiding per-attribute map ops in common case
-  - **Actual results: SIGNIFICANT IMPROVEMENT**
-    - **Speed: ~17% faster** (mean 1.079ms → 0.893ms; BenchmarkTokenizer, -benchtime=2s -count=10)
-
-**Priority order (highest impact first):** (none remaining)
-
-**Completed (in order of impact):** 3.2.4.3 (11% faster), 3.2.4.2 (4% faster on complex)
-
-**Rejected (no benefit):** 3.2.4.4 (lookup tables slower), 3.2.4.1 (ring buffer - no impact)
-
-### 3.3 Major Refactors (1-2 weeks each)
-
-- [x] **3.3.1 Byte-based tokenization (string indexing instead of []rune)** ❌ REJECTED - Performance Regression
-  - Replaced `buf []rune` with direct string indexing and UTF-8 decoding
-  - Implemented `utf8.DecodeRuneInString()` for character-by-character parsing
-  - Added ASCII-only detection for fast path optimization
-  - **Actual results: UNACCEPTABLE SPEED REGRESSION**
-    - **12% slower** on complex HTML (151µs → 170µs) - opposite of expected 30-40% speedup
-    - **18% memory reduction** (100.3Ki → 82.3Ki) - good but doesn't justify speed loss
-    - **Throughput impact:** 6,350 pages/sec → 5,900 pages/sec
-  - **Root causes:**
-    - UTF-8 decoding overhead on every `getChar()` call outweighs memory savings
-    - Go's compiler already optimizes `[]rune(string)` conversion efficiently
-    - `peek()` became expensive (must walk UTF-8 sequences for lookahead)
-    - ASCII detection scan in `reset()` adds overhead for every parse
-  - **Conclusion:** Premature optimization - theory didn't match reality. Keep current `[]rune` approach.
-  - Reference: branch `feat/byte-based-tokenization` (benchmarked, not merged)
-  - **Note:** This was THOUGHT to be the biggest optimization opportunity - benchmarks proved otherwise
-
-- [ ] **3.3.2 DOM element pooling**
-  - Implement `sync.Pool` for DOM element allocations
-  - Careful lifecycle management to avoid pool contamination
-  - Pool `Element`, `Text`, `Comment` node types
-  - Expected: 10-15% allocation reduction
-  - Location: `dom/element.go:34-42`
-
-### 3.4 Performance Validation
-
-- [ ] Run full benchmark suite after each optimization
-- [ ] Compare against baseline (current performance)
-- [ ] Validate no regression in html5lib test compliance
-- [ ] Profile with `pprof` to identify new bottlenecks
-- [ ] Document performance improvements in BENCHMARK_RESULTS.md
-
-**Expected Overall Impact (all optimizations):**
-
-- Speed: 2-3x faster (competitive with x/net/html while maintaining 100% compliance)
-- Memory: 50-60% less memory
-- Allocations: 50-60% fewer allocations
-
-## 3.5 Lessons Learned - Performance Optimization
-
-**Always benchmark, never assume.** Several optimization attempts taught valuable lessons:
-
-### ❌ Failed Optimizations
-
-1. **Lookup Tables vs Switch Statements** (Task 3.2.4.4)
-   - **Assumption**: Lookup tables `isWhitespace[c]` would be faster than `switch c { case '\t', '\n'... }`
-   - **Reality**: 1.1% **slower** (p=0.089, not significant)
-   - **Why**: Modern compilers already optimize switches to jump tables; lookup adds memory indirection
-   - **Lesson**: Trust compiler optimizations for simple character ranges
-
-2. **Ring Buffer for Pending Tokens** (Task 3.2.4.1)
-   - **Assumption**: Fixed-size ring buffer would be faster than slice operations
-   - **Reality**: No measurable impact
-   - **Why**: Slice operations are highly optimized in Go; premature optimization
-   - **Lesson**: Profile before optimizing - don't optimize what isn't slow
-
-3. **Byte-based Tokenization** (Task 3.3.1)
-   - **Assumption**: Direct string indexing would be 30-40% faster than `[]rune`
-   - **Reality**: 12% **slower**, opposite of expected
-   - **Why**: UTF-8 decoding overhead on every character, expensive `peek()` operations
-   - **Lesson**: Test large changes early; theoretical gains don't always materialize
-
-### ✅ Successful Optimizations
-
-1. **Buffer Indexing** (Task 3.2.4.3): **11-35% faster**
-   - Replaced slice operations with index-based access
-   - Eliminated slice header updates on every token
-   - **Key**: Measured actual hotspot via profiling
-
-2. **State-specific Character Maps** (Task 3.2.4.2): **4% faster on complex HTML**
-   - Targeted specific expensive operations
-   - **Key**: Focused on measured bottlenecks
-
-### Golden Rules
-
-1. **Benchmark before and after** - No change without measurements (10+ samples, `benchstat` for significance)
-2. **Profile to find hotspots** - Optimize what's actually slow, not what seems slow
-3. **Trust the compiler** - Modern compilers optimize better than manual micro-optimizations
-4. **Small, focused changes** - Test incrementally; big rewrites often fail
-5. **Document rejections** - Failed optimizations teach as much as successful ones
-
-**When in doubt**: Measure, don't guess.
+Candidates (hypotheses only; must benchmark):
+- **Bulk text scanning in Data/RCDATA/RAWTEXT**: scan to next `<` or NUL and append spans in one go to reduce `getChar`/`WriteRune` churn and `encoderune`.
+- **Attribute/value fast path**: reduce per-rune work in attribute states with span-based parsing (still honoring spec edge cases).
+- **Tree builder scope checks**: `hasElementInScopeInternal` shows up; cache scope boundaries or track nearest markers to avoid repeated scans.
+- **AppendChild growth behavior**: reduce `growslice` by pre-sizing children for common cases (e.g., when inserting known batches).
+- **String/hash hot spots**: targeted fast path for the most common tag/attr names to reduce `mapaccess1_faststr`/`aeshashbody` activity.
 
 ## 4. Documentation & Release
 
