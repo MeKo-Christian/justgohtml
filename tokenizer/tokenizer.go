@@ -155,8 +155,9 @@ type Tokenizer struct {
 
 	lastStartTagName string
 
-	textBuffer strings.Builder
-	textHasAmp bool
+	textBuffer     strings.Builder
+	textHasAmp     bool
+	textBufferHint int // Capacity hint for next text node based on previous size
 
 	// Ring buffer for pending tokens (avoids slice reslicing overhead).
 	// Fixed size of 4 is sufficient since tokens are typically emitted one at a time.
@@ -237,6 +238,9 @@ func (t *Tokenizer) reset(input string) {
 
 	t.textBuffer.Reset()
 	t.textHasAmp = false
+	// Initialize with a reasonable default hint (typical text node size).
+	// This will be updated dynamically as we parse actual text nodes.
+	t.textBufferHint = 64
 
 	// Reset ring buffer indices (no need to zero the array).
 	t.pendingHead = 0
@@ -416,6 +420,11 @@ func (t *Tokenizer) reconsumeCurrent() {
 }
 
 func (t *Tokenizer) appendTextRune(r rune) {
+	// Pre-grow buffer on first character using capacity hint.
+	// This reduces reallocations for typical text nodes.
+	if t.textBuffer.Len() == 0 && t.textBufferHint > 0 {
+		t.textBuffer.Grow(t.textBufferHint)
+	}
 	if r == '&' {
 		t.textHasAmp = true
 	}
@@ -426,6 +435,11 @@ func (t *Tokenizer) flushText() {
 	if t.textBuffer.Len() == 0 {
 		return
 	}
+
+	// Save length before processing as capacity hint for next text node.
+	// This helps pre-allocate the right size and reduces reallocations.
+	textLen := t.textBuffer.Len()
+
 	data := t.textBuffer.String()
 	t.textBuffer.Reset()
 
@@ -438,6 +452,9 @@ func (t *Tokenizer) flushText() {
 	if t.opts.XMLCoercion {
 		data = coerceTextForXML(data)
 	}
+
+	// Update hint for next text node (use previous size as estimate).
+	t.textBufferHint = textLen
 
 	t.emit(Token{Type: Character, Data: data})
 }

@@ -146,12 +146,19 @@ Based on lessons learned from failed optimizations (3.2.1, 3.2.2, 3.3.1), here a
   - **Conclusion:** `[]rune()` overhead for 2-7 char strings is negligible; optimization adds complexity for zero gain
   - Reference: PR #4 (closed), branch `feat/precomputed-rune-literals` kept for reference
 
-- [ ] **3.2.4.2 Batch text node emission with strings.Builder capacity hints**
-  - Currently: `textBuffer` grows dynamically per WriteRune (line 82, 398-403)
-  - Fix: Pre-size Builder with `Grow()` based on remaining input estimate
-  - After `flushText()`, reuse capacity hint from previous text length
-  - **Why this won't fail:** Reduces reallocation, not adding overhead
-  - Expected: 3-7% speedup for text-heavy documents
+- [x] **3.2.4.2 Batch text node emission with strings.Builder capacity hints** ✅ SUCCESSFUL
+  - Added `textBufferHint` field to track capacity for next text node
+  - Pre-grow buffer on first character with `Grow(textBufferHint)` (line 423)
+  - After `flushText()`, save text length as hint for next node (line 454)
+  - Initialize with default 64-byte hint on reset (line 243)
+  - **Actual results: MODERATE IMPROVEMENT**
+    - **Speed: 1.17% faster** (geomean across all benchmarks)
+    - **Complex documents: 3.21-4.19% faster** (where text processing matters most)
+    - **Memory: 0.36% less** (small reduction in reallocations)
+    - **Allocations: 7.61% fewer** (geomean, up to 10% reduction on complex HTML)
+  - **Why it worked:** Pre-allocating based on previous text size eliminates most Builder reallocations
+  - **Best impact on:** Text-heavy documents (Medium: -3.21%, Complex: -4.19%)
+  - Implementation: `tokenizer/tokenizer.go:160` (field), `tokenizer/tokenizer.go:423` (pre-grow), `tokenizer/tokenizer.go:438-454` (hint update)
 
 - [x] **3.2.4.3 Eliminate pendingTokens slice operations in hot path** ✅ SUCCESSFUL
   - Replaced `pendingTokens []Token` slice with fixed-size ring buffer `[4]Token`
@@ -179,7 +186,9 @@ Based on lessons learned from failed optimizations (3.2.1, 3.2.2, 3.3.1), here a
   - **Why this won't fail:** Reduces map overhead for common case
   - Expected: 5-10% speedup for attribute-heavy documents
 
-**Priority order (highest impact first):** 3.2.4.3, 3.2.4.4, 3.2.4.5, 3.2.4.2, 3.2.4.1
+**Priority order (highest impact first):** 3.2.4.4, 3.2.4.5
+
+**Completed (in order of impact):** 3.2.4.3 (11% faster), 3.2.4.2 (4% faster on complex), 3.2.4.1 (rejected - no impact)
 
 ### 3.3 Major Refactors (1-2 weeks each)
 
