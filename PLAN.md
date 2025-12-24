@@ -215,9 +215,13 @@ Based on lessons learned from failed optimizations (3.2.1, 3.2.2, 3.3.1), here a
   - Reference: branch `feat/byte-based-tokenization` (benchmarked, not merged)
   - **Note:** This was THOUGHT to be the biggest optimization opportunity - benchmarks proved otherwise
 
-- [ ] **3.3.2 DOM element pooling**
-  - Implement `sync.Pool` for DOM element allocations
-  - Careful lifecycle management to avoid pool contamination
+- [x] **3.3.2 DOM element pooling** ❌ REJECTED - Performance Regression
+  - Implemented arena-style DOM node allocator in `dom.NodeAllocator`
+  - Tree builder uses allocator for elements/text/comments/doctype/fragments
+  - **Benchmark results** (BenchmarkJustGoHTML_Parse_Complex, `-benchtime=2s -count=10`):
+    - Baseline: 119.5µs, 62.4KB, 1,157 allocs/op
+    - Allocator: 127.0µs (**+6.2% slower**), 75.8KB (**+21.5%**), 852 allocs/op (**-26%**)
+  - **Conclusion:** Fewer allocations, but higher memory and slower overall; not worth the trade-off
   - Pool `Element`, `Text`, `Comment` node types
   - Expected: 10-15% allocation reduction
   - Location: `dom/element.go:34-42`

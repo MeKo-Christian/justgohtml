@@ -30,10 +30,10 @@ func (tb *TreeBuilder) processInitial(tok tokenizer.Token) bool {
 		tb.mode = BeforeHTML
 		return true
 	case tokenizer.Comment:
-		tb.document.AppendChild(dom.NewComment(tok.Data))
+		tb.document.AppendChild(tb.newComment(tok.Data))
 		return false
 	case tokenizer.DOCTYPE:
-		tb.document.Doctype = dom.NewDocumentType(tok.Name, ptrToString(tok.PublicID), ptrToString(tok.SystemID))
+		tb.document.Doctype = tb.newDocumentType(tok.Name, ptrToString(tok.PublicID), ptrToString(tok.SystemID))
 		tb.setQuirksModeFromDoctype(tok.Name, tok.PublicID, tok.SystemID, tok.ForceQuirks)
 		tb.mode = BeforeHTML
 		return false
@@ -61,7 +61,7 @@ func (tb *TreeBuilder) processBeforeHTML(tok tokenizer.Token) bool {
 		tb.ProcessToken(tok)
 		return false
 	case tokenizer.Comment:
-		tb.document.AppendChild(dom.NewComment(tok.Data))
+		tb.document.AppendChild(tb.newComment(tok.Data))
 		return false
 	case tokenizer.StartTag:
 		if tok.Name == "html" {
@@ -1684,9 +1684,9 @@ func (tb *TreeBuilder) processAfterBody(tok tokenizer.Token) bool {
 	case tokenizer.Comment:
 		// Comments after body attach to the <html> element.
 		if len(tb.openElements) > 0 {
-			tb.openElements[0].AppendChild(dom.NewComment(tok.Data))
+			tb.openElements[0].AppendChild(tb.newComment(tok.Data))
 		} else {
-			tb.document.AppendChild(dom.NewComment(tok.Data))
+			tb.document.AppendChild(tb.newComment(tok.Data))
 		}
 		return false
 	case tokenizer.StartTag:
@@ -1799,11 +1799,11 @@ func (tb *TreeBuilder) processAfterAfterBody(tok tokenizer.Token) bool {
 	case tokenizer.Comment:
 		if tb.fragmentContext != nil {
 			if html := tb.document.DocumentElement(); html != nil {
-				html.AppendChild(dom.NewComment(tok.Data))
+				html.AppendChild(tb.newComment(tok.Data))
 				return false
 			}
 		}
-		tb.document.AppendChild(dom.NewComment(tok.Data))
+		tb.document.AppendChild(tb.newComment(tok.Data))
 		return false
 	case tokenizer.Character:
 		if isAllWhitespace(tok.Data) {
@@ -1828,11 +1828,11 @@ func (tb *TreeBuilder) processAfterAfterFrameset(tok tokenizer.Token) bool {
 	case tokenizer.Comment:
 		if tb.fragmentContext != nil {
 			if html := tb.document.DocumentElement(); html != nil {
-				html.AppendChild(dom.NewComment(tok.Data))
+				html.AppendChild(tb.newComment(tok.Data))
 				return false
 			}
 		}
-		tb.document.AppendChild(dom.NewComment(tok.Data))
+		tb.document.AppendChild(tb.newComment(tok.Data))
 		return false
 	case tokenizer.Character:
 		if isAllWhitespace(tok.Data) {

@@ -13,7 +13,8 @@ import (
 // This is a direct porting target of the Python reference implementation and is
 // intended to be driven by the tokenizer token stream.
 type TreeBuilder struct {
-	document *dom.Document
+	document  *dom.Document
+	allocator *dom.NodeAllocator
 
 	openElements []*dom.Element
 
@@ -55,8 +56,10 @@ type TreeBuilder struct {
 
 // New creates a new tree builder for full document parsing.
 func New(tok *tokenizer.Tokenizer) *TreeBuilder {
+	allocator := dom.NewNodeAllocator()
 	return &TreeBuilder{
-		document:         dom.NewDocument(),
+		document:         allocator.NewDocument(),
+		allocator:        allocator,
 		mode:             Initial,
 		originalMode:     Initial,
 		openElements:     nil,
@@ -72,8 +75,10 @@ func New(tok *tokenizer.Tokenizer) *TreeBuilder {
 
 // NewFragment creates a new tree builder for fragment parsing.
 func NewFragment(tok *tokenizer.Tokenizer, ctx *FragmentContext) *TreeBuilder {
+	allocator := dom.NewNodeAllocator()
 	tb := &TreeBuilder{
-		document:         dom.NewDocument(),
+		document:         allocator.NewDocument(),
+		allocator:        allocator,
 		mode:             Initial,
 		originalMode:     Initial,
 		openElements:     nil,
@@ -86,7 +91,7 @@ func NewFragment(tok *tokenizer.Tokenizer, ctx *FragmentContext) *TreeBuilder {
 	}
 
 	// Minimal fragment setup: create an <html> root.
-	html := dom.NewElement("html")
+	html := tb.newElement("html")
 	tb.document.AppendChild(html)
 	tb.openElements = append(tb.openElements, html)
 	tb.fragmentRoot = html
@@ -95,13 +100,13 @@ func NewFragment(tok *tokenizer.Tokenizer, ctx *FragmentContext) *TreeBuilder {
 		tag := strings.ToLower(ctx.TagName)
 		switch ctx.Namespace {
 		case "svg":
-			contextEl := dom.NewElementNS(ctx.TagName, dom.NamespaceSVG)
+			contextEl := tb.newElementNS(ctx.TagName, dom.NamespaceSVG)
 			html.AppendChild(contextEl)
 			tb.openElements = append(tb.openElements, contextEl)
 			tb.fragmentElement = contextEl
 			tb.mode = InBody
 		case "mathml":
-			contextEl := dom.NewElementNS(ctx.TagName, dom.NamespaceMathML)
+			contextEl := tb.newElementNS(ctx.TagName, dom.NamespaceMathML)
 			html.AppendChild(contextEl)
 			tb.openElements = append(tb.openElements, contextEl)
 			tb.fragmentElement = contextEl
@@ -340,7 +345,7 @@ func (tb *TreeBuilder) currentElement() *dom.Element {
 }
 
 func (tb *TreeBuilder) insertComment(data string) {
-	tb.insertNode(dom.NewComment(data), nil)
+	tb.insertNode(tb.newComment(data), nil)
 }
 
 func (tb *TreeBuilder) insertText(data string) {
@@ -348,13 +353,13 @@ func (tb *TreeBuilder) insertText(data string) {
 		return
 	}
 	parent, before := tb.appropriateInsertionLocation()
-	tb.insertNode(dom.NewText(data), &insertionLocation{parent: parent, before: before})
+	tb.insertNode(tb.newText(data), &insertionLocation{parent: parent, before: before})
 }
 
 func (tb *TreeBuilder) insertElement(name string, attrs []tokenizer.Attr) *dom.Element {
-	el := dom.NewElement(name)
+	el := tb.newElement(name)
 	if el.TagName == "template" && el.Namespace == dom.NamespaceHTML && el.TemplateContent == nil {
-		el.TemplateContent = dom.NewDocumentFragment()
+		el.TemplateContent = tb.newDocumentFragment()
 	}
 	for _, a := range attrs {
 		if a.Namespace != "" {
@@ -370,9 +375,9 @@ func (tb *TreeBuilder) insertElement(name string, attrs []tokenizer.Attr) *dom.E
 }
 
 func (tb *TreeBuilder) insertElementUnderHTML(name string, attrs []tokenizer.Attr) *dom.Element {
-	el := dom.NewElement(name)
+	el := tb.newElement(name)
 	if el.TagName == "template" && el.Namespace == dom.NamespaceHTML && el.TemplateContent == nil {
-		el.TemplateContent = dom.NewDocumentFragment()
+		el.TemplateContent = tb.newDocumentFragment()
 	}
 	for _, a := range attrs {
 		if a.Namespace != "" {
@@ -471,6 +476,48 @@ func ptrToString(s *string) string {
 	return *s
 }
 
+func (tb *TreeBuilder) newDocumentType(name, publicID, systemID string) *dom.DocumentType {
+	if tb.allocator == nil {
+		return dom.NewDocumentType(name, publicID, systemID)
+	}
+	return tb.allocator.NewDocumentType(name, publicID, systemID)
+}
+
+func (tb *TreeBuilder) newDocumentFragment() *dom.DocumentFragment {
+	if tb.allocator == nil {
+		return dom.NewDocumentFragment()
+	}
+	return tb.allocator.NewDocumentFragment()
+}
+
+func (tb *TreeBuilder) newElement(name string) *dom.Element {
+	if tb.allocator == nil {
+		return dom.NewElement(name)
+	}
+	return tb.allocator.NewElement(name)
+}
+
+func (tb *TreeBuilder) newElementNS(name, namespace string) *dom.Element {
+	if tb.allocator == nil {
+		return dom.NewElementNS(name, namespace)
+	}
+	return tb.allocator.NewElementNS(name, namespace)
+}
+
+func (tb *TreeBuilder) newText(data string) *dom.Text {
+	if tb.allocator == nil {
+		return dom.NewText(data)
+	}
+	return tb.allocator.NewText(data)
+}
+
+func (tb *TreeBuilder) newComment(data string) *dom.Comment {
+	if tb.allocator == nil {
+		return dom.NewComment(data)
+	}
+	return tb.allocator.NewComment(data)
+}
+
 type insertionLocation struct {
 	parent dom.Node
 	before dom.Node
@@ -486,7 +533,7 @@ func (tb *TreeBuilder) withFosterParenting(fn func() bool) bool {
 func (tb *TreeBuilder) appropriateInsertionLocation() (dom.Node, dom.Node) {
 	if current := tb.currentElement(); current != nil && current.Namespace == dom.NamespaceHTML && current.TagName == "template" {
 		if current.TemplateContent == nil {
-			current.TemplateContent = dom.NewDocumentFragment()
+			current.TemplateContent = tb.newDocumentFragment()
 		}
 		return current.TemplateContent, nil
 	}
@@ -508,7 +555,7 @@ func (tb *TreeBuilder) fosterInsertionLocation() (dom.Node, dom.Node) {
 	templateEl, templateIndex := tb.lastTemplateElement()
 	if templateEl != nil && (tableEl == nil || templateIndex > tableIndex) {
 		if templateEl.TemplateContent == nil {
-			templateEl.TemplateContent = dom.NewDocumentFragment()
+			templateEl.TemplateContent = tb.newDocumentFragment()
 		}
 		return templateEl.TemplateContent, nil
 	}
