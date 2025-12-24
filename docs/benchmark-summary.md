@@ -124,9 +124,9 @@ go test -bench=Stream -benchmem ./stream          # Streaming benchmarks
 
 ### Query Speed
 
-| Parser         | Simple Query | Complex Query | Relative Speed   |
-| -------------- | ------------ | ------------- | ---------------- |
-| **JustGoHTML** | 2,269 ns/op  | 3,325 ns/op   | 1.0x (baseline)  |
+| Parser         | Simple Query | Complex Query | Relative Speed    |
+| -------------- | ------------ | ------------- | ----------------- |
+| **JustGoHTML** | 2,269 ns/op  | 3,325 ns/op   | 1.0x (baseline)   |
 | goquery        | 3,160 ns/op  | 5,206 ns/op   | 0.64x (slower) ⚡ |
 
 **Note:** JustGoHTML CSS selectors are now **faster than goquery** for many queries!
