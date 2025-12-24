@@ -171,13 +171,18 @@ Based on lessons learned from failed optimizations (3.2.1, 3.2.2, 3.3.1), here a
   - **Why it worked:** Eliminated slice header updates on every token consumption
   - Implementation: `tokenizer/tokenizer.go:163-166` (struct), `tokenizer/tokenizer.go:298-314` (Next), `tokenizer/tokenizer.go:387-390` (emit)
 
-- [ ] **3.2.4.4 Inline hot path character classification**
-  - Currently: `switch c { case '\t', '\n', '\f', ' ': ... }` in multiple places
-  - Fix: Create lookup table `var isWhitespace [256]bool` for ASCII range
-  - Use `if c < 256 && isWhitespace[c]` for fast classification
-  - Also: `isASCIIAlpha`, `isASCIIUpper` tables
-  - **Why this won't fail:** Tables are read-only, excellent cache behavior
-  - Expected: 3-8% speedup in tag parsing states
+- [x] **3.2.4.4 Inline hot path character classification** ❌ REJECTED - No Performance Benefit
+  - **Investigation completed**: Tested replacing all 15 whitespace switch cases with lookup table checks
+  - **Benchmark results** (10 samples each, `-benchtime=10s -count=10`):
+    - Baseline: 1.126ms ± 4% | Optimized: 1.139ms ± 2%
+    - Change: +1.1% **slower** (p=0.089, NOT statistically significant)
+  - **Why lookup tables failed**:
+    - Modern CPUs optimize switch statements excellently (branch prediction, jump tables)
+    - Lookup tables introduce memory indirection overhead
+    - Character classification not the bottleneck
+  - **Conclusion**: Switch statements are already optimal for this use case
+  - **Infrastructure retained**: `internal/constants/charclass.go` lookup tables available for other contexts
+  - Reference: PR #5 (closed), branch `feat/complete-charclass-optimization`
 
 - [ ] **3.2.4.5 Reduce attribute map operations**
   - Currently: Every attribute does `t.currentTagAttrIndex[name] = struct{}{}` (line 447)
@@ -186,9 +191,11 @@ Based on lessons learned from failed optimizations (3.2.1, 3.2.2, 3.3.1), here a
   - **Why this won't fail:** Reduces map overhead for common case
   - Expected: 5-10% speedup for attribute-heavy documents
 
-**Priority order (highest impact first):** 3.2.4.4, 3.2.4.5
+**Priority order (highest impact first):** 3.2.4.5 (remaining)
 
-**Completed (in order of impact):** 3.2.4.3 (11% faster), 3.2.4.2 (4% faster on complex), 3.2.4.1 (rejected - no impact)
+**Completed (in order of impact):** 3.2.4.3 (11% faster), 3.2.4.2 (4% faster on complex)
+
+**Rejected (no benefit):** 3.2.4.4 (lookup tables slower), 3.2.4.1 (ring buffer - no impact)
 
 ### 3.3 Major Refactors (1-2 weeks each)
 
@@ -229,6 +236,51 @@ Based on lessons learned from failed optimizations (3.2.1, 3.2.2, 3.3.1), here a
 - Speed: 2-3x faster (competitive with x/net/html while maintaining 100% compliance)
 - Memory: 50-60% less memory
 - Allocations: 50-60% fewer allocations
+
+## 3.5 Lessons Learned - Performance Optimization
+
+**Always benchmark, never assume.** Several optimization attempts taught valuable lessons:
+
+### ❌ Failed Optimizations
+
+1. **Lookup Tables vs Switch Statements** (Task 3.2.4.4)
+   - **Assumption**: Lookup tables `isWhitespace[c]` would be faster than `switch c { case '\t', '\n'... }`
+   - **Reality**: 1.1% **slower** (p=0.089, not significant)
+   - **Why**: Modern compilers already optimize switches to jump tables; lookup adds memory indirection
+   - **Lesson**: Trust compiler optimizations for simple character ranges
+
+2. **Ring Buffer for Pending Tokens** (Task 3.2.4.1)
+   - **Assumption**: Fixed-size ring buffer would be faster than slice operations
+   - **Reality**: No measurable impact
+   - **Why**: Slice operations are highly optimized in Go; premature optimization
+   - **Lesson**: Profile before optimizing - don't optimize what isn't slow
+
+3. **Byte-based Tokenization** (Task 3.3.1)
+   - **Assumption**: Direct string indexing would be 30-40% faster than `[]rune`
+   - **Reality**: 12% **slower**, opposite of expected
+   - **Why**: UTF-8 decoding overhead on every character, expensive `peek()` operations
+   - **Lesson**: Test large changes early; theoretical gains don't always materialize
+
+### ✅ Successful Optimizations
+
+1. **Buffer Indexing** (Task 3.2.4.3): **11-35% faster**
+   - Replaced slice operations with index-based access
+   - Eliminated slice header updates on every token
+   - **Key**: Measured actual hotspot via profiling
+
+2. **State-specific Character Maps** (Task 3.2.4.2): **4% faster on complex HTML**
+   - Targeted specific expensive operations
+   - **Key**: Focused on measured bottlenecks
+
+### Golden Rules
+
+1. **Benchmark before and after** - No change without measurements (10+ samples, `benchstat` for significance)
+2. **Profile to find hotspots** - Optimize what's actually slow, not what seems slow
+3. **Trust the compiler** - Modern compilers optimize better than manual micro-optimizations
+4. **Small, focused changes** - Test incrementally; big rewrites often fail
+5. **Document rejections** - Failed optimizations teach as much as successful ones
+
+**When in doubt**: Measure, don't guess.
 
 ## 4. Documentation & Release
 
