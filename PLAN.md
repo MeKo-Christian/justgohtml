@@ -171,58 +171,53 @@ Based on lessons learned from failed optimizations (3.2.1, 3.2.2, 3.3.1), here a
   - **Why it worked:** Eliminated slice header updates on every token consumption
   - Implementation: `tokenizer/tokenizer.go:163-166` (struct), `tokenizer/tokenizer.go:298-314` (Next), `tokenizer/tokenizer.go:387-390` (emit)
 
-- [x] **3.2.4.4 Inline hot path character classification** ⚠️ PARTIAL - Infrastructure Complete, Limited Application
+- [x] **3.2.4.4 Inline hot path character classification** ❌ REJECTED - No Performance Benefit
   - Created lookup tables in `internal/constants/charclass.go`:
     - `isWhitespace[256]bool`, `isASCIIUpper[256]bool`, `isASCIILower[256]bool`
     - `isASCIIAlpha[256]bool`, `isASCIIAlphaNum[256]bool`
     - Helper functions: `IsWhitespace(c)`, `IsASCIIUpper(c)`, `IsASCIIAlpha(c)`, `ToLower(c)`
-  - **Applied optimizations:**
+  - **Tested optimizations:**
     - Replaced `unicode.ToLower(c)` with `constants.ToLower(c)` (4 locations)
     - Replaced `(c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z')` with `constants.IsASCIIAlpha(c)` (4 locations)
-    - Replaced uppercase-to-lowercase conversions in tag/attribute name parsing (2 locations)
-    - One whitespace switch-to-lookup replacement in `stateTagName()` (1 of 16 hot path locations)
-  - **Actual results: MINIMAL IMPACT**
-    - Speed: ~0-5% (within statistical noise, geomean +4.88% but p>0.05, not significant)
+    - One whitespace switch-to-lookup replacement in `stateTagName()` (1 location)
+    - **Extended test**: Converted all 15 whitespace switch cases to lookup checks
+  - **Actual results: NO PERFORMANCE BENEFIT**
+    - Initial partial optimization: ~0-5% (p>0.05, not significant)
+    - **Full whitespace optimization (15 conversions)**: +1.1% slower (p=0.089, not significant)
+      - Baseline: 1.126ms ± 4%
+      - Optimized: 1.139ms ± 2%
     - Memory: No change
     - Allocations: No change
-  - **Why limited impact:**
-    - Only 1 of 16 whitespace hot path checks optimized (complexity of safe switch-to-if refactoring)
-    - `ToLower()` calls not in critical hot path (only called after character classification)
-    - Alpha checks mostly in less-frequent state transitions
-  - **Infrastructure value:** Lookup tables and helper functions are now available for future optimizations
-  - **Conclusion:** Partial implementation - infrastructure complete but needs full application for target performance gains
-  - Implementation: `internal/constants/charclass.go` (tables), `tokenizer/tokenizer.go:717-720` (whitespace check)
+  - **Why lookup tables didn't help:**
+    - Modern CPUs optimize switch statements excellently (branch prediction, jump tables)
+    - Lookup table introduces memory indirection that offsets any theoretical gains
+    - Switch statements on simple character ranges already compile to efficient code
+    - Character classification is not the bottleneck in tokenization
+  - **Conclusion:** Lookup table approach rejected - switch statements are already optimal
+  - **Infrastructure retained:** Lookup tables remain in codebase for potential use in other contexts
+  - Implementation: `internal/constants/charclass.go` (tables and tests)
 
-  **Subtasks to complete optimization (on branch `feat/complete-charclass-optimization`):**
+  **Subtasks (completed but REJECTED due to no performance benefit):**
 
-  - [ ] **3.2.4.4.1 Convert remaining whitespace switch cases to lookup checks**
-    - Target: 15 remaining `case '\t', '\n', '\f', ' ':` instances (see tokenizer.go:751, 793, 834, 876, 956, 988, 1237, 1294, 1360, 1403, 1445, 1542, 1582, 1619, 1716)
-    - Strategy: For each switch statement with whitespace case:
-      1. Extract whitespace case action (continue/return/state change)
-      2. Add `if constants.IsWhitespace(c) { <action> }` before the switch
-      3. Remove whitespace case from switch
-      4. Run tests after each conversion
-    - Risk mitigation: Convert one at a time, test each change
-    - Expected impact: 3-8% speedup when all conversions complete
+  - [x] **3.2.4.4.1 Convert remaining whitespace switch cases to lookup checks** ✅ COMPLETED → ❌ REVERTED
+    - Converted all 15 whitespace switch cases to `constants.IsWhitespace(c)` lookups
+    - All tests passed with no regressions
+    - **Result**: Changes reverted - no performance benefit achieved
 
-  - [ ] **3.2.4.4.2 Optimize character classification in attribute parsing states**
-    - Target states: `stateBeforeAttributeName`, `stateAttributeName`, `stateAfterAttributeName`
-    - Convert whitespace switches to lookup checks
-    - Test attribute-heavy HTML documents specifically
-    - Expected impact: 2-3% additional speedup on attribute-heavy content
+  - [x] **3.2.4.4.2 Optimize character classification in attribute parsing states** ✅ COMPLETED (covered by 3.2.4.4.1) → ❌ REVERTED
+    - Covered by the 15 conversions in 3.2.4.4.1
+    - **Result**: Changes reverted along with 3.2.4.4.1
 
-  - [ ] **3.2.4.4.3 Benchmark and validate complete implementation**
-    - Run full benchmark suite with `-benchtime=10s -count=10`
-    - Compare against baseline (stored in `/tmp/baseline_3.2.4.4.txt`)
-    - Use `benchstat` to verify statistical significance
-    - Target: ≥3% speedup with p<0.05
-    - Document actual results in PLAN.md
+  - [x] **3.2.4.4.3 Benchmark and validate complete implementation** ✅ COMPLETED
+    - Ran comprehensive benchmarks: `-benchtime=10s -count=10` (10 samples)
+    - **Results**: NO PERFORMANCE IMPROVEMENT
+      - Baseline: 1.126ms ± 4% (n=10)
+      - Optimized: 1.139ms ± 2% (n=10)
+      - Change: +1.1% **SLOWER** (p=0.089, NOT statistically significant)
+    - **Decision**: Optimization rejected and reverted
 
-  - [ ] **3.2.4.4.4 Consider additional lookup table optimizations**
-    - Investigate `isASCIIDigit` table for numeric character references
-    - Consider `isASCIIHexDigit` for hex character references
-    - Profile to find actual hot spots before implementing
-    - Only proceed if profiling shows >1% time in these checks
+  - [x] **3.2.4.4.4 Consider additional lookup table optimizations** ❌ SKIPPED
+    - Not pursued since 3.2.4.4.1-3 showed lookup tables don't improve performance
 
 - [ ] **3.2.4.5 Reduce attribute map operations**
   - Currently: Every attribute does `t.currentTagAttrIndex[name] = struct{}{}` (line 447)
