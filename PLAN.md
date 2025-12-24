@@ -184,14 +184,13 @@ Based on lessons learned from failed optimizations (3.2.1, 3.2.2, 3.3.1), here a
   - **Infrastructure retained**: `internal/constants/charclass.go` lookup tables available for other contexts
   - Reference: PR #5 (closed), branch `feat/complete-charclass-optimization`
 
-- [ ] **3.2.4.5 Reduce attribute map operations**
-  - Currently: Every attribute does `t.currentTagAttrIndex[name] = struct{}{}` (line 447)
-  - Fix: Only track duplicates for tags with >1 attribute (common case: 0-3 attrs)
-  - Use simple slice scan for small attribute counts, map only when >4 attrs
-  - **Why this won't fail:** Reduces map overhead for common case
-  - Expected: 5-10% speedup for attribute-heavy documents
+- [x] **3.2.4.5 Reduce attribute map operations** ✅ SUCCESSFUL
+  - Only allocate attr index map after 4 attributes; use linear scan below threshold
+  - Map is built lazily when needed, avoiding per-attribute map ops in common case
+  - **Actual results: SIGNIFICANT IMPROVEMENT**
+    - **Speed: ~17% faster** (mean 1.079ms → 0.893ms; BenchmarkTokenizer, -benchtime=2s -count=10)
 
-**Priority order (highest impact first):** 3.2.4.5 (remaining)
+**Priority order (highest impact first):** (none remaining)
 
 **Completed (in order of impact):** 3.2.4.3 (11% faster), 3.2.4.2 (4% faster on complex)
 

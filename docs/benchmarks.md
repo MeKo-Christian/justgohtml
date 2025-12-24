@@ -98,6 +98,19 @@ go test -bench='Parallel' -benchmem -benchtime=5s
 - How well each parser scales with parallelism
 - Memory usage under concurrent load
 
+### 5. Tokenizer Micro-Benchmark
+
+The tokenizer has a dedicated micro-benchmark that isolates tokenization overhead without tree construction.
+
+```bash
+go test ./tokenizer -run '^$' -bench BenchmarkTokenizer -benchtime=2s -count=10
+```
+
+**Recent result (i7-1255U, 2s/10x):**
+
+- main: ~1.059 ms/op
+- feat/reduce-attr-map-ops: ~0.883 ms/op (**~16.6% faster**)
+
 ## Profiling
 
 ### CPU Profiling
@@ -170,6 +183,13 @@ name                     old alloc/op   new alloc/op   delta
 JustGoHTML_Parse_Simple    12.7kB ± 0%    11.2kB ± 0%  -11.81%  (p=0.000 n=10+10)
 ```
 
+### Recent Comparison Snapshot
+
+Run: `go test -run '^$' -bench='(JustGoHTML|NetHTML|Goquery)_(Parse_(Simple|Medium|Complex)|Query_(Simple|Complex))' -benchmem -count=3 -benchtime=1s`
+
+- Parse Complex: JustGoHTML 120,718 ns/op (baseline), net/html 62,296 ns/op (~1.9x faster), goquery 71,549 ns/op (~1.7x faster)
+- Query Complex: JustGoHTML 3,325 ns/op (baseline), goquery 5,206 ns/op (~0.64x, slower)
+
 ## Benchmark Testing Best Practices
 
 ### 1. Stable Environment
@@ -220,40 +240,40 @@ _ = result
 From benchmark results:
 
 ```
-BenchmarkJustGoHTML_Parse_Complex-12    10000    367141 ns/op
+BenchmarkJustGoHTML_Parse_Complex-12    10000    120718 ns/op
 ```
 
-Throughput: `1,000,000,000 ns/s ÷ 367,141 ns/op ≈ 2,724 ops/s`
+Throughput: `1,000,000,000 ns/s ÷ 120,718 ns/op ≈ 8,283 ops/s`
 
 For a 5KB HTML page, this means:
 
-- **~2,724 pages per second** on a single core
-- **~13.6 MB/s** parsing throughput
-- **~367 µs** latency per page
+- **~8,300 pages per second** on a single core
+- **~41 MB/s** parsing throughput
+- **~121 µs** latency per page
 
 ### Practical Scenarios
 
 **Web Scraping:**
 
-- Parsing 10,000 pages = ~3.7 seconds
-- With 10 goroutines = ~0.37 seconds
+- Parsing 10,000 pages = ~1.2 seconds
+- With 10 goroutines = ~0.12 seconds
 
 **API Processing:**
 
 - Processing 1,000 requests/s with HTML parsing
-- Each parse takes 367 µs, well within typical API budget
+- Each parse takes ~121 µs, well within typical API budget
 
 **Batch Processing:**
 
-- Processing 1 million pages = ~367 seconds (6 minutes)
-- With parallelism (12 cores) = ~30 seconds
+- Processing 1 million pages = ~121 seconds (2 minutes)
+- With parallelism (12 cores) = ~10 seconds
 
 ## Interpreting Comparison Results
 
 ### JustGoHTML vs golang.org/x/net/html
 
-**Speed:** JustGoHTML is ~2.2x slower
-**Memory:** JustGoHTML uses 66KB vs 38KB for complex HTML (optimized with ring buffer)
+**Speed:** JustGoHTML is ~1.9x slower
+**Memory:** JustGoHTML uses ~62KB vs 38KB for complex HTML (optimized with ring buffer)
 **Why:** Full HTML5 spec compliance vs ~70% compliance
 **Trade-off:** You get exact browser behavior
 
@@ -272,8 +292,8 @@ For a 5KB HTML page, this means:
 
 ### JustGoHTML vs goquery
 
-**Speed:** JustGoHTML parsing is ~2.2x slower, querying is competitive (often faster)
-**Memory:** JustGoHTML uses ~66KB vs ~38KB for complex HTML
+**Speed:** JustGoHTML parsing is ~1.7x slower, querying is faster (~35-40% faster)
+**Memory:** JustGoHTML uses ~62KB vs ~38KB for complex HTML
 **Why:** Same as x/net/html (goquery wraps it)
 **Trade-off:** Full spec compliance vs speed
 
